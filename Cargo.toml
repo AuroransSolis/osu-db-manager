@@ -1,0 +1,8 @@
+[package]
+name = "osu-db-manager"
+version = "0.1.0"
+authors = ["auro"]
+edition = "2018"
+
+[dependencies]
+byteorder = "1.3.1"
