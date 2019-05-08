@@ -1,7 +1,8 @@
 use std::fs::File;
-use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData};
+use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData, Read, Seek, SeekFrom};
 use std::time::{Duration, SystemTime};
 use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::string::FromUtf8Error;
 use byteorder::LittleEndian;
 use deserialize_primitives::*;
 
@@ -17,12 +18,14 @@ struct TimingPoint {
     inherited: bool
 }
 
-fn read_timing_point(file: &mut File) -> IoResult<TimingPoint> {
-    Ok(TimingPoint {
-        bpm: read_double(file)?,
-        offset: read_double(file)?,
-        inherited: read_boolean(file)?
-    })
+impl TimingPoint {
+    fn read_from_file(file: &mut File) -> IoResult<Self> {
+        Ok(TimingPoint {
+            bpm: read_double(file)?,
+            offset: read_double(file)?,
+            inherited: read_boolean(file)?
+        })
+    }
 }
 
 fn read_datetime(file: &mut File) -> IoResult<SystemTime> {
@@ -44,6 +47,26 @@ enum RankedStatus {
 }
 
 use self::RankedStatus::*;
+
+impl RankedStatus {
+    pub fn read_from_file(file: &mut File) -> IoResult<Self> {
+        let b = file.read_u8()?;
+        match b {
+            0 => Ok(Ok(Unknown)),
+            1 => Ok(Unsubmitted),
+            2 => Ok(PendingWIPGraveyard),
+            3 => Ok(Unused),
+            4 => Ok(Ranked),
+            5 => Ok(Approved),
+            6 => Ok(Qualified),
+            7 => Ok(Loved),
+            _ => {
+                let err_msg = format!("Found invalid ranked status value ({})", b);
+                Err(IoError::new(InvalidData, err_msg.as_str()))
+            }
+        }
+    }
+}
 
 impl Display for RankedStatus {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
@@ -78,7 +101,52 @@ impl Display for ByteSingle {
 }
 
 #[derive(Copy, Clone, Debug)]
-enum GameplayMode {
+pub struct Pre20140609;
+
+#[derive(Copy, Clone, Debug)]
+pub struct Modern;
+
+trait ReadVersionSpecificData {
+    fn read_arcshpod(file: &mut File) -> IoResult<ByteSingle>;
+    fn read_mod_combo_star_ratings(file: &mut File) -> IoResult<Option<(i32, Vec<(i32, f64)>)>>;
+    fn read_unknown_short(file: &mut File) -> IoResult<Option<i16>>;
+}
+
+impl ReadVersionSpecificData for Pre20140609 {
+    fn read_arcshpod(file: &mut File) -> IoResult<ByteSingle> {
+        Ok(Byte(file.read_u8()?))
+    }
+
+    fn read_mod_combo_star_ratings(file: &mut File) -> IoResult<Option<(i32, Vec<(i32, f64)>)>> {
+        Ok(None)
+    }
+
+    fn read_unknown_short(file: &mut File) -> IoResult<Option<i16>> {
+        Ok(Some(read_short(file)?))
+    }
+}
+
+impl ReadVersionSpecificData for Modern {
+    fn read_arcshpod(file: &mut File) -> IoResult<ByteSingle> {
+        Ok(Single(read_single(file)?))
+    }
+
+    fn read_mod_combo_star_ratings(file: &mut File) -> IoResult<Option<(i32, Vec<(i32, f64)>)>> {
+        let num_int_doubles = read_int(file)?;
+        let mut int_double_pairs = Vec::new();
+        for _ in 0..num_int_doubles {
+            int_double_pairs.push(read_int_double_pair(file)?);
+        }
+        Ok(Some((num_int_doubles, int_double_pairs)))
+    }
+
+    fn read_unknown_short(file: &mut File) -> IoResult<Option<i16>> {
+        Ok(None)
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum GameplayMode {
     Standard,
     Taiko,
     Ctb,
@@ -86,6 +154,22 @@ enum GameplayMode {
 }
 
 use self::GameplayMode::*;
+
+impl GameplayMode {
+    fn read_gameplay_mode(file: &mut File) -> IoResult<Self> {
+        let b = file.read_u8()?;
+        match b {
+            0 => Ok(Standard),
+            1 => Ok(Taiko),
+            2 => Ok(Ctb),
+            3 => Ok(Mania),
+            _ => {
+                let err_msg = format!("Read invalid gamemode specifier ({})", b);
+                Err(IoError::new(InvalidData, err_msg.as_str()))
+            }
+        }
+    }
+}
 
 impl Display for GameplayMode {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
@@ -139,7 +223,7 @@ pub struct Beatmap {
     taiko_grade: u8,
     ctb_grade: u8,
     mania_grade: u8,
-    local_beatmap_offset: i16,
+    local_offset: i16,
     stack_leniency: f32,
     gameplay_mode: GameplayMode,
     song_source: String,
@@ -153,42 +237,87 @@ pub struct Beatmap {
     disable_storyboard: bool,
     disable_video: bool,
     visual_override: bool,
-    maybe_version_indicator: i16,
+    unknown_short: Option<i16>,
     maybe_last_modification_time: i32,
     mania_scroll_speed: u8
 }
 
 impl Beatmap {
-    fn read_from_file(file: &mut File) -> IoResult<Self> {
+    fn read_from_file<T: ReadVersionSpecificData>(file: &mut File, version: T) -> IoResult<Self> {
         let entry_size = read_int(file)?;
-        let artist_name = read_string_utf8(file)?;
-        let artist_name = if let Ok(string) = artist_name {
-            string
-        } else if let Err(e) = artist_name {
-            let err_msg = format!("Error reading non-Unicode artist name ({})", e);
-            return Err(IoError::new(InvalidData, err_msg.as_str()));
-        };
-        let artist_name_unicode = read_string_utf8(file)?;
-        let artist_name_unicode = if let Ok(string) = artist_name_unicode {
-            string
-        } else if let Err(e) = artist_name_unicode {
-            let err_msg = format!("Error reading Unicode artist name ({})", e);
-            return Err(IoError::new(InvalidData, err_msg.as_str()));
-        };
-        let song_title = read_string_utf8(file)?;
-        let song_title = if let Ok(string) = song_title {
-            string
-        } else if let Err(e) = song_title {
-            let err_msg = format!("Error reading non-Unicode artist name ({})", e);
-            return Err(IoError::new(InvalidData, err_msg.as_str()));
-        };
-        let song_title_unicode = read_string_utf8(file)?;
-        let song_title_unicode = if let Ok(string) = song_title_unicode {
-            string
-        } else if let Err(e) = song_title_unicode {
-            let err_msg = format!("Error reading Unicode artist name ({})", e);
-            return Err(IoError::new(InvalidData, err_msg.as_str()));
-        };
+        let artist_name = fromutf8_to_ioresult(read_string_utf8(file)?, "non-Unicode artist name")?;
+        let artist_name_unicode = fromutf8_to_ioresult(read_string_utf8(file)?,
+            "Unicode artist name")?;
+        let song_title = fromutf8_to_ioresult(read_string_utf8(file)?, "non-Unicode song title")?;
+        let song_title_unicode = fromutf8_to_ioresult(read_string_utf8(file)?,
+            "Unicode song title")?;
+        let creator_name = fromutf8_to_ioresult(read_string_utf8(file)?, "creator name")?;
+        let difficulty = fromutf8_to_ioresult(read_string_utf8(file)?, "difficulty")?;
+        let audio_file_name = fromutf8_to_ioresult(read_string_utf8(file)?, "audio file name")?;
+        let md5_beatmap_hash = fromutf8_to_ioresult(read_string_utf8(file)?, "MD5 beatmap hash")?;
+        let dotosu_file_name = fromutf8_to_ioresult(read_string_utf8(file)?,
+            "corresponding .osu file name")?;
+        let ranked_status = RankedStatus::read_from_file(file)?;
+        let number_of_hitcircles = read_short(file)?;
+        let number_of_sliders = read_short(file)?;
+        let number_of_spinners = read_short(file)?;
+        let last_modification_time = read_datetime(file)?;
+        let approach_rate = T::read_arcshpod(file)?;
+        let circle_size = T::read_arcshpod(file)?;
+        let hp_drain = T::read_arcshpod(file)?;
+        let overall_difficulty = T::read_arcshpod(file)?;
+        let slider_velocity = read_double(file)?;
+        let (num_mcsr_standard, mcsr_standard) = T::read_mod_combo_star_ratings(file)?;
+        let (num_mcsr_taiko, mcsr_taiko) = T::read_mod_combo_star_ratings(file)?;
+        let (num_mcsr_ctb, mcsr_ctb) = T::read_mod_combo_star_ratings(file)?;
+        let (num_mcsr_mania, mcsr_mania) = T::read_mod_combo_star_ratings(file)?;
+        let drain_time = read_int(file)?;
+        let total_time = read_int(file)?;
+        let preview_offset_from_start_ms = read_int(file)?;
+        let num_timing_points = read_int(file)?;
+        let mut timing_points = Vec::new();
+        for _ in 0..num_timing_points {
+            timing_points.push(TimingPoint::read_from_file(file)?);
+        }
+        let beatmap_id = read_int(file)?;
+        let beatmap_set_id = read_int(file)?;
+        let thread_id = read_int(file)?;
+        let standard_grade = file.read_u8()?;
+        let taiko_grade = file.read_u8()?;
+        let ctb_grade = file.read_u8()?;
+        let mania_grade = file.read_u8()?;
+        let local_offset = read_short(file)?;
+        let stack_leniency = read_single(file)?;
+        let gameplay_mode = GameplayMode::read_gameplay_mode(file)?;
+        let song_source = fromutf8_to_ioresult(read_string_utf8(file)?, "song source")?;
+        let song_tags = fromutf8_to_ioresult(read_string_utf8(file)?, "song tags")?;
+        let online_offset = read_short(file)?;
+        let font_used_for_song_title = fromutf8_to_ioresult(read_string_utf8(file)?,
+            "font used for song title")?;
+        let unplayed = read_boolean(file)?;
+        let last_played = read_long(file)?;
+        let is_osz2 = read_boolean(file)?;
+        let folder_name = fromutf8_to_ioresult(read_string_utf8(file)?, "folder name")?;
+        let last_checked_against_repo = read_long(file)?;
+        let ignore_beatmap_sound = read_boolean(file)?;
+        let ignore_beatmap_skin = read_boolean(file)?;
+        let disable_storyboard = read_boolean(file)?;
+        let disable_video = read_boolean(file)?;
+        let visual_override = read_boolean(file)?;
+        let unknown_short = T::read_unknown_short(file)?;
+        let maybe_last_modification_time = read_int(file)?;
+        let mania_scroll_speed = file.read_u8()?;
+        Ok(Beatmap {
 
+        })
+    }
+}
+
+fn fromutf8_to_ioresult(r: Result<String, FromUtf8Error>, field: &str) -> IoResult<String> {
+    if let Ok(string) = r {
+        Ok(string)
+    } else if let Err(e) = r {
+        let err_msg = format!("Error reading {} ({})", field, e);
+        Err(IoError::new(InvalidData, err_msg.as_str()))
     }
 }
