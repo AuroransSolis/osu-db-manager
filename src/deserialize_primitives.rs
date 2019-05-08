@@ -37,12 +37,12 @@ pub fn read_uleb128(file: &mut File) -> IoResult<usize> {
         if shift + 8 >= size_of::<usize>() * 8 {
             if 0b11111111 >> (size_of::<usize>() * 8 - shift) | b
                 < (0b10000000 >> size_of::<usize>() * 8 - shift - 1) {
-                b += (b as usize) << shift;
+                out += (b as usize) << shift;
             } else {
                 let err_msg = format!("While the ULEB128 integer format supports integers \
                     of arbitrary lengths, this program will only handle ULEB128 integers up to and \
                     including {} bits in length.", size_of::<usize>() * 8);
-                IoError::new(InvalidData, err_msg.as_str())
+                return Err(IoError::new(InvalidData, err_msg.as_str()));
             }
         }
         out += (b as usize & 0b01111111) << shift;
@@ -58,20 +58,20 @@ pub fn read_uleb128(file: &mut File) -> IoResult<usize> {
         let err_msg = format!("While the ULEB128 integer format supports integers \
             of arbitrary lengths, this program will only handle ULEB128 integers up to and \
             including {} bits in length.", size_of::<usize>() * 8);
-        IoError::new(InvalidData, err_msg.as_str())
+        Err(IoError::new(InvalidData, err_msg.as_str()))
     }
 }
 
 pub fn read_single(file: &mut File) -> IoResult<f32> {
-    file.read_f32()
+    file.read_f32::<LittleEndian>()
 }
 
 pub fn read_double(file: &mut File) -> IoResult<f64> {
-    file.read_f64()
+    file.read_f64::<LittleEndian>()
 }
 
 pub fn read_boolean(file: &mut File) -> IoResult<bool> {
-    Ok(file.read_u8()? as bool)
+    Ok(file.read_u8()? != 0)
 }
 
 pub fn read_string_utf8(file: &mut File) -> IoResult<Result<String, FromUtf8Error>> {
@@ -81,12 +81,12 @@ pub fn read_string_utf8(file: &mut File) -> IoResult<Result<String, FromUtf8Erro
     } else if indicator == 0x0b {
         let length = read_uleb128(file)?;
         let mut bytes = Vec::with_capacity(length);
-        for i in 0..length {
+        for _ in 0..length {
             bytes.push(file.read_u8()?);
         }
         Ok(String::from_utf8(bytes))
     } else {
         let err_msg = format!("Found invalid indicator for string ({})", indicator);
-        IoError::new(InvalidData, err_msg.as_str())
+        Err(IoError::new(InvalidData, err_msg.as_str()))
     }
 }

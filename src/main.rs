@@ -1,7 +1,5 @@
 extern crate byteorder;
 
-use byteorder::{WriteBytesExt, ReadBytesExt};
-
 mod databases;
 mod deserialize_primitives;
 mod interactive;

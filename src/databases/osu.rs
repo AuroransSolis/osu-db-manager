@@ -1,10 +1,11 @@
 use std::fs::File;
-use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData, Read, Seek, SeekFrom};
+use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData};
 use std::time::{Duration, SystemTime};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::string::FromUtf8Error;
-use byteorder::LittleEndian;
-use deserialize_primitives::*;
+use std::mem::size_of_val;
+use byteorder::ReadBytesExt;
+use crate::deserialize_primitives::*;
 
 // Deserializing osu!.db-specific data types
 
@@ -31,7 +32,7 @@ impl TimingPoint {
 fn read_datetime(file: &mut File) -> IoResult<SystemTime> {
     let ticks = read_long(file)?;
     let duration_since_epoch = Duration::from_nanos(ticks as u64 * 100);
-    Ok(SystemTime::UNIX_EPOCH.add(duration_since_epoch))
+    Ok(SystemTime::UNIX_EPOCH + duration_since_epoch)
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -52,7 +53,7 @@ impl RankedStatus {
     pub fn read_from_file(file: &mut File) -> IoResult<Self> {
         let b = file.read_u8()?;
         match b {
-            0 => Ok(Ok(Unknown)),
+            0 => Ok(Unknown),
             1 => Ok(Unsubmitted),
             2 => Ok(PendingWIPGraveyard),
             3 => Ok(Unused),
@@ -94,8 +95,8 @@ use self::ByteSingle::*;
 impl Display for ByteSingle {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         write!(f, "{}", match self {
-            Byte(&b) => b,
-            Single(&s) => s
+            Byte(b) => format!("{}", b),
+            Single(s) => format!("{}", s)
         })
     }
 }
@@ -106,42 +107,94 @@ pub struct Pre20140609;
 #[derive(Copy, Clone, Debug)]
 pub struct Modern;
 
+#[derive(Copy, Clone, Debug)]
+pub struct ModernWithEntrySize;
+
 trait ReadVersionSpecificData {
+    fn read_entry_size(file: &mut File) -> IoResult<Option<i32>>;
     fn read_arcshpod(file: &mut File) -> IoResult<ByteSingle>;
-    fn read_mod_combo_star_ratings(file: &mut File) -> IoResult<Option<(i32, Vec<(i32, f64)>)>>;
+    fn read_mod_combo_star_ratings(file: &mut File)
+        -> IoResult<(Option<i32>, Option<Vec<(i32, f64)>>)>;
     fn read_unknown_short(file: &mut File) -> IoResult<Option<i16>>;
+    fn check_entry_size(beatmap: &Beatmap) -> Option<bool>;
 }
 
 impl ReadVersionSpecificData for Pre20140609 {
+    fn read_entry_size(_file: &mut File) -> IoResult<Option<i32>> {
+        Ok(None)
+    }
+
     fn read_arcshpod(file: &mut File) -> IoResult<ByteSingle> {
         Ok(Byte(file.read_u8()?))
     }
 
-    fn read_mod_combo_star_ratings(file: &mut File) -> IoResult<Option<(i32, Vec<(i32, f64)>)>> {
-        Ok(None)
+    fn read_mod_combo_star_ratings(_file: &mut File)
+        -> IoResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
+        Ok((None, None))
     }
 
     fn read_unknown_short(file: &mut File) -> IoResult<Option<i16>> {
         Ok(Some(read_short(file)?))
     }
+
+    fn check_entry_size(_beatmap: &Beatmap) -> Option<bool> {
+        None
+    }
 }
 
 impl ReadVersionSpecificData for Modern {
+    fn read_entry_size(_file: &mut File) -> IoResult<Option<i32>> {
+        Ok(None)
+    }
+
     fn read_arcshpod(file: &mut File) -> IoResult<ByteSingle> {
         Ok(Single(read_single(file)?))
     }
 
-    fn read_mod_combo_star_ratings(file: &mut File) -> IoResult<Option<(i32, Vec<(i32, f64)>)>> {
+    fn read_mod_combo_star_ratings(file: &mut File)
+        -> IoResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         let num_int_doubles = read_int(file)?;
         let mut int_double_pairs = Vec::new();
         for _ in 0..num_int_doubles {
             int_double_pairs.push(read_int_double_pair(file)?);
         }
-        Ok(Some((num_int_doubles, int_double_pairs)))
+        Ok((Some(num_int_doubles), Some(int_double_pairs)))
     }
 
-    fn read_unknown_short(file: &mut File) -> IoResult<Option<i16>> {
+    fn read_unknown_short(_file: &mut File) -> IoResult<Option<i16>> {
         Ok(None)
+    }
+
+    fn check_entry_size(_beatmap: &Beatmap) -> Option<bool> {
+        None
+    }
+}
+
+impl ReadVersionSpecificData for ModernWithEntrySize {
+    fn read_entry_size(file: &mut File) -> IoResult<Option<i32>> {
+        Ok(Some(read_int(file)?))
+    }
+
+    fn read_arcshpod(file: &mut File) -> IoResult<ByteSingle> {
+        Ok(Single(read_single(file)?))
+    }
+
+    fn read_mod_combo_star_ratings(file: &mut File)
+        -> IoResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
+        let num_int_doubles = read_int(file)?;
+        let mut int_double_pairs = Vec::new();
+        for _ in 0..num_int_doubles {
+            int_double_pairs.push(read_int_double_pair(file)?);
+        }
+        Ok((Some(num_int_doubles), Some(int_double_pairs)))
+    }
+
+    fn read_unknown_short(_file: &mut File) -> IoResult<Option<i16>> {
+        Ok(None)
+    }
+
+    fn check_entry_size(beatmap: &Beatmap) -> Option<bool> {
+        Some(size_of_val(beatmap) == beatmap.entry_size.unwrap() as usize)
     }
 }
 
@@ -183,7 +236,7 @@ impl Display for GameplayMode {
 }
 
 pub struct Beatmap {
-    entry_size: i32,
+    entry_size: Option<i32>,
     artist_name: String,
     artist_name_unicode: String,
     song_title: String,
@@ -232,6 +285,9 @@ pub struct Beatmap {
     font_used_for_song_title: String,
     unplayed: bool,
     last_played: SystemTime,
+    is_osz2: bool,
+    beatmap_folder_name: String,
+    last_checked_against_repo: SystemTime,
     ignore_beatmap_sound: bool,
     ignore_beatmap_skin: bool,
     disable_storyboard: bool,
@@ -243,8 +299,8 @@ pub struct Beatmap {
 }
 
 impl Beatmap {
-    fn read_from_file<T: ReadVersionSpecificData>(file: &mut File, version: T) -> IoResult<Self> {
-        let entry_size = read_int(file)?;
+    fn read_from_file<T: ReadVersionSpecificData>(file: &mut File) -> IoResult<Self> {
+        let entry_size = T::read_entry_size(file)?;
         let artist_name = fromutf8_to_ioresult(read_string_utf8(file)?, "non-Unicode artist name")?;
         let artist_name_unicode = fromutf8_to_ioresult(read_string_utf8(file)?,
             "Unicode artist name")?;
@@ -295,10 +351,10 @@ impl Beatmap {
         let font_used_for_song_title = fromutf8_to_ioresult(read_string_utf8(file)?,
             "font used for song title")?;
         let unplayed = read_boolean(file)?;
-        let last_played = read_long(file)?;
+        let last_played = read_datetime(file)?;
         let is_osz2 = read_boolean(file)?;
-        let folder_name = fromutf8_to_ioresult(read_string_utf8(file)?, "folder name")?;
-        let last_checked_against_repo = read_long(file)?;
+        let beatmap_folder_name = fromutf8_to_ioresult(read_string_utf8(file)?, "folder name")?;
+        let last_checked_against_repo = read_datetime(file)?;
         let ignore_beatmap_sound = read_boolean(file)?;
         let ignore_beatmap_skin = read_boolean(file)?;
         let disable_storyboard = read_boolean(file)?;
@@ -307,17 +363,82 @@ impl Beatmap {
         let unknown_short = T::read_unknown_short(file)?;
         let maybe_last_modification_time = read_int(file)?;
         let mania_scroll_speed = file.read_u8()?;
-        Ok(Beatmap {
-
-        })
+        let beatmap = Beatmap {
+            entry_size,
+            artist_name,
+            artist_name_unicode,
+            song_title,
+            song_title_unicode,
+            creator_name,
+            difficulty,
+            audio_file_name,
+            md5_beatmap_hash,
+            dotosu_file_name,
+            ranked_status,
+            number_of_hitcircles,
+            number_of_sliders,
+            number_of_spinners,
+            last_modification_time,
+            approach_rate,
+            circle_size,
+            hp_drain,
+            overall_difficulty,
+            slider_velocity,
+            num_mod_combo_star_ratings_standard: num_mcsr_standard,
+            mod_combo_star_ratings_standard: mcsr_standard,
+            num_mod_combo_star_ratings_taiko: num_mcsr_taiko,
+            mod_combo_star_ratings_taiko: mcsr_taiko,
+            num_mod_combo_star_ratings_ctb: num_mcsr_ctb,
+            mod_combo_star_ratings_ctb: mcsr_ctb,
+            num_mod_combo_star_ratings_mania: num_mcsr_mania,
+            mod_combo_star_ratings_mania: mcsr_mania,
+            drain_time,
+            total_time,
+            preview_offset_from_start_ms,
+            num_timing_points,
+            timing_points,
+            beatmap_id,
+            beatmap_set_id,
+            thread_id,
+            standard_grade,
+            taiko_grade,
+            ctb_grade,
+            mania_grade,
+            local_offset,
+            stack_leniency,
+            gameplay_mode,
+            song_source,
+            song_tags,
+            online_offset,
+            font_used_for_song_title,
+            unplayed,
+            last_played,
+            is_osz2,
+            beatmap_folder_name,
+            last_checked_against_repo,
+            ignore_beatmap_sound,
+            ignore_beatmap_skin,
+            disable_storyboard,
+            disable_video,
+            visual_override,
+            unknown_short,
+            maybe_last_modification_time,
+            mania_scroll_speed
+        };
+        if let Some(false) = T::check_entry_size(&beatmap) {
+            Err(IoError::new(InvalidData, "Entry size and size of beatmap do not match!"))
+        } else {
+            Ok(beatmap)
+        }
     }
 }
 
 fn fromutf8_to_ioresult(r: Result<String, FromUtf8Error>, field: &str) -> IoResult<String> {
-    if let Ok(string) = r {
-        Ok(string)
-    } else if let Err(e) = r {
-        let err_msg = format!("Error reading {} ({})", field, e);
-        Err(IoError::new(InvalidData, err_msg.as_str()))
+    match r {
+        Ok(string) => Ok(string),
+        Err(e) => {
+            let err_msg = format!("Error reading {} ({})", field, e);
+            Err(IoError::new(InvalidData, err_msg.as_str()))
+        }
     }
 }
