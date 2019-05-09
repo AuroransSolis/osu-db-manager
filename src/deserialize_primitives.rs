@@ -29,30 +29,41 @@ pub fn read_long(file: &mut File) -> IoResult<i64> {
 }
 
 pub fn read_uleb128(file: &mut File) -> IoResult<usize> {
+    //println!("    Loading ULEB128...");
     let mut out = 0;
     let mut found_end = false;
     let mut shift = 0;
     while shift < size_of::<usize>() * 8 {
+        //println!("        at start of loop: out = {}, found_end = {}, shift = {}", out, found_end, shift);
         let b = file.read_u8()?;
+        //println!("        read byte: {}", b);
         if shift + 8 >= size_of::<usize>() * 8 {
+            //println!("        LIMITED NUMBER OF BITS LEFT");
             if 0b11111111 >> (size_of::<usize>() * 8 - shift) | b
                 < (0b10000000 >> size_of::<usize>() * 8 - shift - 1) {
+                //println!("        byte fit in amount of bits left");
                 out += (b as usize) << shift;
+                found_end = true;
+                break;
             } else {
+                //println!("        byte did not fit in amount of bits left");
                 let err_msg = format!("While the ULEB128 integer format supports integers \
                     of arbitrary lengths, this program will only handle ULEB128 integers up to and \
                     including {} bits in length.", size_of::<usize>() * 8);
                 return Err(IoError::new(InvalidData, err_msg.as_str()));
             }
         }
+        //println!("        adding {} to out", (b as usize & 0b01111111) << shift);
         out += (b as usize & 0b01111111) << shift;
         if !(b | 0b00000000) & 0b10000000 == 0b10000000 {
+            //println!("        found end!");
             found_end = true;
             break;
         }
         shift += 7;
     }
     if found_end {
+        //println!("        ...loaded {}", out);
         Ok(out)
     } else {
         let err_msg = format!("While the ULEB128 integer format supports integers \
