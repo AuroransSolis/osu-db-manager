@@ -3,20 +3,8 @@ use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData};
 use std::time::{Duration, SystemTime};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::string::FromUtf8Error;
-use std::mem::size_of_val;
 use byteorder::ReadBytesExt;
 use crate::deserialize_primitives::*;
-
-const BOOLEAN: usize = 1;
-const BYTE: usize = 1;
-const SHORT: usize = 2;
-const INT: usize = 4;
-const LONG: usize = 8;
-const SINGLE: usize = 4;
-const DOUBLE: usize = 8;
-const INT_DOUBLE_PAIR: usize = 14;
-const TIMING_POINT: usize = 17;
-const DATETIME: usize = 8;
 
 // Deserializing osu!.db-specific data types
 
@@ -132,7 +120,6 @@ trait ReadVersionSpecificData {
     fn read_mod_combo_star_ratings(file: &mut File)
         -> IoResult<(Option<i32>, Option<Vec<(i32, f64)>>)>;
     fn read_unknown_short(file: &mut File) -> IoResult<Option<i16>>;
-    fn check_entry_size(beatmap: &Beatmap) -> Option<bool>;
 }
 
 impl ReadVersionSpecificData for Pre20140609 {
@@ -151,10 +138,6 @@ impl ReadVersionSpecificData for Pre20140609 {
 
     fn read_unknown_short(file: &mut File) -> IoResult<Option<i16>> {
         Ok(Some(read_short(file)?))
-    }
-
-    fn check_entry_size(_beatmap: &Beatmap) -> Option<bool> {
-        None
     }
 }
 
@@ -180,10 +163,6 @@ impl ReadVersionSpecificData for Modern {
     fn read_unknown_short(_file: &mut File) -> IoResult<Option<i16>> {
         Ok(None)
     }
-
-    fn check_entry_size(_beatmap: &Beatmap) -> Option<bool> {
-        None
-    }
 }
 
 impl ReadVersionSpecificData for ModernWithEntrySize {
@@ -207,69 +186,6 @@ impl ReadVersionSpecificData for ModernWithEntrySize {
 
     fn read_unknown_short(_file: &mut File) -> IoResult<Option<i16>> {
         Ok(None)
-    }
-
-    fn check_entry_size(beatmap: &Beatmap) -> Option<bool> {
-        let mut total_size = beatmap.artist_name.as_bytes().len()
-            + beatmap.artist_name_unicode.as_bytes().len()
-            + beatmap.song_title.as_bytes().len()
-            + beatmap.song_title_unicode.as_bytes().len()
-            + beatmap.creator_name.as_bytes().len()
-            + beatmap.difficulty.as_bytes().len()
-            + beatmap.audio_file_name.as_bytes().len()
-            + beatmap.md5_beatmap_hash.as_bytes().len()
-            + beatmap.dotosu_file_name.as_bytes().len()
-            + BYTE // beatmap.ranked_status
-            + SHORT // beatmap.number_of_hitcircles
-            + SHORT // beatmap.number_of_sliders
-            + SHORT // beatmap.number_of_spinners
-            + DATETIME // beatmap.last_modification_time
-            + SINGLE // beatmap.approach_rate
-            + SINGLE // beatmap.circle_size
-            + SINGLE // beatmap.hp_drain
-            + SINGLE // beatmap.overall_difficulty
-            + DOUBLE // beatmap.slider_velocity
-            + INT_DOUBLE_PAIR // beatmap.num_mod_combo_star_ratings_standard
-            + beatmap.mod_combo_star_ratings_standard.as_ref().unwrap().len() * INT_DOUBLE_PAIR
-            + INT_DOUBLE_PAIR // beatmap.num_mod_combo_star_ratings_taiko
-            + beatmap.mod_combo_star_ratings_taiko.as_ref().unwrap().len() * INT_DOUBLE_PAIR
-            + INT_DOUBLE_PAIR // beatmap.num_mod_combo_star_ratings_ctb
-            + beatmap.mod_combo_star_ratings_ctb.as_ref().unwrap().len() * INT_DOUBLE_PAIR
-            + INT_DOUBLE_PAIR // beatmap.num_mod_combo_star_ratings_mania
-            + beatmap.mod_combo_star_ratings_mania.as_ref().unwrap().len() * INT_DOUBLE_PAIR
-            + INT // beatmap.drain_time
-            + INT // beatmap.total_time
-            + INT // beatmap.preview_offset_from_start_ms
-            + INT // beatmap.num_timing_points
-            + beatmap.timing_points.len() * TIMING_POINT
-            + INT // beatmap.beatmap_id
-            + INT // beatmap.beatmap_set_id
-            + INT // beatmap.thread_id
-            + BYTE // beatmap.standard_grade
-            + BYTE // beatmap.taiko_grade
-            + BYTE // beatmap.ctb_grade
-            + BYTE // beatmap.mania_grade
-            + SHORT // beatmap.local_offset
-            + SINGLE // beatmap.stack_leniency
-            + BYTE // beatmap.gameplay_mode
-            + beatmap.song_source.as_bytes().len()
-            + beatmap.song_tags.as_bytes().len()
-            + SHORT // beatmap.online_offset
-            + beatmap.font_used_for_song_title.as_bytes().len()
-            + BOOLEAN // beatmap.unplayed
-            + LONG // beatmap.last_played
-            + BOOLEAN // beatmap.is_osz2
-            + beatmap.beatmap_folder_name.as_bytes().len()
-            + LONG // beatmap.last_checked_against_repo
-            + BOOLEAN // beatmap.ignore_beatmap_sound
-            + BOOLEAN // beatmap.ignore_beatmap_skin
-            + BOOLEAN // beatmap.disable_storyboard
-            + BOOLEAN // beatmap.disable_video
-            + BOOLEAN //beatmap.visual_override
-            + INT // beatmap.offset_from_song_start_in_editor_ms
-            + BYTE; // beatmap.mania_scroll_speed
-        println!("    Comparing {} (size of loaded beatmap) and {} (specified entry size)", total_size, beatmap.entry_size.unwrap());
-        Some(total_size == beatmap.entry_size.unwrap() as usize)
     }
 }
 
@@ -376,179 +292,69 @@ pub struct Beatmap {
 
 impl Beatmap {
     fn read_from_file<T: ReadVersionSpecificData>(file: &mut File) -> IoResult<Self> {
-        println!("    Loading entry_size...");
         let entry_size = T::read_entry_size(file)?;
-        println!("        ...loaded {:?}", entry_size);
-        println!("    Loading artist_name...");
         let artist_name = fromutf8_to_ioresult(read_string_utf8(file)?, "non-Unicode artist name")?;
-        println!("        ...loaded {}", artist_name);
-        println!("    Loading artist_name_unicode...");
         let artist_name_unicode = fromutf8_to_ioresult(read_string_utf8(file)?,
             "Unicode artist name")?;
-        println!("        ...loaded {}", artist_name_unicode);
-        println!("    Loading song_title...");
         let song_title = fromutf8_to_ioresult(read_string_utf8(file)?, "non-Unicode song title")?;
-        println!("        ...loaded {}", song_title);
         let song_title_unicode = fromutf8_to_ioresult(read_string_utf8(file)?,
             "Unicode song title")?;
-        println!("    Loading creator_name...");
         let creator_name = fromutf8_to_ioresult(read_string_utf8(file)?, "creator name")?;
-        println!("        ...loaded {}", creator_name);
-        println!("    Loading difficulty...");
         let difficulty = fromutf8_to_ioresult(read_string_utf8(file)?, "difficulty")?;
-        println!("        ...loaded {}", difficulty);
-        println!("    Loading audio_file_name...");
         let audio_file_name = fromutf8_to_ioresult(read_string_utf8(file)?, "audio file name")?;
-        println!("        ...loaded {}", audio_file_name);
-        println!("    Loading md5_beatmap_hash...");
         let md5_beatmap_hash = fromutf8_to_ioresult(read_string_utf8(file)?, "MD5 beatmap hash")?;
-        println!("        ...loaded {}", md5_beatmap_hash);
-        println!("    Loading dotosu_file_name...");
         let dotosu_file_name = fromutf8_to_ioresult(read_string_utf8(file)?,
             "corresponding .osu file name")?;
-        println!("        ...loaded {}", dotosu_file_name);
-        println!("    Loading ranked_status...");
         let ranked_status = RankedStatus::read_from_file(file)?;
-        println!("        ...loaded {}", ranked_status);
-        println!("    Loading number_of_hitcircles...");
         let number_of_hitcircles = read_short(file)?;
-        println!("        ...loaded {}", number_of_hitcircles);
-        println!("    Loading number_of_sliders...");
         let number_of_sliders = read_short(file)?;
-        println!("        ...loaded {}", number_of_sliders);
-        println!("    Loading number_of_spinners...");
         let number_of_spinners = read_short(file)?;
-        println!("        ...loaded {}", number_of_spinners);
-        println!("    Loading last_modification_time...");
         let last_modification_time = read_datetime(file)?;
-        println!("        ...loaded {:?}", last_modification_time);
-        println!("    Loading approach_rate...");
         let approach_rate = T::read_arcshpod(file)?;
-        println!("        ...loaded {}", approach_rate);
-        println!("    Loading circle_size...");
         let circle_size = T::read_arcshpod(file)?;
-        println!("        ...loaded {}", circle_size);
-        println!("    Loading hp_drain...");
         let hp_drain = T::read_arcshpod(file)?;
-        println!("        ...loaded {}", hp_drain);
-        println!("    Loading overall_difficulty...");
         let overall_difficulty = T::read_arcshpod(file)?;
-        println!("        ...loaded {}", overall_difficulty);
-        println!("    Loading slider_velocity...");
         let slider_velocity = read_double(file)?;
-        println!("        ...loaded {}", slider_velocity);
-        println!("    Loading (num_mcsr_standard, mcsr_standard)...");
         let (num_mcsr_standard, mcsr_standard) = T::read_mod_combo_star_ratings(file)?;
-        println!("        ...loaded {:?}", num_mcsr_standard);
-        println!("    Loading (num_mcsr_taiko, mcsr_taiko)...");
         let (num_mcsr_taiko, mcsr_taiko) = T::read_mod_combo_star_ratings(file)?;
-        println!("        ...loaded {:?}", num_mcsr_taiko);
-        println!("    Loading (num_mcsr_ctb, mcsr_ctb)...");
         let (num_mcsr_ctb, mcsr_ctb) = T::read_mod_combo_star_ratings(file)?;
-        println!("        ...loaded {:?}", num_mcsr_ctb);
-        println!("    Loading (num_mcsr_mania, mcsr_mania)...");
         let (num_mcsr_mania, mcsr_mania) = T::read_mod_combo_star_ratings(file)?;
-        println!("        ...loaded {:?}", num_mcsr_mania);
-        println!("    Loading drain_time...");
         let drain_time = read_int(file)?;
-        println!("        ...loaded {}", drain_time);
-        println!("    Loading total_time...");
         let total_time = read_int(file)?;
-        println!("        ...loaded {}", total_time);
-        println!("    Loading preview_offset_from_start_ms...");
         let preview_offset_from_start_ms = read_int(file)?;
-        println!("        ...loaded {}", preview_offset_from_start_ms);
-        println!("    Loading num_timing_points...");
         let num_timing_points = read_int(file)?;
-        println!("        ...loaded {}", num_timing_points);
-        println!("    Loading timing_points...");
         let mut timing_points = Vec::with_capacity(num_timing_points as usize);
         for _ in 0..num_timing_points {
             timing_points.push(TimingPoint::read_from_file(file)?);
         }
-        println!("        ...loaded.");
-        println!("    Loading beatmap_id...");
         let beatmap_id = read_int(file)?;
-        println!("        ...loaded {}", beatmap_id);
-        println!("    Loading beatmap_set_id...");
         let beatmap_set_id = read_int(file)?;
-        println!("        ...loaded {}", beatmap_set_id);
-        println!("    Loading thread_id...");
         let thread_id = read_int(file)?;
-        println!("        ...loaded {}", thread_id);
-        println!("    Loading standard_grade...");
         let standard_grade = file.read_u8()?;
-        println!("        ...loaded {}", standard_grade);
-        println!("    Loading taiko_grade...");
         let taiko_grade = file.read_u8()?;
-        println!("        ...loaded {}", taiko_grade);
-        println!("    Loading ctb_grade...");
         let ctb_grade = file.read_u8()?;
-        println!("        ...loaded {}", ctb_grade);
-        println!("    Loading mania_grade...");
         let mania_grade = file.read_u8()?;
-        println!("        ...loaded {}", mania_grade);
-        println!("    Loading local_offset...");
         let local_offset = read_short(file)?;
-        println!("        ...loaded {}", local_offset);
-        println!("    Loading stack_leniency...");
         let stack_leniency = read_single(file)?;
-        println!("        ...loaded {}", stack_leniency);
-        println!("    Loading gameplay_mode...");
         let gameplay_mode = GameplayMode::read_gameplay_mode(file)?;
-        println!("        ...loaded {}", gameplay_mode);
-        println!("    Loading song_source...");
         let song_source = fromutf8_to_ioresult(read_string_utf8(file)?, "song source")?;
-        println!("        ...loaded {}", song_source);
-        println!("    Loading song_tags...");
         let song_tags = fromutf8_to_ioresult(read_string_utf8(file)?, "song tags")?;
-        println!("        ...loaded {}", song_tags);
-        println!("    Loading online_offset...");
         let online_offset = read_short(file)?;
-        println!("        ...loaded {}", online_offset);
-        println!("    Loading font_used_for_song_title...");
         let font_used_for_song_title = fromutf8_to_ioresult(read_string_utf8(file)?,
             "font used for song title")?;
-        println!("        ...loaded {}", font_used_for_song_title);
-        println!("    Loading unplayed...");
         let unplayed = read_boolean(file)?;
-        println!("        ...loaded {}", unplayed);
-        println!("    Loading last_played...");
         let last_played = read_datetime(file)?;
-        println!("        ...loaded {:?}", last_played);
-        println!("    Loading is_osz2...");
         let is_osz2 = read_boolean(file)?;
-        println!("        ...loaded {}", is_osz2);
-        println!("    Loading beatmap_folder_name...");
         let beatmap_folder_name = fromutf8_to_ioresult(read_string_utf8(file)?, "folder name")?;
-        println!("        ...loaded {}", beatmap_folder_name);
-        println!("    Loading last_checked_against_repo...");
         let last_checked_against_repo = read_datetime(file)?;
-        println!("        ...loaded {:?}", last_checked_against_repo);
-        println!("    Loading ignore_beatmap_sound...");
         let ignore_beatmap_sound = read_boolean(file)?;
-        println!("        ...loaded {}", ignore_beatmap_sound);
-        println!("    Loading ignore_beatmap_skin...");
         let ignore_beatmap_skin = read_boolean(file)?;
-        println!("        ...loaded {}", ignore_beatmap_skin);
-        println!("    Loading disable_storyboard...");
         let disable_storyboard = read_boolean(file)?;
-        println!("        ...loaded {}", disable_storyboard);
-        println!("    Loading disable_video...");
         let disable_video = read_boolean(file)?;
-        println!("        ...loaded {}", disable_video);
-        println!("    Loading visual_override...");
         let visual_override = read_boolean(file)?;
-        println!("        ...loaded {}", visual_override);
-        println!("    Loading unknown_short...");
         let unknown_short = T::read_unknown_short(file)?;
-        println!("        ...loaded {:?}", unknown_short);
-        println!("    Loading offset_from_song_start_in_editor_ms...");
         let offset_from_song_start_in_editor_ms = read_int(file)?;
-        println!("        ...loaded {}", offset_from_song_start_in_editor_ms);
-        println!("    Loading mania_scroll_speed...");
         let mania_scroll_speed = file.read_u8()?;
-        println!("        ...loaded {}", mania_scroll_speed);
         let beatmap = Beatmap {
             entry_size,
             artist_name,
@@ -611,11 +417,7 @@ impl Beatmap {
             offset_from_song_start_in_editor_ms,
             mania_scroll_speed
         };
-        if let Some(false) = T::check_entry_size(&beatmap) {
-            Err(IoError::new(InvalidData, "Entry size and size of beatmap do not match!"))
-        } else {
-            Ok(beatmap)
-        }
+        Ok(beatmap)
     }
 }
 
@@ -643,30 +445,17 @@ pub struct OsuDb {
 
 impl OsuDb {
     pub fn read_from_file(file: &mut File) -> IoResult<Self> {
-        println!("Loading version...");
         let version = read_int(file)?;
-        println!("    ...loaded {}", version);
-        println!("Loading folder_count...");
         let folder_count = read_int(file)?;
-        println!("    ...loaded {}", folder_count);
-        println!("Loading account_unlocked...");
         let account_unlocked = read_boolean(file)?;
-        println!("    ...loaded {}", account_unlocked);
-        println!("Loading account_unlock_date...");
         let account_unlock_date = if !account_unlocked {
             Some(read_datetime(file)?)
         } else {
             let _ = read_long(file)?;
             None
         };
-        println!("    ...loaded {:?}", account_unlock_date);
-        println!("Loading player_name...");
         let player_name = fromutf8_to_ioresult(read_string_utf8(file)?, "player name")?;
-        println!("    ...loaded {}", player_name);
-        println!("Loading num_beatmaps...");
         let num_beatmaps = read_int(file)?;
-        println!("    ...loaded {}", num_beatmaps);
-        println!("Loading beatmaps...");
         let mut beatmaps = Vec::with_capacity(num_beatmaps as usize);
         if version < 20140609 {
             for _ in 0..num_beatmaps {
@@ -685,10 +474,7 @@ impl OsuDb {
                 version);
             return Err(IoError::new(InvalidData, err_msg.as_str()));
         }
-        println!("    ...loaded.");
-        println!("Loading unknown_int...");
         let unknown_int = read_int(file)?;
-        println!("    ...loaded {}", unknown_int);
         Ok(OsuDb {
             version,
             folder_count,
