@@ -4,6 +4,7 @@ use std::io::{Result as IoResult, Error as IoError};
 use std::io::ErrorKind::InvalidData;
 use std::mem::size_of;
 use std::string::FromUtf8Error;
+use std::time::{Duration, SystemTime};
 
 // Primitive types we need to read from databases:
 // Byte
@@ -100,4 +101,20 @@ pub fn read_string_utf8(file: &mut File) -> IoResult<Result<String, FromUtf8Erro
         let err_msg = format!("Found invalid indicator for string ({})", indicator);
         Err(IoError::new(InvalidData, err_msg.as_str()))
     }
+}
+
+pub fn fromutf8_to_ioresult(r: Result<String, FromUtf8Error>, field: &str) -> IoResult<String> {
+    match r {
+        Ok(string) => Ok(string),
+        Err(e) => {
+            let err_msg = format!("Error reading {} ({})", field, e);
+            Err(IoError::new(InvalidData, err_msg.as_str()))
+        }
+    }
+}
+
+pub fn read_datetime(file: &mut File) -> IoResult<SystemTime> {
+    let ticks = read_long(file)?;
+    let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
+    Ok(SystemTime::UNIX_EPOCH + duration_since_epoch)
 }

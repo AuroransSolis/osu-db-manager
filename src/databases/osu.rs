@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData};
 use std::time::{Duration, SystemTime};
 use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::string::FromUtf8Error;
 use byteorder::ReadBytesExt;
 use crate::deserialize_primitives::*;
 
@@ -17,7 +16,7 @@ fn read_int_double_pair(file: &mut File) -> IoResult<(i32, f64)> {
 }
 
 #[derive(Copy, Clone, Debug)]
-struct TimingPoint {
+pub struct TimingPoint {
     bpm: f64,
     offset: f64,
     inherited: bool
@@ -33,14 +32,8 @@ impl TimingPoint {
     }
 }
 
-fn read_datetime(file: &mut File) -> IoResult<SystemTime> {
-    let ticks = read_long(file)?;
-    let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
-    Ok(SystemTime::UNIX_EPOCH + duration_since_epoch)
-}
-
 #[derive(Copy, Clone, Debug)]
-enum RankedStatus {
+pub enum RankedStatus {
     Unknown,
     Unsubmitted,
     PendingWIPGraveyard,
@@ -89,7 +82,7 @@ impl Display for RankedStatus {
 }
 
 #[derive(Copy, Clone, Debug)]
-enum ByteSingle {
+pub enum ByteSingle {
     Byte(u8),
     Single(f32)
 }
@@ -200,7 +193,7 @@ pub enum GameplayMode {
 use self::GameplayMode::*;
 
 impl GameplayMode {
-    fn read_gameplay_mode(file: &mut File) -> IoResult<Self> {
+    pub fn read_from_file(file: &mut File) -> IoResult<Self> {
         let b = file.read_u8()?;
         match b {
             0 => Ok(Standard),
@@ -336,7 +329,7 @@ impl Beatmap {
         let mania_grade = file.read_u8()?;
         let local_offset = read_short(file)?;
         let stack_leniency = read_single(file)?;
-        let gameplay_mode = GameplayMode::read_gameplay_mode(file)?;
+        let gameplay_mode = GameplayMode::read_from_file(file)?;
         let song_source = fromutf8_to_ioresult(read_string_utf8(file)?, "song source")?;
         let song_tags = fromutf8_to_ioresult(read_string_utf8(file)?, "song tags")?;
         let online_offset = read_short(file)?;
@@ -421,26 +414,16 @@ impl Beatmap {
     }
 }
 
-fn fromutf8_to_ioresult(r: Result<String, FromUtf8Error>, field: &str) -> IoResult<String> {
-    match r {
-        Ok(string) => Ok(string),
-        Err(e) => {
-            let err_msg = format!("Error reading {} ({})", field, e);
-            Err(IoError::new(InvalidData, err_msg.as_str()))
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct OsuDb {
-    version: i32,
-    folder_count: i32,
-    account_unlocked: bool,
-    account_unlock_date: Option<SystemTime>,
-    player_name: String,
-    number_of_beatmaps: i32,
-    beatmaps: Vec<Beatmap>,
-    unknown_int: i32
+    pub(crate) version: i32,
+    pub(crate) folder_count: i32,
+    pub(crate) account_unlocked: bool,
+    pub(crate) account_unlock_date: Option<SystemTime>,
+    pub(crate) player_name: String,
+    pub(crate) number_of_beatmaps: i32,
+    pub(crate) beatmaps: Vec<Beatmap>,
+    pub(crate) unknown_int: i32
 }
 
 impl OsuDb {

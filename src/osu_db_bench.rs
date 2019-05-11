@@ -18,11 +18,13 @@ criterion_main!{osu_db_bench}
 
 fn bench_load_osudb(c: &mut Criterion) {
     c.bench_function("Load entire osu!.db", move |b| {
-        b.iter(|| {
-            let mut file = File::open("osu!.db").unwrap();
+        b.iter_with_setup(|| {
+            let file = File::open("borrowed-osu!.db").unwrap();
+            file
+        }, |mut file| {
             if let Err(_) = OsuDb::read_from_file(&mut file) {
                 panic!("Uh oh!");
             }
-        })
+        });
     });
 }
