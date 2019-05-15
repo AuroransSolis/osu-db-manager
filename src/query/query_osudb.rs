@@ -1,111 +1,126 @@
 use crate::databases::osu::{OsuDb, Beatmap, TimingPoint, RankedStatus, ByteSingle, GameplayMode};
+use crate::query::query::{QueryStruct, PartialDb, Query};
 use std::time::SystemTime;
+use std::path::Path;
+use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData};
+use std::fs::File;
 
 pub struct OsuDbQuery {
-    version: bool,
-    folder_count: bool,
-    account_unlocked: bool,
-    account_unlock_date: bool,
-    player_name: bool,
-    number_of_beatmaps: bool,
-    beatmap: Option<BeatmapQuery>,
-    unknown_int: bool
+    pub version: bool,
+    pub folder_count: bool,
+    pub account_unlocked: bool,
+    pub account_unlock_date: bool,
+    pub player_name: bool,
+    pub number_of_beatmaps: bool,
+    pub beatmap: Option<BeatmapQuery>,
+    pub unknown_int: bool
 }
+
+impl QueryStruct for OsuDbQuery {}
 
 impl OsuDbQuery {
-    pub fn new(bools: [bool; 7], beatmap_query: Option<BeatmapQuery>) -> Self {
+    pub fn new(version: bool, folder_count: bool, account_unlocked: bool, account_unlock_date: bool,
+        player_name: bool, number_of_beatmaps: bool, beatmap: Option<BeatmapQuery>,
+        unknown_int: bool) -> Self {
         OsuDbQuery {
-            version: bools[0],
-            folder_count: bools[1],
-            account_unlocked: bools[2],
-            account_unlock_date: bools[3],
-            player_name: bools[4],
-            number_of_beatmaps: bools[5],
-            beatmap: beatmap_query,
-            unknown_int: bools[6]
+            version,
+            folder_count,
+            account_unlocked,
+            account_unlock_date,
+            player_name,
+            number_of_beatmaps,
+            beatmap,
+            unknown_int
         }
     }
 }
 
-impl OsuDb {
-    pub fn query(&self, q: OsuDbQuery) -> String {
-        let mut out = String::new();
-        if q.version {
-            out = format!("Version: {}", self.version);
+macro_rules! query {
+    ($item:tt, $query:ident) => {
+        if $query.$item {
+            Some(self.$item)
+        } else {
+            None
         }
-        if q.folder_count && out.len() > 0 {
-            out = format!("\nFolder count: {}", self.folder_count);
-        } else if q.folder_count {
-            out = format!("Folder count: {}", self.folder_count);
-        }
-        if q.account_unlocked && out.len() > 0 {
-            out = format!("\nAccount unlocked: {}", self.account_unlocked);
-        } else if q.account_unlocked {
-            out = format!("Account unlocked: {}", self.account_unlocked);
-        }
-        out
     }
 }
 
-pub enum BeatmapQuery {
-    EntrySize(Option<i32>),
-    AristName(String),
-    ArtistNameUnicode(String),
-    SongTitle(String),
-    SongTitleUnicode(String),
-    CreatorName(String),
-    Difficulty(String),
-    AudioFileName(String),
-    MD5BeatmapHash(String),
-    DotosuFileName(String),
-    RankedStatus(RankedStatus),
-    NumberOfHitcircles(i16),
-    NumberOfSliders(i16),
-    NumberOfSpinners(i16),
-    LastModificationTime(SystemTime),
-    ApproachRate(ByteSingle),
-    CircleSize(ByteSingle),
-    HpDrain(ByteSingle),
-    OverallDifficulty(ByteSingle),
-    SliderVelocity(f64),
-    NumModComboStarRatingsStandard(Option<i32>),
-    ModComboStarRatingsStandard(Option<Vec<(i32, f64)>>),
-    NumModComboStarRatingsTaiko(Option<i32>),
-    ModComboStarRatingsTaiko(Option<Vec<(i32, f64)>>),
-    NumModComboStarRatingsCtb(Option<i32>),
-    ModComboStarRatingsCtb(Option<Vec<(i32, f64)>>),
-    NumModComboStarRatingsMania(Option<i32>),
-    ModComboStarRatingsMania(Option<Vec<(i32, f64)>>),
-    DrainTime(i32),
-    TotalTime(i32),
-    PreviewOffsetFromStartMs(i32),
-    NumTimingPoints(i32),
-    TimingPoints(Vec<TimingPoint>),
-    BeatmapId(i32),
-    BeatmapSetId(i32),
-    ThreadId(i32),
-    StandardGrade(u8),
-    TaikoGrade(u8),
-    CtbGrade(u8),
-    ManiaGrade(u8),
-    LocalOffset(i16),
-    StackLeniency(f32),
-    GameplayMode(GameplayMode),
-    SongSource(String),
-    SongTags(String),
-    OnlineOffset(i16),
-    FontUsedForSongTitle(String),
-    Unplayed(bool),
-    LastPlayed(SystemTime),
-    IsOsz2(bool),
-    BeatmapFolderName(String),
-    LastCheckedAgainstRepo(SystemTime),
-    IgnoreBeatmapSound(bool),
-    IgnoreBeatmapSkin(bool),
-    DisableStoryboard(bool),
-    DisableVideo(bool),
-    VisualOverride(bool),
-    UnknownShort(Option<i16>),
-    OffsetFromSongStartInEditorMs(i32),
-    ManiaScrollSpeed(u8)
+impl Query for OsuDb {
+    fn query_loaded(&self, query: OsuDbQuery) -> PartialOsuDb {
+        let version = query!(version, query);
+        let folder_count = query!(folder_count, query);
+        let account_unlocked = query!(account_unlocked, query);
+        let account_unlock_date = query!(account_unlock_date, query);
+        let player_name = query!(player_name, query);
+        let number_of_beatmaps = query!(number_of_beatmaps, query);
+        let beatmaps = query!(beatmaps, query);
+        let unknown_int = query!(unknown_int, query);
+    }
+
+    fn load_and_query<P: Into<Path>>(path: P, query: OsuDbQuery) -> PartialOsuDb {
+
+    }
+}
+
+pub struct BeatmapQuery {
+    entry_size: bool,
+    artist_name: bool,
+    artist_name_unicode: bool,
+    song_title: bool,
+    song_title_unicode: bool,
+    creator_name: bool,
+    difficulty: bool,
+    audio_file_name: bool,
+    md5_beatmap_hash: bool,
+    dotosu_file_name: bool,
+    ranked_status: bool,
+    number_of_hitcircles: bool,
+    number_of_sliders: bool,
+    number_of_spinners: bool,
+    last_modification_time: bool,
+    approach_rate: bool,
+    circle_size: bool,
+    hp_drain: bool,
+    overall_difficulty: bool,
+    slider_velocity: bool,
+    num_mod_combo_star_ratings_standard: bool,
+    mod_combo_star_ratings_standard: bool,
+    num_mod_combo_star_ratings_taiko: bool,
+    mod_combo_star_ratings_taiko: bool,
+    num_mod_combo_star_ratings_ctb: bool,
+    mod_combo_star_ratings_ctb: bool,
+    num_mod_combo_star_ratings_mania: bool,
+    mod_combo_star_ratings_mania: bool,
+    drain_time: bool,
+    total_time: bool,
+    preview_offset_from_start_ms: bool,
+    num_timing_points: bool,
+    timing_points: bool,
+    beatmap_id: bool,
+    beatmap_set_id: bool,
+    thread_id: bool,
+    standard_grade: bool,
+    taiko_grade: bool,
+    ctb_grade: bool,
+    mania_grade: bool,
+    local_offset: bool,
+    stack_leniency: bool,
+    gameplay_mode: bool,
+    song_source: bool,
+    song_tags: bool,
+    online_offset: bool,
+    font_used_for_song_title: bool,
+    unplayed: bool,
+    last_played: bool,
+    is_osz2: bool,
+    beatmap_folder_name: bool,
+    last_checked_against_repo: bool,
+    ignore_beatmap_sound: bool,
+    ignore_beatmap_skin: bool,
+    disable_storyboard: bool,
+    disable_video: bool,
+    visual_override: bool,
+    unknown_short: bool,
+    offset_from_song_start_in_editor_ms: bool,
+    mania_scroll_speed: bool
 }
