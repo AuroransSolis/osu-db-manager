@@ -416,14 +416,14 @@ impl Beatmap {
 
 #[derive(Debug, Clone)]
 pub struct OsuDb {
-    pub(crate) version: i32,
-    pub(crate) folder_count: i32,
-    pub(crate) account_unlocked: bool,
-    pub(crate) account_unlock_date: Option<SystemTime>,
-    pub(crate) player_name: String,
-    pub(crate) number_of_beatmaps: i32,
-    pub(crate) beatmaps: Vec<Beatmap>,
-    pub(crate) unknown_int: i32
+    pub version: i32,
+    pub folder_count: i32,
+    pub account_unlocked: bool,
+    pub account_unlock_date: Option<SystemTime>,
+    pub player_name: String,
+    pub number_of_beatmaps: i32,
+    pub beatmaps: Vec<Beatmap>,
+    pub unknown_int: i32
 }
 
 impl OsuDb {
