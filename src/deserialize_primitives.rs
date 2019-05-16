@@ -1,5 +1,4 @@
 use byteorder::{ReadBytesExt, LittleEndian};
-use std::fs::File;
 use std::io::{Result as IoResult, Error as IoError};
 use std::io::ErrorKind::InvalidData;
 use std::mem::size_of;
@@ -91,7 +90,7 @@ pub fn read_string_utf8<R: ReadBytesExt>(stream: &mut R) -> IoResult<Result<Stri
     if indicator == 0 {
         Ok(Ok(String::new()))
     } else if indicator == 0x0b {
-        let length = read_uleb128(file)?;
+        let length = read_uleb128(stream)?;
         let mut bytes = Vec::with_capacity(length);
         for _ in 0..length {
             bytes.push(stream.read_u8()?);
@@ -114,7 +113,7 @@ pub fn fromutf8_to_ioresult(r: Result<String, FromUtf8Error>, field: &str) -> Io
 }
 
 pub fn read_datetime<R: ReadBytesExt>(stream: &mut R) -> IoResult<SystemTime> {
-    let ticks = read_long(file)?;
+    let ticks = read_long(stream)?;
     let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
     Ok(SystemTime::UNIX_EPOCH + duration_since_epoch)
 }
