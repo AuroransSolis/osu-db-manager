@@ -1,4 +1,5 @@
 use byteorder::{ReadBytesExt, LittleEndian};
+use std::fs::File;
 use std::io::{Result as IoResult, Error as IoError};
 use std::io::ErrorKind::InvalidData;
 use std::mem::size_of;
@@ -16,24 +17,24 @@ use std::time::{Duration, SystemTime};
 // Boolean
 // String
 
-pub fn read_short<R: ReadBytesExt>(stream: &mut R) -> IoResult<i16> {
-    stream.read_i16::<LittleEndian>()
+pub fn read_short(file: &mut File) -> IoResult<i16> {
+    file.read_i16::<LittleEndian>()
 }
 
-pub fn read_int<R: ReadBytesExt>(stream: &mut R) -> IoResult<i32> {
-    stream.read_i32::<LittleEndian>()
+pub fn read_int(file: &mut File) -> IoResult<i32> {
+    file.read_i32::<LittleEndian>()
 }
 
-pub fn read_long<R: ReadBytesExt>(stream: &mut R) -> IoResult<i64> {
-    stream.read_i64::<LittleEndian>()
+pub fn read_long(file: &mut File) -> IoResult<i64> {
+    file.read_i64::<LittleEndian>()
 }
 
-pub fn read_uleb128<R: ReadBytesExt>(stream: &mut R) -> IoResult<usize> {
+pub fn read_uleb128(file: &mut File) -> IoResult<usize> {
     let mut out = 0;
     let mut found_end = false;
     let mut shift = 0;
     while shift < size_of::<usize>() * 8 {
-        let b = stream.read_u8()?;
+        let b = file.read_u8()?;
         if shift + 8 >= size_of::<usize>() * 8 {
             if 0b11111111 >> (size_of::<usize>() * 8 - shift) | b
                 < (0b10000000 >> size_of::<usize>() * 8 - shift - 1) {
@@ -64,27 +65,27 @@ pub fn read_uleb128<R: ReadBytesExt>(stream: &mut R) -> IoResult<usize> {
     }
 }
 
-pub fn read_single<R: ReadBytesExt>(stream: &mut R) -> IoResult<f32> {
-    stream.read_f32::<LittleEndian>()
+pub fn read_single(file: &mut File) -> IoResult<f32> {
+    file.read_f32::<LittleEndian>()
 }
 
-pub fn read_double<R: ReadBytesExt>(stream: &mut R) -> IoResult<f64> {
-    stream.read_f64::<LittleEndian>()
+pub fn read_double(file: &mut File) -> IoResult<f64> {
+    file.read_f64::<LittleEndian>()
 }
 
-pub fn read_boolean<R: ReadBytesExt>(stream: &mut R) -> IoResult<bool> {
-    Ok(stream.read_u8()? != 0)
+pub fn read_boolean(file: &mut File) -> IoResult<bool> {
+    Ok(file.read_u8()? != 0)
 }
 
-pub fn read_string_utf8<R: ReadBytesExt>(stream: &mut R) -> IoResult<Result<String, FromUtf8Error>> {
-    let indicator = stream.read_u8()?;
+pub fn read_string_utf8(file: &mut File) -> IoResult<Result<String, FromUtf8Error>> {
+    let indicator = file.read_u8()?;
     if indicator == 0 {
         Ok(Ok(String::new()))
     } else if indicator == 0x0b {
-        let length = read_uleb128(stream)?;
+        let length = read_uleb128(file)?;
         let mut bytes = Vec::with_capacity(length);
         for _ in 0..length {
-            bytes.push(stream.read_u8()?);
+            bytes.push(file.read_u8()?);
         }
         Ok(String::from_utf8(bytes))
     } else {
@@ -103,8 +104,8 @@ pub fn fromutf8_to_ioresult(r: Result<String, FromUtf8Error>, field: &str) -> Io
     }
 }
 
-pub fn read_datetime<R: ReadBytesExt>(stream: &mut R) -> IoResult<SystemTime> {
-    let ticks = read_long(stream)?;
+pub fn read_datetime(file: &mut File) -> IoResult<SystemTime> {
+    let ticks = read_long(file)?;
     let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
     Ok(SystemTime::UNIX_EPOCH + duration_since_epoch)
 }
