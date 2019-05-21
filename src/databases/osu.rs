@@ -430,9 +430,7 @@ pub struct OsuDb {
 }
 
 #[derive(Copy, Clone)]
-pub struct BeatmapLoadSettings {
-    pub chunks: usize // how many beatmaps to load at a time
-}
+struct BeatmapLoadSettings {}
 
 impl LoadSettings for BeatmapLoadSettings {}
 
@@ -443,6 +441,15 @@ pub struct OsuDbLoadSettings {
 }
 
 impl LoadSettings for OsuDbLoadSettings {}
+
+impl OsuDbLoadSettings {
+    pub fn new(jobs: usize) -> Self {
+        OsuDbLoadSettings {
+            jobs,
+            beatmap_settings: BeatmapLoadSettings{}
+        }
+    }
+}
 
 impl Load for OsuDb {
     fn read_from_file(settings: OsuDbLoadSettings, mut file: File) -> IoResult<Self> {
