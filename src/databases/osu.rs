@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData, Cursor, Seek, SeekFrom, Read};
+use std::io::{Result as IoResult, Error as IoError, ErrorKind, Cursor, Seek, SeekFrom, Read};
 use std::time::{Duration, SystemTime};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::{Arc, Mutex, atomic::{AtomicUsize, AtomicU64, Ordering}};
@@ -7,6 +7,7 @@ use std::thread::{self, JoinHandle};
 use byteorder::ReadBytesExt;
 use crate::deserialize_primitives::*;
 use crate::databases::load::{Load, LoadSettings};
+use crate::clone_file;
 
 // Deserializing osu!.db-specific data types
 
@@ -63,7 +64,7 @@ impl RankedStatus {
             7 => Ok(Loved),
             _ => {
                 let err_msg = format!("Found invalid ranked status value ({})", b);
-                Err(IoError::new(InvalidData, err_msg.as_str()))
+                Err(IoError::new(ErrorKind::InvalidData, err_msg.as_str()))
             }
         }
     }
@@ -205,7 +206,7 @@ impl GameplayMode {
             3 => Ok(Mania),
             _ => {
                 let err_msg = format!("Read invalid gamemode specifier ({})", b);
-                Err(IoError::new(InvalidData, err_msg.as_str()))
+                Err(IoError::new(ErrorKind::InvalidData, err_msg.as_str()))
             }
         }
     }
@@ -444,7 +445,7 @@ pub struct OsuDbLoadSettings {
 impl LoadSettings for OsuDbLoadSettings {}
 
 impl Load for OsuDb {
-    fn read_from_file(settings: OsuDbLoadSettings, file: &mut File) -> IoResult<Self> {
+    fn read_from_file(settings: OsuDbLoadSettings, mut file: File) -> IoResult<Self> {
         if settings.jobs == 1 {
             Self::read_single_thread(settings, file)
         } else {
@@ -452,37 +453,37 @@ impl Load for OsuDb {
         }
     }
 
-    fn read_single_thread(settings: OsuDbLoadSettings, file: &mut File) -> IoResult<Self> {
-        let version = read_int(file)?;
-        let folder_count = read_int(file)?;
-        let account_unlocked = read_boolean(file)?;
+    fn read_single_thread(settings: OsuDbLoadSettings, mut file: File) -> IoResult<Self> {
+        let version = read_int(&mut file)?;
+        let folder_count = read_int(&mut file)?;
+        let account_unlocked = read_boolean(&mut file)?;
         let account_unlock_date = if !account_unlocked {
-            Some(read_datetime(file)?)
+            Some(read_datetime(&mut file)?)
         } else {
-            let _ = read_long(file)?;
+            let _ = read_long(&mut file)?;
             None
         };
-        let player_name = fromutf8_to_ioresult(read_string_utf8(file)?, "player name")?;
-        let num_beatmaps = read_int(file)?;
+        let player_name = fromutf8_to_ioresult(read_string_utf8(&mut file)?, "player name")?;
+        let num_beatmaps = read_int(&mut file)?;
         let mut beatmaps = Vec::with_capacity(num_beatmaps as usize);
         if version < 20140609 {
             for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_file::<Legacy>(file)?);
+                beatmaps.push(Beatmap::read_from_file::<Legacy>(&mut file)?);
             }
         } else if version >= 20140609 && version < 20160408 {
             for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_file::<Modern>(file)?);
+                beatmaps.push(Beatmap::read_from_file::<Modern>(&mut file)?);
             }
         } else if version >= 20160408 {
             for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_file::<ModernWithEntrySize>(file)?);
+                beatmaps.push(Beatmap::read_from_file::<ModernWithEntrySize>(&mut file)?);
             }
         } else {
             let err_msg = format!("Read version with no associated beatmap loading method {}",
                 version);
-            return Err(IoError::new(InvalidData, err_msg.as_str()));
+            return Err(IoError::new(ErrorKind::InvalidData, err_msg.as_str()));
         }
-        let unknown_int = read_int(file)?;
+        let unknown_int = read_int(&mut file)?;
         Ok(OsuDb {
             version,
             folder_count,
@@ -495,40 +496,31 @@ impl Load for OsuDb {
         })
     }
 
-    fn read_multi_thread(settings: OsuDbLoadSettings, file: &mut File) -> IoResult<Self> {
-        let version = read_int(file)?;
-        let folder_count = read_int(file)?;
-        let account_unlocked = read_boolean(file)?;
+    fn read_multi_thread(settings: OsuDbLoadSettings, mut file: File) -> IoResult<Self> {
+        let version = read_int(&mut file)?;
+        let folder_count = read_int(&mut file)?;
+        let account_unlocked = read_boolean(&mut file)?;
         let account_unlock_date = if !account_unlocked {
-            Some(read_datetime(file)?)
+            Some(read_datetime(&mut file)?)
         } else {
-            let _ = read_long(file)?;
+            let _ = read_long(&mut file)?;
             None
         };
-        let player_name = fromutf8_to_ioresult(read_string_utf8(file)?, "player name")?;
-        let num_beatmaps = read_int(file)?;
-        let mut bytes = Vec::new();
-        while let Ok(byte) = file.read_u8() {
-            bytes.push(byte);
-        }
-        let mut beatmap_count = AtomicUsize::new(num_beatmaps as usize);
-        let mut beatmaps = Vec::with_capacity(num_beatmaps as usize);
-        if version < 20140609 {
-            for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_file::<Legacy>(file)?);
-            }
-        } else if version >= 20140609 && version < 20160408 {
-            for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_file::<Modern>(file)?);
-            }
-        } else if version >= 20160408 {
+        let player_name = fromutf8_to_ioresult(read_string_utf8(&mut file)?, "player name")?;
+        let num_beatmaps = read_int(&mut file)?;
+        if version >= 20160408 {
+            let seek_locations = fetch_seek_locations(clone_file(&file))?;
+
             for _ in 0..num_beatmaps {
                 beatmaps.push(Beatmap::read_from_file::<ModernWithEntrySize>(file)?);
             }
+        } else if version / 1000 <= 2016 && version / 1000 >= 2007 { // catch valid versions
+            return Err(IoError::new(ErrorKind::Other, "osu!.db versions older than 20160408 do not \
+                support multithreaded loading."));
         } else {
-            let err_msg = format!("Read version with no associated beatmap loading method {}",
+            let err_msg = format!("Read version with no associated beatmap loading method: {}",
                 version);
-            return Err(IoError::new(InvalidData, err_msg.as_str()));
+            return Err(IoError::new(ErrorKind::InvalidData, err_msg.as_str()));
         }
         let unknown_int = read_int(file)?;
         Ok(OsuDb {
@@ -544,7 +536,8 @@ impl Load for OsuDb {
     }
 }
 
-fn spawn_beatmap_loader_legacy() -> JoinHandle<IoResult<Vec<(usize, Beatmap)>>> {
+fn spawn_beatmap_loader_seek_locations(mut file: File, entry_lengths: Arc<Mutex<Vec<usize>>>)
+    -> JoinHandle<IoResult<Vec<(usize, Beatmap)>>> {
     let mut current_position = 0;
     let mut maps = Vec::new();
     thread::spawn(move || {
@@ -566,6 +559,21 @@ fn spawn_beatmap_loader_legacy() -> JoinHandle<IoResult<Vec<(usize, Beatmap)>>> 
         };
         let current_position = file.seek(SeekFrom::Current((offset_from_start as u64
             - current_position) as i64))?;
-        let
     })
+}
+
+fn fetch_seek_locations(mut file: File) -> IoResult<Vec<usize>> {
+    let _ = file.seek(SeekFrom::Start(17))?; // go to start and skip the first four fields
+    let player_name_len = read_uleb128(&mut file)?;
+    let _ = file.seek(SeekFrom::Current(player_name_len as i64))?; // skip over player name
+    let number_of_beatmaps = read_int(&mut file)?;
+    let seek_from_start = 17 + player_name_len + 4;
+    let mut seek_locations = Vec::with_capacity(number_of_beatmaps as usize);
+    seek_locations.push(file.seek(SeekFrom::Current(0))? as usize);
+    for _ in 0..number_of_beatmaps {
+        let entry_length = read_int(&mut file)? as usize;
+        seek_locations.push(file.seek(SeekFrom::Current(entry_length as i64))? as usize
+            + seek_from_start);
+    }
+    Ok(entry_lengths)
 }
