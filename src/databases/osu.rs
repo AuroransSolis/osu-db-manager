@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData, Cursor};
+use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData, Cursor, Seek, SeekFrom, Read};
 use std::time::{Duration, SystemTime};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::{Arc, Mutex, atomic::{AtomicUsize, AtomicU64, Ordering}};
@@ -102,7 +102,7 @@ impl Display for ByteSingle {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct Pre20140609;
+pub struct Legacy;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Modern;
@@ -118,7 +118,7 @@ trait ReadVersionSpecificData {
     fn read_unknown_short(file: &mut File) -> IoResult<Option<i16>>;
 }
 
-impl ReadVersionSpecificData for Pre20140609 {
+impl ReadVersionSpecificData for Legacy {
     fn read_entry_size(_file: &mut File) -> IoResult<Option<i32>> {
         Ok(None)
     }
@@ -351,7 +351,7 @@ impl Beatmap {
         let unknown_short = T::read_unknown_short(file)?;
         let offset_from_song_start_in_editor_ms = read_int(file)?;
         let mania_scroll_speed = file.read_u8()?;
-        let beatmap = Beatmap {
+        Ok(Beatmap {
             entry_size,
             artist_name,
             artist_name_unicode,
@@ -412,8 +412,7 @@ impl Beatmap {
             unknown_short,
             offset_from_song_start_in_editor_ms,
             mania_scroll_speed
-        };
-        Ok(beatmap)
+        })
     }
 }
 
@@ -468,7 +467,7 @@ impl Load for OsuDb {
         let mut beatmaps = Vec::with_capacity(num_beatmaps as usize);
         if version < 20140609 {
             for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_file::<Pre20140609>(file)?);
+                beatmaps.push(Beatmap::read_from_file::<Legacy>(file)?);
             }
         } else if version >= 20140609 && version < 20160408 {
             for _ in 0..num_beatmaps {
@@ -516,7 +515,7 @@ impl Load for OsuDb {
         let mut beatmaps = Vec::with_capacity(num_beatmaps as usize);
         if version < 20140609 {
             for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_file::<Pre20140609>(file)?);
+                beatmaps.push(Beatmap::read_from_file::<Legacy>(file)?);
             }
         } else if version >= 20140609 && version < 20160408 {
             for _ in 0..num_beatmaps {
@@ -545,13 +544,28 @@ impl Load for OsuDb {
     }
 }
 
-fn spawn_beatmap_loader(counter: AtomicUsize, start_offset: AtomicU64, file: File)
-    -> JoinHandle<Vec<(usize, Beatmap)>> {
-    let mut current_offset = 0;
+fn spawn_beatmap_loader_legacy() -> JoinHandle<IoResult<Vec<(usize, Beatmap)>>> {
+    let mut current_position = 0;
+    let mut maps = Vec::new();
     thread::spawn(move || {
-        let offset_from_start = {
+        let beatmap_number = {
+            let cnt = counter.get_mut();
+            let current = cnt;
+            if current == amt {
+                return maps;
+            }
+            *cnt += 1;
+            current
+        };
+        let (offset_from_start, entry_size) = {
             let atomic_current_offset = start_offset.get_mut();
-            
-        }
+            let ret = *atomic_current_offset;
+            let entry_size = read_int(&mut file)?;
+            *atomic_current_offset += entry_size + 4;
+            (ret, entry_size)
+        };
+        let current_position = file.seek(SeekFrom::Current((offset_from_start as u64
+            - current_position) as i64))?;
+        let
     })
 }
