@@ -1,11 +1,12 @@
 extern crate byteorder;
+extern crate rayon;
 
 mod databases;
 mod deserialize_primitives;
 mod interactive;
 mod query;
 mod serialize_primitives;
-//mod partial_databases;
+mod partial_databases;
 
 use std::fs::File;
 use std::time::Instant;
@@ -28,15 +29,5 @@ fn main() {
         println!("Success! Loaded in osu!.db with {} beatmaps.", osudb.number_of_beatmaps);
     } else {
         println!("Fuck.\n{:?}", osudb.unwrap_err());
-    }
-}
-
-pub fn clone_file(file: &File) -> File {
-    if cfg!(target_os = "linux") {
-        let rawfd = file.as_raw_fd();
-        unsafe { File::from_raw_fd(rawfd) }
-    } else {
-        let raw_handle = file.as_raw_handle();
-        unsafe { File::from_raw_handle(raw_handle) }
     }
 }
