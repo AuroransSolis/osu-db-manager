@@ -17,24 +17,35 @@ use std::time::{Duration, SystemTime};
 // Boolean
 // String
 
-pub fn read_short(file: &mut File) -> IoResult<i16> {
-    file.read_i16::<LittleEndian>()
+pub fn read_short(bytes: &[u8], cursor: &mut usize) -> i16 {
+    let ret = bytes[*cursor + 0] as i16 + ((bytes[*cursor + 1] as i16) << 8);
+    *cursor += 2;
+    ret
 }
 
-pub fn read_int(file: &mut File) -> IoResult<i32> {
-    file.read_i32::<LittleEndian>()
+pub fn read_int(bytes: &[u8], cursor: &mut usize) -> i32 {
+    let ret = bytes[*cursor + 0] as i32 + ((bytes[*cursor + 1] as i32) << 8)
+        + ((bytes[*cursor + 2] as i32) << 16) + ((bytes[*cursor + 3] as i32) << 24);
+    *cursor += 4;
+    ret
 }
 
-pub fn read_long(file: &mut File) -> IoResult<i64> {
-    file.read_i64::<LittleEndian>()
+pub fn read_long(bytes: &[u8], cursor: &mut usize) -> i64 {
+    let ret = bytes[*cursor + 0] as i64 + ((bytes[*cursor + 1] as i64) << 8)
+        + ((bytes[*cursor + 2] as i64) << 16) + ((bytes[*cursor + 3] as i64) << 24)
+        + ((bytes[*cursor + 4] as i64) << 32) + ((bytes[*cursor + 5] as i64) << 40)
+        + ((bytes[*cursor + 6] as i64) << 48) + ((bytes[*cursor + 7] as i64) << 56);
+    *cursor += 8;
+    ret
 }
 
-pub fn read_uleb128(file: &mut File) -> IoResult<usize> {
+pub fn read_uleb128(bytes: &[u8], cursor: &mut usize) -> IoResult<usize> {
     let mut out = 0;
     let mut found_end = false;
     let mut shift = 0;
+    let mut add = 0;
     while shift < size_of::<usize>() * 8 {
-        let b = file.read_u8()?;
+        let b = bytes[*cursor + add];
         if shift + 8 >= size_of::<usize>() * 8 {
             if 0b11111111 >> (size_of::<usize>() * 8 - shift) | b
                 < (0b10000000 >> size_of::<usize>() * 8 - shift - 1) {
@@ -54,8 +65,10 @@ pub fn read_uleb128(file: &mut File) -> IoResult<usize> {
             break;
         }
         shift += 7;
+        add += 1;
     }
     if found_end {
+        *cursor += add;
         Ok(out)
     } else {
         let err_msg = format!("While the ULEB128 integer format supports integers \
@@ -65,29 +78,36 @@ pub fn read_uleb128(file: &mut File) -> IoResult<usize> {
     }
 }
 
-pub fn read_single(file: &mut File) -> IoResult<f32> {
-    file.read_f32::<LittleEndian>()
+pub fn read_single(bytes: &[u8], cursor: &mut usize) -> f32 {
+    let necessary = [bytes[*cursor + 3], bytes[*cursor + 2], bytes[*cursor + 1], bytes[*cursor]];
+    *cursor += 4;
+    unsafe { std::mem::transmute::<[u8; 4], f32>(necessary) }
 }
 
-pub fn read_double(file: &mut File) -> IoResult<f64> {
-    file.read_f64::<LittleEndian>()
+pub fn read_double(bytes: &[u8], cursor: &mut usize) -> f64 {
+    let necessary = [bytes[*cursor + 7], bytes[*cursor + 6], bytes[*cursor + 5], bytes[*cursor + 4],
+        bytes[*cursor + 3], bytes[*cursor + 2], bytes[*cursor + 1], bytes[*cursor]];
+    *cursor += 8;
+    unsafe { std::mem::transmute::<[u8; 8], f64>(necessary) }
 }
 
-pub fn read_boolean(file: &mut File) -> IoResult<bool> {
-    Ok(file.read_u8()? != 0)
+pub fn read_boolean(bytes: &[u8], cursor: &mut usize) -> bool {
+    let ret = bytes[cursor] == 0;
+    *cursor += 1;
+    ret
 }
 
-pub fn read_string_utf8(file: &mut File) -> IoResult<Result<String, FromUtf8Error>> {
-    let indicator = file.read_u8()?;
+pub fn read_string_utf8(bytes: &[u8], cursor: &mut usize)
+    -> IoResult<Result<String, FromUtf8Error>> {
+    let indicator = bytes[*cursor];
+    *cursor += 1;
     if indicator == 0 {
         Ok(Ok(String::new()))
     } else if indicator == 0x0b {
-        let length = read_uleb128(file)?;
-        let mut bytes = Vec::with_capacity(length);
-        for _ in 0..length {
-            bytes.push(file.read_u8()?);
-        }
-        Ok(String::from_utf8(bytes))
+        let length = read_uleb128(bytes, cursor)?;
+        let ret = Ok(String::from_utf8(bytes[*cursor..*cursor + length].into_vec()));
+        *cursor += length;
+        ret
     } else {
         let err_msg = format!("Found invalid indicator for string ({})", indicator);
         Err(IoError::new(InvalidData, err_msg.as_str()))
@@ -104,8 +124,8 @@ pub fn fromutf8_to_ioresult(r: Result<String, FromUtf8Error>, field: &str) -> Io
     }
 }
 
-pub fn read_datetime(file: &mut File) -> IoResult<SystemTime> {
-    let ticks = read_long(file)?;
+pub fn read_datetime(bytes: &[u8], cursor: &mut usize) -> SystemTime {
+    let ticks = read_long(bytes, cursor);
     let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
-    Ok(SystemTime::UNIX_EPOCH + duration_since_epoch)
+    SystemTime::UNIX_EPOCH + duration_since_epoch
 }
