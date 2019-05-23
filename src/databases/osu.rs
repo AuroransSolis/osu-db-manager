@@ -4,21 +4,27 @@ use std::time::{Duration, SystemTime};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::{Arc, Mutex, atomic::{AtomicUsize, AtomicU64, Ordering}};
 use std::thread::{self, JoinHandle};
-use byteorder::ReadBytesExt;
+use std::env;
+use rayon::prelude::*;
 use crate::deserialize_primitives::*;
-use crate::databases::load::{Load, LoadSettings};
-use crate::clone_file;
+use crate::databases::load::Load;
+use crate::build_global_threadpool_with_jobs;
 
 // Deserializing osu!.db-specific data types
 
-fn read_int_double_pair(bytes: &[u8], cursor: &mut usize) -> (i32, f64) {
-    let _ = bytes[*cursor];
-    *cursor += 1;
-    let int = read_int(bytes, cursor);
-    let _ = bytes[*cursor];
-    *cursor += 1;
-    let double = read_double(bytes, cursor);
-    (int, double)
+const INT_DOUBLE_PAIR_ERR: IoError = IoError::new(ErrorKind::Other,
+    "Failed to read extraneous byte.");
+const RANKED_STATUS_ERR: IoError = IoError::new(ErrorKind::Other,
+    "Failed to read byte for ranked status.");
+const GAMEPLAY_MODE_ERR: IoError = IoError::new(ErrorKind::Other,
+    "Failed to read byte for gameplay mode specifier.");
+
+fn read_int_double_pair<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(i32, f64)> {
+    let _ = i.next().ok_or(INT_DOUBLE_PAIR_ERR)?;
+    let int = read_int(i)?;
+    let _ = i.next().ok_or(INT_DOUBLE_PAIR_ERR);
+    let double = read_double(i)?;
+    Ok((int, double))
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -29,11 +35,11 @@ pub struct TimingPoint {
 }
 
 impl TimingPoint {
-    fn read_from_bytes(bytes: &[u8], cursor: &mut usize) -> Self {
+    fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> Self {
         TimingPoint {
-            bpm: read_double(bytes, cursor),
-            offset: read_double(bytes, cursor),
-            inherited: read_boolean(bytes, cursor)
+            bpm: read_double(i)?,
+            offset: read_double(i)?,
+            inherited: read_boolean(i)?
         }
     }
 }
@@ -53,9 +59,8 @@ pub enum RankedStatus {
 use self::RankedStatus::*;
 
 impl RankedStatus {
-    pub fn read_from_bytes(bytes: &[u8], cursor: &mut usize) -> IoResult<Self> {
-        let b = bytes[*cursor];
-        *cursor += 1;
+    pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
+        let b = i.next().ok_or(RANKED_STATUS_ERR)?;
         match b {
             0 => Ok(Unknown),
             1 => Ok(Unsubmitted),
@@ -115,78 +120,77 @@ pub struct Modern;
 pub struct ModernWithEntrySize;
 
 trait ReadVersionSpecificData {
-    fn read_entry_size(bytes: &[u8], cursor: &mut usize) -> Option<i32>;
-    fn read_arcshpod(bytes: &[u8], cursor: &mut usize) -> ByteSingle;
-    fn read_mod_combo_star_ratings(bytes: &[u8], cursor: &mut usize)
+    fn read_entry_size<I: Iterator<Item = u8>>(i: &mut I) -> Option<i32>;
+    fn read_arcshpod<I: Iterator<Item = u8>>(i: &mut I) -> ByteSingle;
+    fn read_mod_combo_star_ratings<I: Iterator<Item = u8>>(i: &mut I)
         -> (Option<i32>, Option<Vec<(i32, f64)>>);
-    fn read_unknown_short(bytes: &[u8], cursor: &mut usize) -> Option<i16>;
+    fn read_unknown_short<I: Iterator<Item = u8>>(i: &mut I) -> Option<i16>;
 }
 
 impl ReadVersionSpecificData for Legacy {
-    fn read_entry_size(bytes: &[u8], cursor: &mut usize) -> Option<i32> {
+    fn read_entry_size<I: Iterator<Item = u8>>(_i: &mut I) -> Option<i32> {
         None
     }
 
-    fn read_arcshpod(bytes: &[u8], cursor: &mut usize) -> ByteSingle {
-        let ret = Byte(bytes[*cursor]);
-        *cursor += 1;
-        ret
+    fn read_arcshpod<I: Iterator<Item = u8>>(i: &mut I) -> ByteSingle {
+        Byte(i.next().ok_or(IoError::new(ErrorKind::Other,
+            "Failed to get byte for AR/CS/HP/OD"))?)
     }
 
-    fn read_mod_combo_star_ratings(bytes: &[u8], cursor: &mut usize)
+    fn read_mod_combo_star_ratings<I: Iterator<Item = u8>>(_i: &mut I)
         -> (Option<i32>, Option<Vec<(i32, f64)>>) {
         (None, None)
     }
 
-    fn read_unknown_short(bytes: &[u8], cursor: &mut usize) -> Option<i16> {
-        Some(read_short(bytes, cursor))
+    fn read_unknown_short<I: Iterator<Item = u8>>(i: &mut I) -> Option<i16> {
+        Some(read_short(i)?)
     }
 }
 
 impl ReadVersionSpecificData for Modern {
-    fn read_entry_size(bytes: &[u8], cursor: &mut usize) -> Option<i32> {
+    fn read_entry_size<I: Iterator<Item = u8>>(_i: &mut I) -> Option<i32> {
         None
     }
 
-    fn read_arcshpod(bytes: &[u8], cursor: &mut usize) -> ByteSingle {
-        Single(read_single(bytes, cursor))
+    fn read_arcshpod<I: Iterator<Item = u8>>(i: &mut I) -> ByteSingle {
+        Single(read_single(i)?)
     }
 
-    fn read_mod_combo_star_ratings(bytes: &[u8], cursor: &mut usize)
+    fn read_mod_combo_star_ratings<I: Iterator<Item = u8>>(i: &mut I)
         -> (Option<i32>, Option<Vec<(i32, f64)>>) {
-        let num_int_doubles = read_int(bytes, cursor);
+        let num_int_doubles = read_int(i)?;
         let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
         for _ in 0..num_int_doubles {
-            int_double_pairs.push(read_int_double_pair(bytes, cursor));
+            int_double_pairs.push(read_int_double_pair(i)?);
         }
         (Some(num_int_doubles), Some(int_double_pairs))
     }
 
-    fn read_unknown_short(bytes: &[u8], cursor: &mut usize) -> Option<i16> {
+    fn read_unknown_short<I: Iterator<Item = u8>>(i: &mut I) -> Option<i16> {
         None
     }
 }
 
 impl ReadVersionSpecificData for ModernWithEntrySize {
-    fn read_entry_size(bytes: &[u8], cursor: &mut usize) -> Option<i32> {
-        Some(read_int(bytes, cursor))
+    fn read_entry_size<I: Iterator<Item = u8>>(i: &mut I) -> Option<i32> {
+        Some(read_int(i)?)
     }
 
-    fn read_arcshpod(bytes: &[u8], cursor: &mut usize) -> ByteSingle {
-        Single(read_single(bytes, cursor))
+    fn read_arcshpod<I: Iterator<Item = u8>>(i: &mut I) -> ByteSingle {
+        Single(read_single(i)?)
     }
 
-    fn read_mod_combo_star_ratings(bytes: &[u8], cursor: &mut usize)
+    fn read_mod_combo_star_ratings<I: Iterator<Item = u8>>(i: &mut I)
         -> (Option<i32>, Option<Vec<(i32, f64)>>) {
-        let num_int_doubles = read_int(bytes, cursor);
+        let num_int_doubles = read_int(i)?;
         let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
         for _ in 0..num_int_doubles {
-            int_double_pairs.push(read_int_double_pair(bytes, cursor));
+            int_double_pairs.push(read_int_double_pair(i)?);
         }
         (Some(num_int_doubles), Some(int_double_pairs))
     }
 
-    fn read_unknown_short(bytes: &[u8], cursor: &mut usize) -> Option<i16> {
+    fn read_unknown_short<I: Iterator<Item = u8>>(i: &mut I) -> Option<i16> {
         None
     }
 }
@@ -202,9 +206,8 @@ pub enum GameplayMode {
 use self::GameplayMode::*;
 
 impl GameplayMode {
-    pub fn read_from_bytes(bytes: &[u8], cursor: &mut usize) -> IoResult<Self> {
-        let b = bytes[*cursor];
-        *cursor += 1;
+    pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
+        let b = i.next().ok_or(GAMEPLAY_MODE_ERR)?;
         match b {
             0 => Ok(Standard),
             1 => Ok(Taiko),
@@ -294,76 +297,71 @@ pub struct Beatmap {
 }
 
 impl Beatmap {
-    fn read_from_bytes<T: ReadVersionSpecificData>(bytes: &[u8], cursor: &mut usize) -> IoResult<Self> {
-        let entry_size = T::read_entry_size(bytes, cursor);
-        let artist_name = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?,
-            "non-Unicode artist name")?;
-        let artist_name_unicode = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?,
+    fn read_from_bytes<T: ReadVersionSpecificData, I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
+        let entry_size = T::read_entry_size(i);
+        let artist_name = fromutf8_to_ioresult(read_string_utf8(i)?, "non-Unicode artist name")?;
+        let artist_name_unicode = fromutf8_to_ioresult(read_string_utf8(i)?,
             "Unicode artist name")?;
-        let song_title = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?,
-            "non-Unicode song title")?;
-        let song_title_unicode = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?,
+        let song_title = fromutf8_to_ioresult(read_string_utf8(i)?, "non-Unicode song title")?;
+        let song_title_unicode = fromutf8_to_ioresult(read_string_utf8(i)?,
             "Unicode song title")?;
-        let creator_name = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?, "creator name")?;
-        let difficulty = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?, "difficulty")?;
-        let audio_file_name = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?,
-            "audio file name")?;
-        let md5_beatmap_hash = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?,
-            "MD5 beatmap hash")?;
-        let dotosu_file_name = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?,
+        let creator_name = fromutf8_to_ioresult(read_string_utf8(i)?, "creator name")?;
+        let difficulty = fromutf8_to_ioresult(read_string_utf8(i)?, "difficulty")?;
+        let audio_file_name = fromutf8_to_ioresult(read_string_utf8(i)?, "audio file name")?;
+        let md5_beatmap_hash = fromutf8_to_ioresult(read_string_utf8(i)?, "MD5 beatmap hash")?;
+        let dotosu_file_name = fromutf8_to_ioresult(read_string_utf8(i)?,
             "corresponding .osu file name")?;
-        let ranked_status = RankedStatus::read_from_bytes(bytes, cursor)?;
-        let number_of_hitcircles = read_short(bytes, cursor);
-        let number_of_sliders = read_short(bytes, cursor);
-        let number_of_spinners = read_short(bytes, cursor);
-        let last_modification_time = read_datetime(bytes, cursor);
-        let approach_rate = T::read_arcshpod(bytes, cursor);
-        let circle_size = T::read_arcshpod(bytes, cursor);
-        let hp_drain = T::read_arcshpod(bytes, cursor);
-        let overall_difficulty = T::read_arcshpod(bytes, cursor);
-        let slider_velocity = read_double(bytes, cursor);
-        let (num_mcsr_standard, mcsr_standard) = T::read_mod_combo_star_ratings(bytes, cursor);
-        let (num_mcsr_taiko, mcsr_taiko) = T::read_mod_combo_star_ratings(bytes, cursor);
-        let (num_mcsr_ctb, mcsr_ctb) = T::read_mod_combo_star_ratings(bytes, cursor);
-        let (num_mcsr_mania, mcsr_mania) = T::read_mod_combo_star_ratings(bytes, cursor);
-        let drain_time = read_int(bytes, cursor);;
-        let total_time = read_int(bytes, cursor);
-        let preview_offset_from_start_ms = read_int(bytes, cursor);
-        let num_timing_points = read_int(bytes, cursor);
+        let ranked_status = RankedStatus::read_from_bytes(i)?;
+        let number_of_hitcircles = read_short(i)?;
+        let number_of_sliders = read_short(i)?;
+        let number_of_spinners = read_short(i)?;
+        let last_modification_time = read_datetime(i)?;
+        let approach_rate = T::read_arcshpod(i);
+        let circle_size = T::read_arcshpod(i);
+        let hp_drain = T::read_arcshpod(i);
+        let overall_difficulty = T::read_arcshpod(i);
+        let slider_velocity = read_double(i)?;
+        let (num_mcsr_standard, mcsr_standard) = T::read_mod_combo_star_ratings(i);
+        let (num_mcsr_taiko, mcsr_taiko) = T::read_mod_combo_star_ratings(i);
+        let (num_mcsr_ctb, mcsr_ctb) = T::read_mod_combo_star_ratings(i);
+        let (num_mcsr_mania, mcsr_mania) = T::read_mod_combo_star_ratings(i);
+        let drain_time = read_int(i)?;
+        let total_time = read_int(i)?;
+        let preview_offset_from_start_ms = read_int(i)?;
+        let num_timing_points = read_int(i)?;
         let mut timing_points = Vec::with_capacity(num_timing_points as usize);
         for _ in 0..num_timing_points {
-            timing_points.push(TimingPoint::read_from_bytes(bytes, cursor));
+            timing_points.push(TimingPoint::read_from_bytes(i));
         }
-        let beatmap_id = read_int(bytes, cursor);
-        let beatmap_set_id = read_int(bytes, cursor);
-        let thread_id = read_int(bytes, cursor);
-        let standard_grade = file.read_u8()?;
-        let taiko_grade = file.read_u8()?;
-        let ctb_grade = file.read_u8()?;
-        let mania_grade = file.read_u8()?;
-        let local_offset = read_short(bytes, cursor);
-        let stack_leniency = read_single(bytes, cursor);
-        let gameplay_mode = GameplayMode::read_from_bytes(bytes, cursor)?;
-        let song_source = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?, "song source")?;
-        let song_tags = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?, "song tags")?;
-        let online_offset = read_short(bytes, cursor);
-        let font_used_for_song_title = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?,
+        let beatmap_id = read_int(i)?;
+        let beatmap_set_id = read_int(i)?;
+        let thread_id = read_int(i)?;
+        let standard_grade = read_byte(i)?;
+        let taiko_grade = read_byte(i)?;
+        let ctb_grade = read_byte(i)?;
+        let mania_grade = read_byte(i)?;
+        let local_offset = read_short(i)?;
+        let stack_leniency = read_single(i)?;
+        let gameplay_mode = GameplayMode::read_from_bytes(i)?;
+        let song_source = fromutf8_to_ioresult(read_string_utf8(i)?, "song source")?;
+        let song_tags = fromutf8_to_ioresult(read_string_utf8(i)?, "song tags")?;
+        let online_offset = read_short(i)?;
+        let font_used_for_song_title = fromutf8_to_ioresult(read_string_utf8(i)?,
             "font used for song title")?;
-        let unplayed = read_boolean(bytes, cursor);
-        let last_played = read_datetime(bytes, cursor);
-        let is_osz2 = read_boolean(bytes, cursor);
-        let beatmap_folder_name = fromutf8_to_ioresult(read_string_utf8(bytes, cursor)?,
+        let unplayed = read_boolean(i)?;
+        let last_played = read_datetime(i)?;
+        let is_osz2 = read_boolean(i)?;
+        let beatmap_folder_name = fromutf8_to_ioresult(read_string_utf8(i)?,
             "folder name")?;
-        let last_checked_against_repo = read_datetime(bytes, cursor);
-        let ignore_beatmap_sound = read_boolean(bytes, cursor);
-        let ignore_beatmap_skin = read_boolean(bytes, cursor);
-        let disable_storyboard = read_boolean(bytes, cursor);
-        let disable_video = read_boolean(bytes, cursor);
-        let visual_override = read_boolean(bytes, cursor);
-        let unknown_short = T::read_unknown_short(bytes, cursor);
-        let offset_from_song_start_in_editor_ms = read_int(bytes, cursor);
-        let mania_scroll_speed = bytes[*cursor];
-        *cursor += 1;
+        let last_checked_against_repo = read_datetime(i)?;
+        let ignore_beatmap_sound = read_boolean(i)?;
+        let ignore_beatmap_skin = read_boolean(i)?;
+        let disable_storyboard = read_boolean(i)?;
+        let disable_video = read_boolean(i)?;
+        let visual_override = read_boolean(i)?;
+        let unknown_short = T::read_unknown_short(i);
+        let offset_from_song_start_in_editor_ms = read_int(i)?;
+        let mania_scroll_speed = read_byte(i)?;
         Ok(Beatmap {
             entry_size,
             artist_name,
@@ -441,69 +439,39 @@ pub struct OsuDb {
     pub unknown_int: i32
 }
 
-#[derive(Copy, Clone)]
-struct BeatmapLoadSettings {}
-
-impl LoadSettings for BeatmapLoadSettings {}
-
-#[derive(Copy, Clone)]
-pub struct OsuDbLoadSettings {
-    pub jobs: usize,
-    pub beatmap_settings: BeatmapLoadSettings
-}
-
-impl LoadSettings for OsuDbLoadSettings {}
-
-impl OsuDbLoadSettings {
-    pub fn new(jobs: usize) -> Self {
-        OsuDbLoadSettings {
-            jobs,
-            beatmap_settings: BeatmapLoadSettings{}
-        }
-    }
-}
-
 impl Load for OsuDb {
-    fn read_from_file(settings: OsuDbLoadSettings, mut file: File) -> IoResult<Self> {
-        if settings.jobs == 1 {
-            Self::read_single_thread(settings, file)
-        } else {
-            Self::read_multi_thread(settings, file)
-        }
-    }
-
-    fn read_single_thread(settings: OsuDbLoadSettings, file: File) -> IoResult<Self> {
-        let bytes = file.bytes().map(|rb| rb?).collect::<Vec<_>>();
-        let version = read_int(&bytes, &mut cursor);
-        let folder_count = read_int(&bytes, &mut cursor);
-        let account_unlocked = read_boolean(&bytes, &mut cursor);
+    fn read_single_thread(bytes: Vec<u8>) -> IoResult<Self> {
+        let mut bytes_iter = bytes.into_iter();
+        let version = read_int(&mut bytes_iter)?;
+        let folder_count = read_int(&mut bytes_iter)?;
+        let account_unlocked = read_boolean(&mut bytes_iter)?;
         let account_unlock_date = if !account_unlocked {
-            Some(read_datetime(&bytes, &mut cursor))
+            Some(read_datetime(&mut bytes_iter)?)
         } else {
-            let _ = read_long(&bytes, &mut cursor);
+            let _ = read_long(&mut bytes_iter)?;
             None
         };
-        let player_name = fromutf8_to_ioresult(read_string_utf8(&bytes, &mut cursor)?, "player name")?;
-        let num_beatmaps = read_int(&bytes, &mut cursor)?;
+        let player_name = fromutf8_to_ioresult(read_string_utf8(&mut bytes_iter)?, "player name")?;
+        let num_beatmaps = read_int(&mut bytes_iter)?;
         let mut beatmaps = Vec::with_capacity(num_beatmaps as usize);
         if version < 20140609 {
             for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_bytes::<Legacy>(&bytes, &mut cursor)?);
+                beatmaps.push(Beatmap::read_from_bytes::<Legacy>(&mut bytes_iter)?);
             }
         } else if version >= 20140609 && version < 20160408 {
             for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_bytes::<Modern>(&bytes, &mut cursor)?);
+                beatmaps.push(Beatmap::read_from_bytes::<Modern>(&mut bytes_iter)?);
             }
         } else if version >= 20160408 {
             for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_bytes::<ModernWithEntrySize>(&bytes, &mut cursor)?);
+                beatmaps.push(Beatmap::read_from_bytes::<ModernWithEntrySize>(&mut bytes_iter)?);
             }
         } else {
             let err_msg = format!("Read version with no associated beatmap loading method {}",
                 version);
             return Err(IoError::new(ErrorKind::InvalidData, err_msg.as_str()));
         }
-        let unknown_int = read_int(&bytes, &mut cursor)?;
+        let unknown_int = read_int(&mut bytes_iter)?;
         Ok(OsuDb {
             version,
             folder_count,
@@ -516,25 +484,25 @@ impl Load for OsuDb {
         })
     }
 
-    fn read_multi_thread(settings: OsuDbLoadSettings, mut file: File) -> IoResult<Self> {
-        let bytes = file.bytes().map(|rb| rb?).collect::<Vec<_>>();
-        let mut cursor = 0;
-        let version = read_int(&bytes, &mut cursor);
-        let folder_count = read_int(&bytes, &mut cursor);
-        let account_unlocked = read_boolean(&bytes, &mut cursor);
+    fn read_multi_thread(jobs: usize, bytes: Vec<u8>) -> IoResult<Self> {
+        let mut bytes_iter = bytes.iter();
+        let version = read_int(&mut bytes_iter)?;
+        let folder_count = read_int(&mut bytes_iter)?;
+        let account_unlocked = read_boolean(&mut bytes_iter)?;
         let account_unlock_date = if !account_unlocked {
-            Some(read_datetime(&bytes, &mut cursor))
+            Some(read_datetime(&mut bytes_iter)?)
         } else {
-            let _ = read_long(&bytes, &mut cursor);
+            let _ = read_long(&mut bytes_iter)?;
             None
         };
-        let player_name = fromutf8_to_ioresult(read_string_utf8(&bytes, &mut cursor)?, "player name")?;
-        let num_beatmaps = read_int(&bytes, &mut cursor);
-        if version >= 20160408 {
-
-            for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_bytes::<ModernWithEntrySize>(file)?);
-            }
+        let player_name = fromutf8_to_ioresult(read_string_utf8(&mut bytes_iter)?, "player name")?;
+        let num_beatmaps = read_int(&mut bytes_iter)?;
+        let beatmaps = if version >= 20160408 {
+            let beatmap_slices = get_beatmap_slices(&bytes).map_err(IoError::new(ErrorKind::Other,
+                "Failed to collect beatmap byte slices."))?;
+            beatmap_slices.into_par_iter()
+                .map(|byte_slice| Beatmap::read_from_bytes(&mut byte_slice.iter()))
+                .collect::<IoResult<Vec<Beatmap>>>()?
         } else if version / 1000 <= 2016 && version / 1000 >= 2007 { // catch valid versions
             return Err(IoError::new(ErrorKind::Other, "osu!.db versions older than 20160408 do not \
                 support multithreaded loading."));
@@ -542,8 +510,8 @@ impl Load for OsuDb {
             let err_msg = format!("Read version with no associated beatmap loading method: {}",
                 version);
             return Err(IoError::new(ErrorKind::InvalidData, err_msg.as_str()));
-        }
-        let unknown_int = read_int(&bytes, &mut cursor)?;
+        };
+        let unknown_int = read_int(&mut bytes_iter)?;
         Ok(OsuDb {
             version,
             folder_count,
@@ -557,19 +525,171 @@ impl Load for OsuDb {
     }
 }
 
-fn get_beatmap_slices(bytes: Vec<u8>) -> IoResult<Vec<&[u8]>> {
-
-    let _ = file.seek(SeekFrom::Start(17))?; // go to start and skip the first four fields
-    let player_name_len = read_uleb128(&bytes, &mut cursor)?;
-    let _ = file.seek(SeekFrom::Current(player_name_len as i64))?; // skip over player name
-    let number_of_beatmaps = read_int(&bytes, &mut cursor)?;
-    let seek_from_start = 17 + player_name_len + 4;
-    let mut seek_locations = Vec::with_capacity(number_of_beatmaps as usize);
-    seek_locations.push(file.seek(SeekFrom::Current(0))? as usize);
+fn get_beatmap_slices(bytes: &Vec<u8>) -> IoResult<Vec<&[u8]>> {
+    // Bytes 0-16 are taken up by information we don't need to read, so we skip it.
+    let (player_name_len, bytes_used) = read_uleb128_with_len(bytes[17..].iter())?;
+    let start = 17 + bytes_used + player_name_len;
+    let number_of_beatmaps = read_int(&mut bytes[start..start + 4].iter())?;
+    let mut start = start + 4;
+    let mut slices = Vec::with_capacity(number_of_beatmaps as usize);
     for _ in 0..number_of_beatmaps {
-        let entry_length = read_int(&bytes, &mut cursor)? as usize;
-        seek_locations.push(file.seek(SeekFrom::Current(entry_length as i64))? as usize
-            + seek_from_start);
+        let entry_length = read_int(&mut bytes[start..start + 4].iter())? as usize;
+        slices.push(&bytes[start..start + entry_length + 4]);
+        start += entry_length + 4;
     }
-    Ok(entry_lengths)
+    Ok(slices)
+}
+
+fn spawn_beatmap_loader_thread(number: usize, counter: AtomicUsize, start_read: AtomicUsize,
+    bytes_pointer: *const Vec<u8>) -> JoinHandle<IoResult<Vec<(usize, Beatmap)>>> {
+    thread::spawn(move || {
+        let bytes = unsafe { &*bytes_pointer };
+        let mut beatmaps = Vec::new();
+        loop {
+            let (entry_size, start, num) = {
+                let ctr = counter.get_mut();
+                if *ctr == number {
+                    return Ok(beatmaps);
+                }
+                let start = start_read.get_mut();
+                let entry_size = read_int(&mut bytes[start..start + 4].iter())?;
+                *start += entry_size + 4;
+                (entry_size, *start, *counter - 1)
+            };
+            let mut i = bytes[start..start + entry_size].iter();
+            let artist_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
+                "non-Unicode artist name")?;
+            let artist_name_unicode = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
+                "Unicode artist name")?;
+            let song_title = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
+                "non-Unicode song title")?;
+            let song_title_unicode = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
+                "Unicode song title")?;
+            let creator_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "creator name")?;
+            let difficulty = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "difficulty")?;
+            let audio_file_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
+                "audio file name")?;
+            let md5_beatmap_hash = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
+                "MD5 beatmap hash")?;
+            let dotosu_file_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
+                "corresponding .osu file name")?;
+            let ranked_status = RankedStatus::read_from_bytes(&mut i)?;
+            let number_of_hitcircles = read_short(&mut i)?;
+            let number_of_sliders = read_short(&mut i)?;
+            let number_of_spinners = read_short(&mut i)?;
+            let last_modification_time = read_datetime(&mut i)?;
+            let approach_rate = ModernWithEntrySize::read_arcshpod(&mut i);
+            let circle_size = ModernWithEntrySize::read_arcshpod(&mut i);
+            let hp_drain = ModernWithEntrySize::read_arcshpod(&mut i);
+            let overall_difficulty = ModernWithEntrySize::read_arcshpod(&mut i);
+            let slider_velocity = read_double(&mut i)?;
+            let (num_mcsr_standard, mcsr_standard)
+                = ModernWithEntrySize::read_mod_combo_star_ratings(&mut i);
+            let (num_mcsr_taiko, mcsr_taiko)
+                = ModernWithEntrySize::read_mod_combo_star_ratings(&mut i);
+            let (num_mcsr_ctb, mcsr_ctb)
+                = ModernWithEntrySize::read_mod_combo_star_ratings(&mut i);
+            let (num_mcsr_mania, mcsr_mania)
+                = ModernWithEntrySize::read_mod_combo_star_ratings(&mut i);
+            let drain_time = read_int(&mut i)?;
+            let total_time = read_int(&mut i)?;
+            let preview_offset_from_start_ms = read_int(&mut i)?;
+            let num_timing_points = read_int(&mut i)?;
+            let mut timing_points = Vec::with_capacity(num_timing_points as usize);
+            for _ in 0..num_timing_points {
+                timing_points.push(TimingPoint::read_from_bytes(&mut i));
+            }
+            let beatmap_id = read_int(&mut i)?;
+            let beatmap_set_id = read_int(&mut i)?;
+            let thread_id = read_int(&mut i)?;
+            let standard_grade = read_byte(&mut i)?;
+            let taiko_grade = read_byte(&mut i)?;
+            let ctb_grade = read_byte(&mut i)?;
+            let mania_grade = read_byte(&mut i)?;
+            let local_offset = read_short(&mut i)?;
+            let stack_leniency = read_single(&mut i)?;
+            let gameplay_mode = GameplayMode::read_from_bytes(&mut i)?;
+            let song_source = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "song source")?;
+            let song_tags = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "song tags")?;
+            let online_offset = read_short(&mut i)?;
+            let font_used_for_song_title = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
+                "font used for song title")?;
+            let unplayed = read_boolean(&mut i)?;
+            let last_played = read_datetime(&mut i)?;
+            let is_osz2 = read_boolean(&mut i)?;
+            let beatmap_folder_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
+                "folder name")?;
+            let last_checked_against_repo = read_datetime(&mut i)?;
+            let ignore_beatmap_sound = read_boolean(&mut i)?;
+            let ignore_beatmap_skin = read_boolean(&mut i)?;
+            let disable_storyboard = read_boolean(&mut i)?;
+            let disable_video = read_boolean(&mut i)?;
+            let visual_override = read_boolean(&mut i)?;
+            let unknown_short = T::read_unknown_short(&mut i);
+            let offset_from_song_start_in_editor_ms = read_int(&mut i)?;
+            let mania_scroll_speed = read_byte(&mut i)?;
+            beatmaps.push((num, Beatmap {
+                entry_size: Some(entry_size),
+                artist_name,
+                artist_name_unicode,
+                song_title,
+                song_title_unicode,
+                creator_name,
+                difficulty,
+                audio_file_name,
+                md5_beatmap_hash,
+                dotosu_file_name,
+                ranked_status,
+                number_of_hitcircles,
+                number_of_sliders,
+                number_of_spinners,
+                last_modification_time,
+                approach_rate,
+                circle_size,
+                hp_drain,
+                overall_difficulty,
+                slider_velocity,
+                num_mod_combo_star_ratings_standard: num_mcsr_standard,
+                mod_combo_star_ratings_standard: mcsr_standard,
+                num_mod_combo_star_ratings_taiko: num_mcsr_taiko,
+                mod_combo_star_ratings_taiko: mcsr_taiko,
+                num_mod_combo_star_ratings_ctb: num_mcsr_ctb,
+                mod_combo_star_ratings_ctb: mcsr_ctb,
+                num_mod_combo_star_ratings_mania: num_mcsr_mania,
+                mod_combo_star_ratings_mania: mcsr_mania,
+                drain_time,
+                total_time,
+                preview_offset_from_start_ms,
+                num_timing_points,
+                timing_points,
+                beatmap_id,
+                beatmap_set_id,
+                thread_id,
+                standard_grade,
+                taiko_grade,
+                ctb_grade,
+                mania_grade,
+                local_offset,
+                stack_leniency,
+                gameplay_mode,
+                song_source,
+                song_tags,
+                online_offset,
+                font_used_for_song_title,
+                unplayed,
+                last_played,
+                is_osz2,
+                beatmap_folder_name,
+                last_checked_against_repo,
+                ignore_beatmap_sound,
+                ignore_beatmap_skin,
+                disable_storyboard,
+                disable_video,
+                visual_override,
+                unknown_short,
+                offset_from_song_start_in_editor_ms,
+                mania_scroll_speed
+            }));
+        }
+    })
 }
