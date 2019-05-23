@@ -6,14 +6,15 @@ mod deserialize_primitives;
 mod interactive;
 mod query;
 mod serialize_primitives;
-mod partial_databases;
+// mod partial_databases;
+mod help;
 
 use std::fs::File;
 use std::time::Instant;
 use std::io::Cursor;
 use std::sync::{Arc, Mutex, atomic::AtomicUsize};
 
-use byteorder::{ReadBytesExt, WriteBytesExt};
+use rayon::{ThreadPoolBuilder, ThreadPoolBuildError};
 
 use databases::osu::OsuDb;
 use databases::load::Load;
@@ -30,4 +31,8 @@ fn main() {
     } else {
         println!("Fuck.\n{:?}", osudb.unwrap_err());
     }
+}
+
+pub fn build_global_threadpool_with_jobs(jobs: usize) -> Result<(), ThreadPoolBuildError> {
+    ThreadPoolBuilder::new().num_threads(jobs).build_global()
 }
