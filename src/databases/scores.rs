@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData};
 use std::time::{Duration, SystemTime};
 use std::fmt::{Display, Formatter, Result as FmtResult};
-use byteorder::ReadBytesExt;
 use crate::deserialize_primitives::*;
 use crate::databases::osu::{GameplayMode, Beatmap};
 
