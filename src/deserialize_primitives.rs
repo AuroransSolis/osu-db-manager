@@ -28,6 +28,8 @@ const DOUBLE_ERR: IoError = IoError::new(Other, "Failed to read byte for double.
 const BOOLEAN_ERR: IoError = IoError::new(Other, "Failed to read byte for boolean.");
 const STRING_ERR: IoError = IoError::new(Other, "Failed to read indicator for string.");
 const DATETIME_ERR: IoError = IoError::new(Other, "Failed to read long for datetime.");
+const HASH_ERR: IoError = IoError::new(InvalidData, "Read invalid indicator byte for MD5 hash \
+    string.");
 
 pub fn read_byte<I: Iterator<Item= u8>>(i: &mut I) -> IoResult<u8> {
     Ok(i.next().ok_or( BYTE_ERR)?)
@@ -55,7 +57,10 @@ pub fn read_uleb128<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<usize> {
     let mut shift = 0;
     while shift < size_of::<usize>() * 8 {
         let b = i.next().ok_or(ULEB128_ERR)?;
+        // Handle case when there's less than eight bits left in the usize
         if shift + 8 >= size_of::<usize>() * 8 {
+            // If the last byte has a value that fits within the remaining number of bits, add it
+            // to our total and break the loop
             if 0b11111111 >> (size_of::<usize>() * 8 - shift) | b
                 < (0b10000000 >> size_of::<usize>() * 8 - shift - 1) {
                 out += (b as usize) << shift;
@@ -70,7 +75,7 @@ pub fn read_uleb128<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<usize> {
             }
         }
         out += (b as usize & 0b01111111) << shift;
-        if !(b | 0b00000000) & 0b10000000 == 0b10000000 {
+        if b & 0b10000000 == 0 {
             found_end = true;
             break;
         }
@@ -93,7 +98,10 @@ pub fn read_uleb128_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usi
     let mut len = 0;
     while shift < size_of::<usize>() * 8 {
         let b = i.next().ok_or(ULEB128_ERR)?;
+        // Handle case when there's less than eight bits left in the usize
         if shift + 8 >= size_of::<usize>() * 8 {
+            // If the last byte has a value that fits within the remaining number of bits, add it
+            // to our total and break the loop
             if 0b11111111 >> (size_of::<usize>() * 8 - shift) | b
                 < (0b10000000 >> size_of::<usize>() * 8 - shift - 1) {
                 out += (b as usize) << shift;
@@ -108,7 +116,7 @@ pub fn read_uleb128_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usi
             }
         }
         out += (b as usize & 0b01111111) << shift;
-        if !(b | 0b00000000) & 0b10000000 == 0b10000000 {
+        if b & 0b10000000 == 0 {
             found_end = true;
             break;
         }
@@ -165,4 +173,14 @@ pub fn read_datetime<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<SystemTime> 
     let ticks = read_long(i).map_err(|_| DATETIME_ERR)?;
     let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
     Ok(SystemTime::UNIX_EPOCH + duration_since_epoch)
+}
+
+pub fn read_md5_hash<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<String> {
+    let indicator = read_boolean(i)?;
+    if indicator != 0x0b {
+        return Err(HASH_ERR);
+    }
+    let _ = read_byte(i)?; // ULEB128 encoding for 16 uses 1 byte
+    let hash_bytes = [read_byte(i)?; 16];
+    Ok(String::from_iter(hash_bytes.iter()))
 }
