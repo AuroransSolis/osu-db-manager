@@ -7,12 +7,12 @@ pub trait Load: Sized {
         if jobs == 1 {
             Self::read_single_thread(bytes)
         } else {
-            let rayon_jobs_default = env::var("RAYON_NUM_THREADS").or_else(env::var("RAYON_RS_NUM_CPUS"))?;
+            /*let rayon_jobs_default = env::var("RAYON_NUM_THREADS").or_else(env::var("RAYON_RS_NUM_CPUS"))?;
             let rayon_jobs_default = rayon_jobs_default.parse::<usize>()
                 .map_err(|err| IoError::new(ErrorKind::Other, format!("{:?}", err)))?;
             if jobs != rayon_jobs_default {
                 build_global_threadpool_with_jobs(jobs);
-            }
+            }*/
             Self::read_multi_thread(jobs, bytes)
         }
     }
