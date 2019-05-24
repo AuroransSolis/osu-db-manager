@@ -204,6 +204,7 @@ pub enum GameplayMode {
 }
 
 use self::GameplayMode::*;
+use std::option::NoneError;
 
 impl GameplayMode {
     pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
@@ -308,7 +309,8 @@ impl Beatmap {
         let creator_name = fromutf8_to_ioresult(read_string_utf8(i)?, "creator name")?;
         let difficulty = fromutf8_to_ioresult(read_string_utf8(i)?, "difficulty")?;
         let audio_file_name = fromutf8_to_ioresult(read_string_utf8(i)?, "audio file name")?;
-        let md5_beatmap_hash = fromutf8_to_ioresult(read_string_utf8(i)?, "MD5 beatmap hash")?;
+        let md5_beatmap_hash = read_md5_hash(i).map_err(IoError::new(Other,
+            "Error reading MD5 beatmap hash"))?;
         let dotosu_file_name = fromutf8_to_ioresult(read_string_utf8(i)?,
             "corresponding .osu file name")?;
         let ranked_status = RankedStatus::read_from_bytes(i)?;
@@ -485,24 +487,56 @@ impl Load for OsuDb {
     }
 
     fn read_multi_thread(jobs: usize, bytes: Vec<u8>) -> IoResult<Self> {
-        let mut bytes_iter = bytes.iter();
-        let version = read_int(&mut bytes_iter)?;
-        let folder_count = read_int(&mut bytes_iter)?;
-        let account_unlocked = read_boolean(&mut bytes_iter)?;
-        let account_unlock_date = if !account_unlocked {
-            Some(read_datetime(&mut bytes_iter)?)
-        } else {
-            let _ = read_long(&mut bytes_iter)?;
-            None
+        let (version, folder_count, account_unlocked, account_unlock_date, player_name,
+            bytes_used) = {
+            let mut bytes_iter = bytes.iter();
+            let version = read_int(bytes_iter)?;
+            let folder_count = read_int(bytes_iter)?;
+            let account_unlocked = read_boolean(&mut bytes_iter)?;
+            let account_unlock_date = if !account_unlocked {
+                Some(read_datetime(&mut bytes_iter)?)
+            } else {
+                let _ = read_datetime(&mut bytes_iter)?;
+                None
+            };
+            let indicator = read_byte(&mut bytes_iter)?;
+            if indicator != 0x0b {
+                return Err(IoError::new(ErrorKind::InvalidData, "Read invalid indicator for player \
+                    name String."));
+            }
+            let (player_name_len, bytes_used) = read_uleb128_with_len(&mut bytes_iter)?;
+            let player_name = String::from_iter(&mut bytes_iter.take(player_name_len));
+            // version: 4
+            // folder_count: 4
+            // account_unlocked: 1
+            // account_unlock_date: 8
+            // indicator: 1
+            // player_name_len: probably always < 128 meaning the ULEB128 encoding uses 1 byte, but
+            //     I don't want to take chances
+            // player_name_string: player_name_len
+            let bytes_used = 4 + 4 + 1 + 8 + 1 + bytes_used + player_name_len;
+            (version, folder_count, account_unlocked, account_unlock_date, player_name, bytes_used)
         };
-        let player_name = fromutf8_to_ioresult(read_string_utf8(&mut bytes_iter)?, "player name")?;
-        let num_beatmaps = read_int(&mut bytes_iter)?;
+        let num_beatmaps = read_int(&mut bytes.iter().skip(bytes_used))?;
         let beatmaps = if version >= 20160408 {
-            let beatmap_slices = get_beatmap_slices(&bytes).map_err(IoError::new(ErrorKind::Other,
+            /*let beatmap_slices = get_beatmap_slices(&bytes).map_err(IoError::new(ErrorKind::Other,
                 "Failed to collect beatmap byte slices."))?;
             beatmap_slices.into_par_iter()
                 .map(|byte_slice| Beatmap::read_from_bytes(&mut byte_slice.iter()))
-                .collect::<IoResult<Vec<Beatmap>>>()?
+                .collect::<IoResult<Vec<Beatmap>>>()?*/
+            let counter = Arc::new(Mutex::new(0));
+            let start_read = Arc::new(Mutex::new(bytes_used + 4));
+            let threads = (0..jobs)
+                .map(|_| spawn_beatmap_loader_thread(num_beatmaps as usize, counter.clone(),
+                    start_read.clone(), &bytes)).collect::<Vec<_>>();
+            let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
+                .collect::<Vec<_>>();
+            let mut beatmaps = results.pop().unwrap()?;
+            for beatmap_result in results {
+                beatmaps.push(beatmap_result?);
+            }
+            beatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
+            beatmaps.into_iter().map(|(_, beatmap)| beatmap).collect::<Vec<_>>()
         } else if version / 1000 <= 2016 && version / 1000 >= 2007 { // catch valid versions
             return Err(IoError::new(ErrorKind::Other, "osu!.db versions older than 20160408 do not \
                 support multithreaded loading."));
@@ -569,8 +603,8 @@ fn spawn_beatmap_loader_thread(number: usize, counter: AtomicUsize, start_read: 
             let difficulty = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "difficulty")?;
             let audio_file_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
                 "audio file name")?;
-            let md5_beatmap_hash = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
-                "MD5 beatmap hash")?;
+            let md5_beatmap_hash = read_md5_hash(&mut i).map_err(IoError::new(Other,
+                "Error reading MD5 beatmap hash"))?;
             let dotosu_file_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
                 "corresponding .osu file name")?;
             let ranked_status = RankedStatus::read_from_bytes(&mut i)?;
