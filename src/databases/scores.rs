@@ -161,21 +161,42 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
         let bytes = unsafe { &*bytes_pointer };
         let mut ScoreDbBeatmaps = Vec::new();
         loop {
-            let (stuff) = {
+            let (md5_beatmap_hash, number_of_scores) = {
                 let ctr = counter.lock().unwrap();
                 let s = start_read.lock().unwrap();
-                let md5_beatmap_hash = read_md5_hash(&mut bytes[start..start + 18].iter())?;
-                let number_of_scores = read_int(&mut bytes[start + 18..start + 22].iter())?;
-                let mut skip_forward = start + 22;
-                for _ in 0..number_of_scores {
+                let md5_beatmap_hash = read_md5_hash(&mut bytes[*s..*s+ 18].iter())?;
+                let number_of_scores = read_int(&mut bytes[*s + 18..*s + 22].iter())?;
+                for _ in 0..number_of_scores - 1 {
                     // Skips:
                     // 1 byte for gameplay_mode
                     // 4 bytes for score_version
                     // 18 bytes for MD5 beatmap hash
-                    *start += 23;
-                    let player_name_len = read_uleb128(&mut bytes[*start..*start + 1].iter())?;
+                    *s += 23;
+                    // Assuming 32 characters max length for username, +2 for indicator and ULEB128
+                    let (player_name_len, player_name) = read_player_name_with_len(
+                        &mut bytes[*s..*s + 34].iter())?;
+                    *s += player_name_len + 62;
+                    // Skips:
+                    // 18 bytes for replay MD5 hash
+                    // 2 bytes for number of 300s
+                    // 2 bytes for number of 100s
+                    // 2 bytes for number of 50s
+                    // 2 bytes for number of gekis
+                    // 2 bytes for number of katus
+                    // 2 bytes for number of misses
+                    // 4 bytes for score
+                    // 2 bytes for max combo
+                    // 1 byte for perfect combo
+                    // 4 bytes for mods used
+                    // 1 byte for empty string indicator
+                    // 8 bytes for replay timestamp
+                    // 4 bytes for 0xFFFFFFFF
+                    // 8 bytes for score ID
+                    // Total of 62
                 }
+                (md5_beatmap_hash, number_of_scores)
             };
+            
         }
     })
 }
