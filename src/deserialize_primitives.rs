@@ -30,6 +30,8 @@ const STRING_ERR: IoError = IoError::new(Other, "Failed to read indicator for st
 const DATETIME_ERR: IoError = IoError::new(Other, "Failed to read long for datetime.");
 const HASH_ERR: IoError = IoError::new(InvalidData, "Read invalid indicator byte for MD5 hash \
     string.");
+const USERNAME_ERR: IoError = IoError::new(InvalidData, "Read invalid incidator byte for username \
+    string.");
 
 pub fn read_byte<I: Iterator<Item= u8>>(i: &mut I) -> IoResult<u8> {
     Ok(i.next().ok_or( BYTE_ERR)?)
@@ -176,11 +178,44 @@ pub fn read_datetime<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<SystemTime> 
 }
 
 pub fn read_md5_hash<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<String> {
-    let indicator = read_boolean(i)?;
+    let indicator = read_byte(i)?;
     if indicator != 0x0b {
         return Err(HASH_ERR);
     }
     let _ = read_byte(i)?; // ULEB128 encoding for 16 uses 1 byte
-    let hash_bytes = [read_byte(i)?; 16];
+    let hash_bytes = [read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
+        read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
+        read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?];
     Ok(String::from_iter(hash_bytes.iter()))
+}
+
+pub fn read_player_name<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<String> {
+    let indicator = read_byte(i)?;
+    if indicator != 0x0b {
+        return Err(USERNAME_ERR);
+    }
+    // Usernames are ASCII (1 byte in Unicode too), and so should never need more than a byte for
+    // the player name string length
+    let len = read_byte(i)?;
+    let mut string_bytes = Vec::with_capacity(len as usize);
+    for _ in 0..len {
+        string_bytes.push(read_byte(i)?);
+    }
+    fromutf8_to_ioresult(String::from_utf8(string_bytes), "player name")
+}
+
+pub fn read_player_name_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usize, String)> {
+    let indicator = read_byte(i)?;
+    if indicator != 0x0b {
+        return Err(USERNAME_ERR);
+    }
+    // Usernames are ASCII (1 byte in Unicode too), and so should never need more than a byte for
+    // the player name string length
+    let len = read_byte(i)?;
+    let mut string_bytes = Vec::with_capacity(len as usize);
+    for _ in 0..len {
+        string_bytes.push(read_byte(i)?);
+    }
+    // The +2 is to account for the indicator and ULEB128 integer
+    Ok((len as usize + 2, fromutf8_to_ioresult(String::from_utf8(string_bytes), "player_name")?))
 }
