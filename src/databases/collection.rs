@@ -4,6 +4,8 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::env;
 use std::sync::{Arc, Mutex, atomic::{AtomicUsize, AtomicU64, Ordering}};
 use std::thread::{self, JoinHandle};
+use std::iter::FromIterator;
+use std::mem::transmute;
 use crate::deserialize_primitives::*;
 use crate::databases::load::Load;
 
@@ -38,8 +40,8 @@ pub struct CollectionDb {
 impl Load for CollectionDb {
     fn read_single_thread(bytes: Vec<u8>) -> IoResult<Self> {
         let mut byte_iter = bytes.into_iter();
-        let version = read_int(byte_iter)?;
-        let number_of_collections = read_int(byte_iter)?;
+        let version = read_int(&mut byte_iter)?;
+        let number_of_collections = read_int(&mut byte_iter)?;
         let mut collections = Vec::with_capacity(number_of_collections as usize);
         for _ in 0..number_of_collections {
             collections.push(Collection::read_from_bytes(&mut byte_iter)?);
@@ -53,8 +55,8 @@ impl Load for CollectionDb {
 
     fn read_multi_thread(jobs: usize, bytes: Vec<u8>) -> IoResult<Self> {
         let (version, number_of_collections) = {
-            let mut bytes_iter = bytes.iter();
-            (read_int(bytes_iter)?, read_int(bytes_iter)?)
+            let mut bytes_iter = bytes.iter().cloned();
+            (read_int(&mut bytes_iter)?, read_int(&mut bytes_iter)?)
         };
         let counter = Arc::new(Mutex::new(0));
         let start_read = Arc::new(Mutex::new(8));
@@ -65,9 +67,9 @@ impl Load for CollectionDb {
             .collect::<Vec<_>>();
         let mut collections = results.pop().unwrap()?;
         for collection_result in results {
-            first.append(collection_result?);
+            collections.append(&mut collection_result?);
         }
-        collections.sort_by(|(a, _), (b, )| a.cmp(b));
+        collections.sort_by(|(a, _), (b, _)| a.cmp(b));
         let collections = collections.into_iter().map(|(_, collection)| collection)
             .collect::<Vec<Collection>>();
         Ok(CollectionDb {
@@ -93,36 +95,41 @@ impl Load for CollectionDb {
 fn spawn_collection_loader_thread(number: usize, counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>, byte_pointer: *const Vec<u8>)
     -> JoinHandle<IoResult<Vec<(usize, Collection)>>> {
+    let tmp = byte_pointer as usize;
     thread::spawn(move || {
-        let bytes = unsafe { &*byte_pointer };
+        let bytes = unsafe { &*(tmp as *const Vec<u8>) };
         let mut collections = Vec::new();
         loop {
             let (collection_name, number_of_beatmaps, num, start) = {
-                let ctr = counter.lock().unwrap();
-                let start = start_read.lock().unwrap();
-                if *ctr == number {
+                let mut ctr = counter.lock().unwrap();
+                if *ctr >= number {
                     return Ok(collections);
+                } else {
+                    *ctr += 1;
                 }
+                let mut start = start_read.lock().unwrap();
                 let indicator = bytes[*start];
                 if indicator != 0x0b {
                     return Err(IoError::new(ErrorKind::InvalidData, "Read invalid indicator for \
                         collection name String."));
                 }
                 *start += 1;
-                let (collection_name_len, bytes_used) = read_uleb128_with_len(&mut bytes[*start..*start + 1].iter())?;
+                let (collection_name_len, bytes_used) = read_uleb128_with_len(
+                    &mut (&bytes[*start..*start + 1]).iter().cloned())?;
                 let collection_name = String::from_iter(
-                    bytes[*start + bytes_used..*start + bytes_used + collection_name_len].iter());
-                let number_of_beatmaps = read_int(bytes[*start + bytes_used
-                    + collection_name_len..*start + bytes_used + collection_name_len + 4].iter())?;
-                let num = *ctr;
+                    bytes[*start + bytes_used..*start + bytes_used + collection_name_len].iter()
+                        .map(|&byte| byte as char));
+                let number_of_beatmaps = read_int(&mut (&bytes[*start + bytes_used
+                    + collection_name_len..*start + bytes_used + collection_name_len + 4]).iter().cloned())?;
+                let num = *ctr - 1;
                 *ctr += 1;
                 *start += bytes_used + collection_name_len + 4;
                 let s = *start;
                 // Accounts for: 1 indicator byte, 1 length byte, and 16 bytes for MD5 hash.
-                *start += number_of_beatmaps * 18;
+                *start += number_of_beatmaps as usize * 18;
                 (collection_name, number_of_beatmaps, num, s)
             };
-            let mut bytes_iter = bytes[start..start + number_of_beatmaps * 18].iter();
+            let mut bytes_iter = bytes[start..start + number_of_beatmaps as usize * 18].iter().cloned();
             let mut md5_beatmap_hashes = Vec::with_capacity(number_of_beatmaps as usize);
             for _ in 0..number_of_beatmaps {
                 md5_beatmap_hashes.push(read_md5_hash(&mut bytes_iter)?);

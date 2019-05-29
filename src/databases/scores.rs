@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData};
+use std::io::{Result as IoResult, Error as IoError, ErrorKind::Other};
 use std::time::{Duration, SystemTime};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::{Arc, Mutex, atomic::{AtomicUsize, AtomicU64, Ordering}};
@@ -33,10 +33,10 @@ impl Score {
     pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
         let gameplay_mode = GameplayMode::read_from_bytes(i)?;
         let score_version = read_int(i)?;
-        let md5_beatmap_hash = read_md5_hash(i).map_err(IoError::new(Other,
+        let md5_beatmap_hash = read_md5_hash(i).map_err(|_| IoError::new(Other,
             "Error reading MD5 beatmap hash"))?;
         let player_name = fromutf8_to_ioresult(read_string_utf8(i)?, "player name")?;
-        let md5_replay_hash = read_md5_hash(i).map_err(IoError::new(Other,
+        let md5_replay_hash = read_md5_hash(i).map_err(|_| IoError::new(Other,
             "Error reading MD5 replay hash"))?;
         let number_of_300s = read_short(i)?;
         let number_of_100s = read_short(i)?;
@@ -120,53 +120,57 @@ impl Load for ScoresDb {
         })
     }
 
-    fn read_multi_thread(bytes: Vec<u8>) -> IoResult<Self> {
-
+    fn read_multi_thread(jobs: usize, bytes: Vec<u8>) -> IoResult<Self> {
+        let (version, number_of_beatmaps) = {
+            let mut bytes_iter = bytes[0..8].iter().cloned();
+            (read_int(&mut bytes_iter)?, read_int(&mut bytes_iter)?)
+        };
+        let counter = Arc::new(Mutex::new(0));
+        let start_read = Arc::new(Mutex::new(8));
+        let threads = (0..jobs).map(|_| spawn_scoredbbeatmap_loader(number_of_beatmaps as usize,
+            counter.clone(), start_read.clone(), &bytes)).collect::<Vec<_>>();
+        let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
+            .collect::<Vec<_>>();
+        let mut scoredbbeatmaps = results.pop().unwrap()?;
+        for scoredbbeatmap_result in results {
+            scoredbbeatmaps.append(&mut scoredbbeatmap_result?);
+        }
+        scoredbbeatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
+        let beatmaps = scoredbbeatmaps.into_iter().map(|(_, scoredbbeatmap)| scoredbbeatmap)
+            .collect::<Vec<ScoreDbBeatmap>>();
+        Ok(ScoresDb {
+            version,
+            number_of_beatmaps,
+            beatmaps
+        })
     }
 }
 
-/*
-pub struct ScoreDbBeatmap {
-    md5_beatmap_hash: String,
-    number_of_scores: i32,
-    scores: Vec<Score>
-}
-pub struct Score {
-    gameplay_mode: GameplayMode,
-    score_version: i32,
-    md5_beatmap_hash: String,
-    player_name: String,
-    md5_replay_hash: String,
-    number_of_300s: i16,
-    number_of_100s: i16, // 150s in Taiko, 100s in CTB, 200s in Mania
-    number_of_50s: i16, // small fruit in CTB, 50s in Mania
-    number_of_gekis: i16, // max 300s in Mania
-    number_of_katus: i16, // 100s in mania
-    number_of_misses: i16,
-    replay_score: i32,
-    max_combo: i16,
-    perfect_combo: bool,
-    mods_used: i32,
-    empty_string: String,
-    replay_timestamp: SystemTime,
-    negative_one: i32,
-    online_score_id: i64
-}
-*/
-
 fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>, bytes_pointer: *const Vec<u8>)
-    -> JoinHandle<IoResult<Vec<ScoreDbBeatmap>>> {
+    -> JoinHandle<IoResult<Vec<(usize, ScoreDbBeatmap)>>> {
+    let tmp = bytes_pointer as usize;
     thread::spawn(move || {
-        let bytes = unsafe { &*bytes_pointer };
-        let mut ScoreDbBeatmaps = Vec::new();
+        let bytes = unsafe { &*(tmp as *const Vec<u8>) };
+        let mut score_db_beatmaps = Vec::new();
         loop {
-            let (md5_beatmap_hash, number_of_scores) = {
-                let ctr = counter.lock().unwrap();
-                let s = start_read.lock().unwrap();
-                let md5_beatmap_hash = read_md5_hash(&mut bytes[*s..*s+ 18].iter())?;
-                let number_of_scores = read_int(&mut bytes[*s + 18..*s + 22].iter())?;
-                for _ in 0..number_of_scores - 1 {
+            let (md5_beatmap_hash, number_of_scores, start_read, end, number) = {
+                let mut ctr = counter.lock().unwrap();
+                let number = if *ctr >= number_of_scoredbbeatmaps {
+                    return Ok(score_db_beatmaps);
+                } else {
+                    *ctr += 1;
+                    *ctr - 1
+                };
+                let mut s = start_read.lock().unwrap();
+                let md5_beatmap_hash = read_md5_hash(&mut (&bytes[*s..*s+ 18]).iter().cloned())?;
+                let number_of_scores = read_int(&mut (&bytes[*s + 18..*s + 22]).iter().cloned())?;
+                // Skips:
+                // 18 bytes for beatmap MD5 hash
+                // 4 bytes for number of beatmaps
+                *s += 22;
+                let start_from = *s;
+                for _ in 0..number_of_scores {
                     // Skips:
                     // 1 byte for gameplay_mode
                     // 4 bytes for score_version
@@ -174,7 +178,7 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     *s += 23;
                     // Assuming 32 characters max length for username, +2 for indicator and ULEB128
                     let (player_name_len, player_name) = read_player_name_with_len(
-                        &mut bytes[*s..*s + 34].iter())?;
+                        &mut (&bytes[*s..*s + 34]).iter().cloned())?;
                     *s += player_name_len + 62;
                     // Skips:
                     // 18 bytes for replay MD5 hash
@@ -194,9 +198,18 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     // 8 bytes for score ID
                     // Total of 62
                 }
-                (md5_beatmap_hash, number_of_scores)
+                (md5_beatmap_hash, number_of_scores, start_from, *s, number)
             };
-            
+            let mut scores = Vec::with_capacity(number_of_scores as usize);
+            let mut i = bytes[start_read..end].iter().cloned();
+            for _ in 0..number_of_scores {
+                scores.push(Score::read_from_bytes(&mut i)?);
+            }
+            score_db_beatmaps.push((number, ScoreDbBeatmap {
+                md5_beatmap_hash,
+                number_of_scores,
+                scores
+            }));
         }
     })
 }
