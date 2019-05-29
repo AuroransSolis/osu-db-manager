@@ -9,7 +9,7 @@ mod serialize_primitives;
 // mod partial_databases;
 mod help;
 
-use std::fs::File;
+use std::fs::{File, read};
 use std::time::Instant;
 use std::io::Cursor;
 use std::sync::{Arc, Mutex, atomic::AtomicUsize};
@@ -18,13 +18,13 @@ use rayon::{ThreadPoolBuilder, ThreadPoolBuildError};
 
 use databases::osu::OsuDb;
 use databases::load::Load;
-use crate::databases::osu::OsuDbLoadSettings;
+// use crate::databases::osu::OsuDbLoadSettings;
 
 fn main() {
-    let mut f = File::open("auro-osu!.db").unwrap();
+    let file_bytes = read("auro-osu!.db").unwrap();
     let start = Instant::now();
-    let load_settings = OsuDbLoadSettings::new(1);
-    let osudb = OsuDb::read_from_file(load_settings, f);
+    // let load_settings = OsuDbLoadSettings::new(1);
+    let osudb = OsuDb::read_from_bytes(1, file_bytes);
     println!("Estimated time to run: {:?}", start.elapsed());
     if let Ok(osudb) = osudb {
         println!("Success! Loaded in osu!.db with {} beatmaps.", osudb.number_of_beatmaps);
