@@ -1,6 +1,4 @@
-use std::fs::File;
-use std::io::{Result as IoResult, ErrorKind};
-use std::env;
+use std::io::Result as IoResult;
 
 pub trait Load: Sized {
     fn read_from_bytes(jobs: usize, bytes: Vec<u8>) -> IoResult<Self> {

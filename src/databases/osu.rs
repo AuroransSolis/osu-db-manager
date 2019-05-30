@@ -1,10 +1,8 @@
-use std::fs::File;
-use std::io::{Result as IoResult, Error as IoError, ErrorKind, Cursor, Seek, SeekFrom, Read};
-use std::time::{Duration, SystemTime};
+use std::io::{Result as IoResult, Error as IoError, ErrorKind};
+use std::time::SystemTime;
 use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::sync::{Arc, Mutex, atomic::{AtomicUsize, AtomicU64, Ordering}};
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::env;
 use crate::deserialize_primitives::*;
 use crate::databases::load::Load;
 
@@ -174,7 +172,7 @@ impl ReadVersionSpecificData for Modern {
     }
 
     #[inline]
-    fn read_unknown_short<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Option<i16>> {
+    fn read_unknown_short<I: Iterator<Item = u8>>(_i: &mut I) -> IoResult<Option<i16>> {
         Ok(None)
     }
 }
@@ -202,7 +200,7 @@ impl ReadVersionSpecificData for ModernWithEntrySize {
     }
 
     #[inline]
-    fn read_unknown_short<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Option<i16>> {
+    fn read_unknown_short<I: Iterator<Item = u8>>(_i: &mut I) -> IoResult<Option<i16>> {
         Ok(None)
     }
 }

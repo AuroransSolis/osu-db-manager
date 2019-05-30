@@ -29,13 +29,13 @@ macro_rules! make_bench {
         criterion_group!{
             name = osu_db_bench;
             config = Criterion::default();
-            targets = bench_clone_database_vector, $($name),*
+            targets = /*bench_clone_database_vector,*/ $($name),*
         }
     }
 }
 
 make_bench!{
-    (1, load_osudb_jobs_1), (2, load_osudb_jobs_2), (3, load_osudb_jobs_3), (4, load_osudb_jobs_4),
+    /*(1, load_osudb_jobs_1), (2, load_osudb_jobs_2),*/ (3, load_osudb_jobs_3), (4, load_osudb_jobs_4),
     (5, load_osudb_jobs_5), (6, load_osudb_jobs_6), (7, load_osudb_jobs_7), (8, load_osudb_jobs_8)
 }
 

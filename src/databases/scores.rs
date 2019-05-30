@@ -1,8 +1,6 @@
-use std::fs::File;
-use std::io::{Result as IoResult, Error as IoError, ErrorKind::Other};
-use std::time::{Duration, SystemTime};
-use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::sync::{Arc, Mutex, atomic::{AtomicUsize, AtomicU64, Ordering}};
+use std::io::{Result as IoResult, Error as IoError, ErrorKind::{Other, InvalidData}};
+use std::time::SystemTime;
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use crate::deserialize_primitives::*;
 use crate::databases::{load::Load, osu::GameplayMode};
@@ -177,9 +175,18 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     // 18 bytes for MD5 beatmap hash
                     *s += 23;
                     // Assuming 32 characters max length for username, +2 for indicator and ULEB128
-                    let (player_name_len, player_name) = read_player_name_with_len(
-                        &mut (&bytes[*s..*s + 34]).iter().cloned())?;
-                    *s += player_name_len + 62;
+                    let indicator = read_byte(&mut (&bytes[*s..*s + 1]).iter().cloned())?;
+                    let player_name_len = if indicator == 0x0b {
+                        read_byte(&mut (&bytes[*s + 1..*s + 2]).iter().cloned())?
+                    } else if indicator == 0 {
+                        0
+                    } else {
+                        return Err(IoError::new(InvalidData, "Read invalid indicator for player \
+                            name string."));
+                    };
+                    // let (player_name_len, player_name) = read_player_name_with_len(
+                        // &mut (&bytes[*s..*s + 34]).iter().cloned())?;
+                    *s += player_name_len as usize + 62;
                     // Skips:
                     // 18 bytes for replay MD5 hash
                     // 2 bytes for number of 300s

@@ -1,5 +1,4 @@
 use std::iter::Iterator;
-use std::fs::File;
 use std::io::{Result as IoResult, Error as IoError};
 use std::io::ErrorKind::{Other, InvalidData};
 use std::mem::size_of;
