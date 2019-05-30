@@ -29,8 +29,8 @@ const DOUBLE_ERR: &str = "Failed to read byte for double.";
 const BOOLEAN_ERR: &str = "Failed to read byte for boolean.";
 const STRING_ERR: &str = "Failed to read indicator for string.";
 const DATETIME_ERR: &str = "Failed to read long for datetime.";
-const HASH_ERR: &str = "Read invalid indicator byte for MD5 hash string.";
-const USERNAME_ERR: &str = "Read invalid incidator byte for username string.";
+const HASH_ERR: &str = "Read invalid indicator byte for MD5 hash string";
+const USERNAME_ERR: &str = "Read invalid incidator byte for username string";
 
 macro_rules! other {
     ($msg:ident) => {
@@ -39,24 +39,28 @@ macro_rules! other {
 }
 
 macro_rules! invalid {
-    ($msg:ident) => {
+    ($msg:expr) => {
         IoError::new(InvalidData, $msg)
     }
 }
 
+#[inline]
 pub fn read_byte<I: Iterator<Item= u8>>(i: &mut I) -> IoResult<u8> {
     Ok(i.next().ok_or(other!(BYTE_ERR))?)
 }
 
+#[inline]
 pub fn read_short<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<i16> {
     Ok(i.next().ok_or(other!(SHORT_ERR))? as i16 + ((i.next().ok_or(other!(SHORT_ERR))? as i16) << 8))
 }
 
+#[inline]
 pub fn read_int<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<i32> {
     Ok(i.next().ok_or(other!(INT_ERR))? as i32 + ((i.next().ok_or(other!(INT_ERR))? as i32) << 8)
         + ((i.next().ok_or(other!(INT_ERR))? as i32) << 16) + ((i.next().ok_or(other!(INT_ERR))? as i32) << 24))
 }
 
+#[inline]
 pub fn read_long<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<i64> {
     Ok(i.next().ok_or(other!(LONG_ERR))? as i64 + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 8)
         + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 16) + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 24)
@@ -64,6 +68,7 @@ pub fn read_long<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<i64> {
         + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 48) + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 56))
 }
 
+#[inline]
 pub fn read_uleb128<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<usize> {
     let mut out = 0;
     let mut found_end = false;
@@ -104,6 +109,7 @@ pub fn read_uleb128<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<usize> {
     }
 }
 
+#[inline]
 pub fn read_uleb128_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usize, usize)> {
     let mut out = 0;
     let mut found_end = false;
@@ -146,18 +152,17 @@ pub fn read_uleb128_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usi
     }
 }
 
+#[inline]
 pub fn read_single<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<f32> {
     Ok(f32::from_bits(read_int(i).map_err(|_| other!(SINGLE_ERR))? as u32))
 }
 
+#[inline]
 pub fn read_double<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<f64> {
     Ok(f64::from_bits(read_long(i).map_err(|_| other!(DOUBLE_ERR))? as u64))
 }
 
-pub fn read_boolean<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<bool> {
-    Ok(i.next().ok_or(other!(BOOLEAN_ERR))? == 0)
-}
-
+#[inline]
 pub fn read_string_utf8<I: Iterator<Item = u8>>(i: &mut I)
     -> IoResult<Result<String, FromUtf8Error>> {
     let indicator = i.next().ok_or(other!(STRING_ERR))?;
@@ -165,13 +170,23 @@ pub fn read_string_utf8<I: Iterator<Item = u8>>(i: &mut I)
         Ok(Ok(String::new()))
     } else if indicator == 0x0b {
         let length = read_uleb128(i)?;
-        Ok(String::from_utf8(i.take(length).collect::<Vec<_>>()))
+        let mut chars = Vec::with_capacity(length);
+        for _ in 0..length {
+            chars.push(read_byte(i)? as char);
+        }
+        Ok(Ok(String::from_iter(chars.into_iter())))
     } else {
         let err_msg = format!("Found invalid indicator for string ({})", indicator);
         Err(IoError::new(InvalidData, err_msg.as_str()))
     }
 }
 
+#[inline]
+pub fn read_boolean<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<bool> {
+    Ok(i.next().ok_or(other!(BOOLEAN_ERR))? == 0)
+}
+
+#[inline]
 pub fn fromutf8_to_ioresult(r: Result<String, FromUtf8Error>, field: &str) -> IoResult<String> {
     match r {
         Ok(string) => Ok(string),
@@ -182,28 +197,38 @@ pub fn fromutf8_to_ioresult(r: Result<String, FromUtf8Error>, field: &str) -> Io
     }
 }
 
+#[inline]
 pub fn read_datetime<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<SystemTime> {
     let ticks = read_long(i).map_err(|_| other!(DATETIME_ERR))?;
     let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
     Ok(SystemTime::UNIX_EPOCH + duration_since_epoch)
 }
 
+#[inline]
 pub fn read_md5_hash<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<String> {
     let indicator = read_byte(i)?;
-    if indicator != 0x0b {
-        return Err(invalid!(HASH_ERR));
+    if indicator == 0 {
+        return Ok(String::new());
+    } else if indicator != 0x0b {
+        let msg = format!("{}: {}", HASH_ERR, indicator);
+        return Err(invalid!(msg.as_str()));
     }
-    let _ = read_byte(i)?; // ULEB128 encoding for 16 uses 1 byte
+    let _ = read_byte(i)?; // ULEB128 encoding for 32 uses 1 byte
     let hash_bytes = [read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
         read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
-        read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?];
+        read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
+        read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
+        read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
+        read_byte(i)?, read_byte(i)?, read_byte(i)?].to_vec();
     Ok(String::from_iter(hash_bytes.iter().map(|&byte| byte as char)))
 }
 
+#[inline]
 pub fn read_player_name<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<String> {
     let indicator = read_byte(i)?;
     if indicator != 0x0b {
-        return Err(invalid!(USERNAME_ERR));
+        let msg = format!("{}: {}", USERNAME_ERR, indicator);
+        return Err(invalid!(msg.as_str()));
     }
     // Usernames are ASCII (1 byte in Unicode too), and so should never need more than a byte for
     // the player name string length
@@ -215,10 +240,12 @@ pub fn read_player_name<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<String> {
     fromutf8_to_ioresult(String::from_utf8(string_bytes), "player name")
 }
 
+#[inline]
 pub fn read_player_name_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usize, String)> {
     let indicator = read_byte(i)?;
     if indicator != 0x0b {
-        return Err(invalid!(USERNAME_ERR));
+        let msg = format!("{}: {}", USERNAME_ERR, indicator);
+        return Err(invalid!(msg.as_str()));
     }
     // Usernames are ASCII (1 byte in Unicode too), and so should never need more than a byte for
     // the player name string length
