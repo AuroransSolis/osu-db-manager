@@ -9,7 +9,7 @@ use criterion::{Criterion, black_box};
 use std::fs::read;
 use crate::databases::load::Load;
 
-const OSUDB_FILE: &str = "auro-osu!.db";
+const OSUDB_FILE: &str = "jminn-osu!.db";
 
 criterion_group!{
     name = osu_db_bench;
@@ -39,8 +39,6 @@ fn bench_load_osudb_1_job(c: &mut Criterion) {
         });
     });
 }
-
-
 
 fn bench_load_osudb_2_jobs(c: &mut Criterion) {
     c.bench_function("Load entire osu!.db (-j2)", move |b| {
