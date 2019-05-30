@@ -5,10 +5,8 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::{Arc, Mutex, atomic::{AtomicUsize, AtomicU64, Ordering}};
 use std::thread::{self, JoinHandle};
 use std::env;
-use rayon::prelude::*;
 use crate::deserialize_primitives::*;
 use crate::databases::load::Load;
-// use crate::build_global_threadpool_with_jobs;
 
 // Deserializing osu!.db-specific data types
 
