@@ -16,11 +16,11 @@ use crate::databases::load::Load;
 fn read_int_double_pair<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(i32, f64)> {
     let int_double_pair_err = IoError::new(ErrorKind::Other,
         "Failed to read extraneous byte in int-double pair.");
-    let _ = i.next().ok_or(int_double_pair_err)?;
+    let _ = i.next().ok_or_else(|| int_double_pair_err)?;
     let int = read_int(i)?;
     let int_double_pair_err = IoError::new(ErrorKind::Other,
         "Failed to read extraneous byte in int-double pair.");
-    let _ = i.next().ok_or(int_double_pair_err)?;
+    let _ = i.next().ok_or_else(|| int_double_pair_err)?;
     let double = read_double(i)?;
     Ok((int, double))
 }
@@ -62,7 +62,7 @@ impl RankedStatus {
     pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
         let ranked_status_err = IoError::new(ErrorKind::Other,
             "Failed to read byte for ranked status.");
-        let b = i.next().ok_or(ranked_status_err)?;
+        let b = i.next().ok_or_else(|| ranked_status_err)?;
         match b {
             0 => Ok(Unknown),
             1 => Ok(Unsubmitted),
@@ -137,7 +137,7 @@ impl ReadVersionSpecificData for Legacy {
 
     #[inline]
     fn read_arcshpod<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<ByteSingle> {
-        Ok(Byte(i.next().ok_or(IoError::new(ErrorKind::Other,
+        Ok(Byte(i.next().ok_or_else(|| IoError::new(ErrorKind::Other,
             "Failed to get byte for AR/CS/HP/OD"))?))
     }
 
@@ -224,7 +224,7 @@ impl GameplayMode {
     pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
         let gameplay_mode_err = IoError::new(ErrorKind::Other,
             "Failed to read byte for gameplay mode specifier.");
-        let b = i.next().ok_or(gameplay_mode_err)?;
+        let b = i.next().ok_or_else(|| gameplay_mode_err)?;
         match b {
             0 => Ok(Standard),
             1 => Ok(Taiko),

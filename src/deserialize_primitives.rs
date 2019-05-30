@@ -46,26 +46,33 @@ macro_rules! invalid {
 
 #[inline]
 pub fn read_byte<I: Iterator<Item= u8>>(i: &mut I) -> IoResult<u8> {
-    Ok(i.next().ok_or(other!(BYTE_ERR))?)
+    Ok(i.next().ok_or_else(|| other!(BYTE_ERR))?)
 }
 
 #[inline]
 pub fn read_short<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<i16> {
-    Ok(i.next().ok_or(other!(SHORT_ERR))? as i16 + ((i.next().ok_or(other!(SHORT_ERR))? as i16) << 8))
+    Ok(i.next().ok_or_else(|| other!(SHORT_ERR))? as i16
+        + ((i.next().ok_or_else(|| other!(SHORT_ERR))? as i16) << 8))
 }
 
 #[inline]
 pub fn read_int<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<i32> {
-    Ok(i.next().ok_or(other!(INT_ERR))? as i32 + ((i.next().ok_or(other!(INT_ERR))? as i32) << 8)
-        + ((i.next().ok_or(other!(INT_ERR))? as i32) << 16) + ((i.next().ok_or(other!(INT_ERR))? as i32) << 24))
+    Ok(i.next().ok_or_else(|| other!(INT_ERR))? as i32
+        + ((i.next().ok_or_else(|| other!(INT_ERR))? as i32) << 8)
+        + ((i.next().ok_or_else(|| other!(INT_ERR))? as i32) << 16)
+        + ((i.next().ok_or_else(|| other!(INT_ERR))? as i32) << 24))
 }
 
 #[inline]
 pub fn read_long<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<i64> {
-    Ok(i.next().ok_or(other!(LONG_ERR))? as i64 + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 8)
-        + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 16) + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 24)
-        + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 32) + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 40)
-        + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 48) + ((i.next().ok_or(other!(LONG_ERR))? as i64) << 56))
+    Ok(i.next().ok_or_else(|| other!(LONG_ERR))? as i64
+        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 8)
+        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 16)
+        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 24)
+        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 32)
+        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 40)
+        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 48)
+        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 56))
 }
 
 #[inline]
@@ -74,7 +81,7 @@ pub fn read_uleb128<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<usize> {
     let mut found_end = false;
     let mut shift = 0;
     while shift < size_of::<usize>() * 8 {
-        let b = i.next().ok_or(other!(ULEB128_ERR))?;
+        let b = i.next().ok_or_else(|| other!(ULEB128_ERR))?;
         // Handle case when there's less than eight bits left in the usize
         if shift + 8 >= size_of::<usize>() * 8 {
             // If the last byte has a value that fits within the remaining number of bits, add it
@@ -116,7 +123,7 @@ pub fn read_uleb128_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usi
     let mut shift = 0;
     let mut len = 0;
     while shift < size_of::<usize>() * 8 {
-        let b = i.next().ok_or(other!(ULEB128_ERR))?;
+        let b = i.next().ok_or_else(|| other!(ULEB128_ERR))?;
         // Handle case when there's less than eight bits left in the usize
         if shift + 8 >= size_of::<usize>() * 8 {
             // If the last byte has a value that fits within the remaining number of bits, add it
@@ -165,7 +172,7 @@ pub fn read_double<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<f64> {
 #[inline]
 pub fn read_string_utf8<I: Iterator<Item = u8>>(i: &mut I)
     -> IoResult<Result<String, FromUtf8Error>> {
-    let indicator = i.next().ok_or(other!(STRING_ERR))?;
+    let indicator = i.next().ok_or_else(|| other!(STRING_ERR))?;
     if indicator == 0 {
         Ok(Ok(String::new()))
     } else if indicator == 0x0b {
@@ -183,7 +190,7 @@ pub fn read_string_utf8<I: Iterator<Item = u8>>(i: &mut I)
 
 #[inline]
 pub fn read_boolean<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<bool> {
-    Ok(i.next().ok_or(other!(BOOLEAN_ERR))? == 0)
+    Ok(i.next().ok_or_else(|| other!(BOOLEAN_ERR))? == 0)
 }
 
 #[inline]
