@@ -21,13 +21,14 @@ use databases::load::Load;
 // use crate::databases::osu::OsuDbLoadSettings;
 
 fn main() {
-    let file_bytes = read("auro-osu!.db").unwrap();
+    let jobs = 1;
     let start = Instant::now();
-    // let load_settings = OsuDbLoadSettings::new(1);
-    let osudb = OsuDb::read_from_bytes(1, file_bytes);
+    let file_bytes = read("tama-osu!.db").unwrap();
+    let osudb = OsuDb::read_from_bytes(jobs, file_bytes);
     println!("Estimated time to run: {:?}", start.elapsed());
     if let Ok(osudb) = osudb {
-        println!("Success! Loaded in osu!.db with {} beatmaps.", osudb.number_of_beatmaps);
+        println!("Success! Loaded in osu!.db with {} beatmaps with {} thread(s).",
+            osudb.number_of_beatmaps, jobs);
     } else {
         println!("Fuck.\n{:?}", osudb.unwrap_err());
     }
