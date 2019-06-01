@@ -168,18 +168,43 @@ pub fn read_double<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<f64> {
 }
 
 #[inline]
-pub fn read_string_utf8<I: Iterator<Item = u8>>(i: &mut I)
-    -> IoResult<Result<String, FromUtf8Error>> {
+pub fn read_string_utf8<I: Iterator<Item = u8>>(i: &mut I, field: &str)
+    -> IoResult<Option<String>> {
     let indicator = i.next().ok_or_else(|| other!(STRING_ERR))?;
     if indicator == 0 {
-        Ok(Ok(String::new()))
+        Ok(None)
     } else if indicator == 0x0b {
         let length = read_uleb128(i)?;
-        let mut chars = Vec::with_capacity(length);
+        let mut bytes = Vec::with_capacity(length);
         for _ in 0..length {
-            chars.push(read_byte(i)? as char);
+            bytes.push(read_byte(i)?);
         }
-        Ok(Ok(String::from_iter(chars.into_iter())))
+        Ok(Some(String::from_utf8(bytes).map_err(|e| {
+            let err_msg = format!("Error reading {} ({})", field, e);
+            IoError::new(InvalidData, err_msg.as_str())
+        })?))
+    } else {
+        let err_msg = format!("Found invalid indicator for string ({})", indicator);
+        Err(IoError::new(InvalidData, err_msg.as_str()))
+    }
+}
+
+#[inline]
+pub fn read_string_utf8_with_len<I: Iterator<Item = u8>>(i: &mut I, field: &str)
+    -> IoResult<(usize, Option<String>)> {
+    let indicator = i.next().ok_or_else(|| other!(STRING_ERR))?;
+    if indicator == 0 {
+        Ok((1, None))
+    } else if indicator == 0x0b {
+        let (length, length_bytes) = read_uleb128_with_len(i)?;
+        let mut bytes = Vec::with_capacity(length);
+        for _ in 0..length {
+            bytes.push(read_byte(i)?);
+        }
+        Ok((length + length_bytes + 1, Some(String::from_utf8(bytes).map_err(|e| {
+            let err_msg = format!("Error reading {} ({})", field, e);
+            IoError::new(InvalidData, err_msg.as_str())
+        })?)))
     } else {
         let err_msg = format!("Found invalid indicator for string ({})", indicator);
         Err(IoError::new(InvalidData, err_msg.as_str()))
@@ -192,17 +217,6 @@ pub fn read_boolean<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<bool> {
 }
 
 #[inline]
-pub fn fromutf8_to_ioresult(r: Result<String, FromUtf8Error>, field: &str) -> IoResult<String> {
-    match r {
-        Ok(string) => Ok(string),
-        Err(e) => {
-            let err_msg = format!("Error reading {} ({})", field, e);
-            Err(IoError::new(InvalidData, err_msg.as_str()))
-        }
-    }
-}
-
-#[inline]
 pub fn read_datetime<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<SystemTime> {
     let ticks = read_long(i).map_err(|_| other!(DATETIME_ERR))?;
     let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
@@ -210,10 +224,10 @@ pub fn read_datetime<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<SystemTime> 
 }
 
 #[inline]
-pub fn read_md5_hash<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<String> {
+pub fn read_md5_hash<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Option<String>> {
     let indicator = read_byte(i)?;
     if indicator == 0 {
-        return Ok(String::new());
+        return Ok(None);
     } else if indicator != 0x0b {
         let msg = format!("{}: {}", HASH_ERR, indicator);
         return Err(invalid!(msg.as_str()));
@@ -225,13 +239,16 @@ pub fn read_md5_hash<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<String> {
         read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
         read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
         read_byte(i)?, read_byte(i)?, read_byte(i)?].to_vec();
-    Ok(String::from_iter(hash_bytes.iter().map(|&byte| byte as char)))
+    Ok(Some(String::from_utf8(hash_bytes).map_err(|_| IoError::new(InvalidData, "Error reading \
+        MD5 hash."))?))
 }
 
 #[inline]
-pub fn read_player_name<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<String> {
+pub fn read_player_name<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Option<String>> {
     let indicator = read_byte(i)?;
-    if indicator != 0x0b {
+    if indicator == 0 {
+        return Ok(None);
+    } else if indicator != 0x0b {
         let msg = format!("{}: {}", USERNAME_ERR, indicator);
         return Err(invalid!(msg.as_str()));
     }
@@ -242,13 +259,16 @@ pub fn read_player_name<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<String> {
     for _ in 0..len {
         string_bytes.push(read_byte(i)?);
     }
-    fromutf8_to_ioresult(String::from_utf8(string_bytes), "player name")
+    Ok(Some(String::from_utf8(string_bytes).map_err(|_| IoError::new(InvalidData, "Error reading \
+        player name."))?))
 }
 
 #[inline]
-pub fn read_player_name_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usize, String)> {
+pub fn read_player_name_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usize, Option<String>)> {
     let indicator = read_byte(i)?;
-    if indicator != 0x0b {
+    if indicator == 0 {
+        return Ok((1, None));
+    } else if indicator != 0x0b {
         let msg = format!("{}: {}", USERNAME_ERR, indicator);
         return Err(invalid!(msg.as_str()));
     }
@@ -260,5 +280,6 @@ pub fn read_player_name_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<
         string_bytes.push(read_byte(i)?);
     }
     // The +2 is to account for the indicator and ULEB128 integer
-    Ok((len as usize + 2, fromutf8_to_ioresult(String::from_utf8(string_bytes), "player_name")?))
+    Ok((len as usize + 2, Some(String::from_utf8(string_bytes).map_err(|_| IoError::new(
+        InvalidData, "Error reading player name."))?)))
 }
