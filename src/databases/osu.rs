@@ -247,86 +247,86 @@ impl Display for GameplayMode {
 
 #[derive(Clone, Debug)]
 pub struct Beatmap {
-    entry_size: Option<i32>,
-    artist_name: String,
-    artist_name_unicode: String,
-    song_title: String,
-    song_title_unicode: String,
-    creator_name: String,
-    difficulty: String,
-    audio_file_name: String,
-    md5_beatmap_hash: String,
-    dotosu_file_name: String,
-    ranked_status: RankedStatus,
-    number_of_hitcircles: i16,
-    number_of_sliders: i16,
-    number_of_spinners: i16,
-    last_modification_time: SystemTime,
-    approach_rate: ByteSingle,
-    circle_size: ByteSingle,
-    hp_drain: ByteSingle,
-    overall_difficulty: ByteSingle,
-    slider_velocity: f64,
-    num_mod_combo_star_ratings_standard: Option<i32>,
-    mod_combo_star_ratings_standard: Option<Vec<(i32, f64)>>,
-    num_mod_combo_star_ratings_taiko: Option<i32>,
-    mod_combo_star_ratings_taiko: Option<Vec<(i32, f64)>>,
-    num_mod_combo_star_ratings_ctb: Option<i32>,
-    mod_combo_star_ratings_ctb: Option<Vec<(i32, f64)>>,
-    num_mod_combo_star_ratings_mania: Option<i32>,
-    mod_combo_star_ratings_mania: Option<Vec<(i32, f64)>>,
-    drain_time: i32,
-    total_time: i32,
-    preview_offset_from_start_ms: i32,
-    num_timing_points: i32,
-    timing_points: Vec<TimingPoint>,
-    beatmap_id: i32,
-    beatmap_set_id: i32,
-    thread_id: i32,
-    standard_grade: u8,
-    taiko_grade: u8,
-    ctb_grade: u8,
-    mania_grade: u8,
-    local_offset: i16,
-    stack_leniency: f32,
-    gameplay_mode: GameplayMode,
-    song_source: String,
-    song_tags: String,
-    online_offset: i16,
-    font_used_for_song_title: String,
-    unplayed: bool,
-    last_played: SystemTime,
-    is_osz2: bool,
-    beatmap_folder_name: String,
-    last_checked_against_repo: SystemTime,
-    ignore_beatmap_sound: bool,
-    ignore_beatmap_skin: bool,
-    disable_storyboard: bool,
-    disable_video: bool,
-    visual_override: bool,
-    unknown_short: Option<i16>,
-    offset_from_song_start_in_editor_ms: i32,
-    mania_scroll_speed: u8
+    pub entry_size: Option<i32>,
+    pub artist_name: Option<String>,
+    pub artist_name_unicode: Option<String>,
+    pub song_title: Option<String>,
+    pub song_title_unicode: Option<String>,
+    pub creator_name: Option<String>,
+    pub difficulty: Option<String>,
+    pub audio_file_name: Option<String>,
+    pub md5_beatmap_hash: Option<String>,
+    pub dotosu_file_name: Option<String>,
+    pub ranked_status: RankedStatus,
+    pub number_of_hitcircles: i16,
+    pub number_of_sliders: i16,
+    pub number_of_spinners: i16,
+    pub last_modification_time: SystemTime,
+    pub approach_rate: ByteSingle,
+    pub circle_size: ByteSingle,
+    pub hp_drain: ByteSingle,
+    pub overall_difficulty: ByteSingle,
+    pub slider_velocity: f64,
+    pub num_mod_combo_star_ratings_standard: Option<i32>,
+    pub mod_combo_star_ratings_standard: Option<Vec<(i32, f64)>>,
+    pub num_mod_combo_star_ratings_taiko: Option<i32>,
+    pub mod_combo_star_ratings_taiko: Option<Vec<(i32, f64)>>,
+    pub num_mod_combo_star_ratings_ctb: Option<i32>,
+    pub mod_combo_star_ratings_ctb: Option<Vec<(i32, f64)>>,
+    pub num_mod_combo_star_ratings_mania: Option<i32>,
+    pub mod_combo_star_ratings_mania: Option<Vec<(i32, f64)>>,
+    pub drain_time: i32,
+    pub total_time: i32,
+    pub preview_offset_from_start_ms: i32,
+    pub num_timing_points: i32,
+    pub timing_points: Vec<TimingPoint>,
+    pub beatmap_id: i32,
+    pub beatmap_set_id: i32,
+    pub thread_id: i32,
+    pub standard_grade: u8,
+    pub taiko_grade: u8,
+    pub ctb_grade: u8,
+    pub mania_grade: u8,
+    pub local_offset: i16,
+    pub stack_leniency: f32,
+    pub gameplay_mode: GameplayMode,
+    pub song_source: Option<String>,
+    pub song_tags: Option<String>,
+    pub online_offset: i16,
+    pub font_used_for_song_title: Option<String>,
+    pub unplayed: bool,
+    pub last_played: SystemTime,
+    pub is_osz2: bool,
+    pub beatmap_folder_name: Option<String>,
+    pub last_checked_against_repo: SystemTime,
+    pub ignore_beatmap_sound: bool,
+    pub ignore_beatmap_skin: bool,
+    pub disable_storyboard: bool,
+    pub disable_video: bool,
+    pub visual_override: bool,
+    pub unknown_short: Option<i16>,
+    pub offset_from_song_start_in_editor_ms: i32,
+    pub mania_scroll_speed: u8
 }
 
 impl Beatmap {
     fn read_from_bytes<T: ReadVersionSpecificData, I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
         let entry_size = T::read_entry_size(i)?;
-        let artist_name = fromutf8_to_ioresult(read_string_utf8(i)?, "non-Unicode artist name")?;
-        let artist_name_unicode = fromutf8_to_ioresult(read_string_utf8(i)?,
-            "Unicode artist name")?;
-        let song_title = fromutf8_to_ioresult(read_string_utf8(i)?, "non-Unicode song title")?;
-        let song_title_unicode = fromutf8_to_ioresult(read_string_utf8(i)?,
-            "Unicode song title")?;
-        let creator_name = fromutf8_to_ioresult(read_string_utf8(i)?, "creator name")?;
-        let difficulty = fromutf8_to_ioresult(read_string_utf8(i)?, "difficulty")?;
-        let audio_file_name = fromutf8_to_ioresult(read_string_utf8(i)?, "audio file name")?;
+        let artist_name = read_string_utf8(i, "non-Unicode artist name")?;
+        let artist_name_unicode = read_string_utf8(i, "Unicode artist name")?;
+        let song_title = read_string_utf8(i, "non-Unicode song title")?;
+        let song_title_unicode = read_string_utf8(i, "Unicode song title")?;
+        let creator_name = read_player_name(i).map_err(|e| {
+            let msg = format!("Error reading creator name: {}", e);
+            IoError::new(ErrorKind::Other, msg.as_str())
+        })?;
+        let difficulty = read_string_utf8(i, "difficulty")?;
+        let audio_file_name = read_string_utf8(i, "audio file name")?;
         let md5_beatmap_hash = read_md5_hash(i).map_err(|e| {
             let msg = format!("Error reading MD5 beatmap hash: {}", e);
             IoError::new(ErrorKind::Other, msg.as_str())
         })?;
-        let dotosu_file_name = fromutf8_to_ioresult(read_string_utf8(i)?,
-            "corresponding .osu file name")?;
+        let dotosu_file_name = read_string_utf8(i, "corresponding .osu file name")?;
         let ranked_status = RankedStatus::read_from_bytes(i)?;
         let number_of_hitcircles = read_short(i)?;
         let number_of_sliders = read_short(i)?;
@@ -359,16 +359,14 @@ impl Beatmap {
         let local_offset = read_short(i)?;
         let stack_leniency = read_single(i)?;
         let gameplay_mode = GameplayMode::read_from_bytes(i)?;
-        let song_source = fromutf8_to_ioresult(read_string_utf8(i)?, "song source")?;
-        let song_tags = fromutf8_to_ioresult(read_string_utf8(i)?, "song tags")?;
+        let song_source = read_string_utf8(i, "song source")?;
+        let song_tags = read_string_utf8(i, "song tags")?;
         let online_offset = read_short(i)?;
-        let font_used_for_song_title = fromutf8_to_ioresult(read_string_utf8(i)?,
-            "font used for song title")?;
+        let font_used_for_song_title = read_string_utf8(i, "font used for song title")?;
         let unplayed = read_boolean(i)?;
         let last_played = read_datetime(i)?;
         let is_osz2 = read_boolean(i)?;
-        let beatmap_folder_name = fromutf8_to_ioresult(read_string_utf8(i)?,
-            "folder name")?;
+        let beatmap_folder_name = read_string_utf8(i, "folder name")?;
         let last_checked_against_repo = read_datetime(i)?;
         let ignore_beatmap_sound = read_boolean(i)?;
         let ignore_beatmap_skin = read_boolean(i)?;
@@ -449,7 +447,7 @@ pub struct OsuDb {
     pub folder_count: i32,
     pub account_unlocked: bool,
     pub account_unlock_date: Option<SystemTime>,
-    pub player_name: String,
+    pub player_name: Option<String>,
     pub number_of_beatmaps: i32,
     pub beatmaps: Vec<Beatmap>,
     pub unknown_int: i32
@@ -467,7 +465,7 @@ impl Load for OsuDb {
             let _ = read_datetime(&mut bytes_iter)?;
             None
         };
-        let player_name = fromutf8_to_ioresult(read_string_utf8(&mut bytes_iter)?, "player name")?;
+        let player_name = read_string_utf8(&mut bytes_iter, "player name")?;
         let num_beatmaps = read_int(&mut bytes_iter)?;
         let mut beatmaps = Vec::with_capacity(num_beatmaps as usize);
         if version < 20140609 {
@@ -526,10 +524,10 @@ impl Load for OsuDb {
         let num_beatmaps = read_int(&mut bytes.iter().skip(bytes_used).cloned())?;
         let beatmaps = if version >= 20160408 {
             let counter = Arc::new(Mutex::new(0));
-            let start_read = Arc::new(Mutex::new(bytes_used + 4));
+            let start = Arc::new(Mutex::new(bytes_used + 4));
             let threads = (0..jobs)
                 .map(|_| spawn_beatmap_loader_thread(num_beatmaps as usize, counter.clone(),
-                    start_read.clone(), &bytes)).collect::<Vec<_>>();
+                    start.clone(), &bytes)).collect::<Vec<_>>();
             let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
                 .collect::<Vec<_>>();
             let mut beatmaps = results.pop().unwrap()?;
@@ -561,9 +559,8 @@ impl Load for OsuDb {
 }
 
 #[inline]
-fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>,
-    start_read: Arc<Mutex<usize>>, bytes_pointer: *const Vec<u8>)
-    -> JoinHandle<IoResult<Vec<(usize, Beatmap)>>> {
+fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>, start: Arc<Mutex<usize>>,
+    bytes_pointer: *const Vec<u8>) -> JoinHandle<IoResult<Vec<(usize, Beatmap)>>> {
     let tmp = bytes_pointer as usize;
     thread::spawn(move || {
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
@@ -576,28 +573,25 @@ fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>,
                 } else {
                     *ctr += 1;
                 }
-                let mut start = start_read.lock().unwrap();
-                let start_at = *start + 4;
-                let entry_size = read_int(&mut (&bytes[*start..*start + 4]).iter().cloned())?;
-                *start += entry_size as usize + 4;
+                let mut s = start.lock().unwrap();
+                let start_at = *s + 4;
+                let entry_size = read_int(&mut (&bytes[*s..*s + 4]).iter().cloned())?;
+                *s += entry_size as usize + 4;
                 (entry_size, start_at, *ctr - 1)
             };
             let mut i = bytes[start..start + entry_size as usize].iter().cloned();
-            let artist_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "non-Unicode artist name")?;
-            let artist_name_unicode = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
-                "Unicode artist name")?;
-            let song_title = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "non-Unicode song title")?;
-            let song_title_unicode = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
-                "Unicode song title")?;
-            let creator_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "creator name")?;
-            let difficulty = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "difficulty")?;
-            let audio_file_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "audio file name")?;
+            let artist_name = read_string_utf8(&mut i, "non-Unicode artist name")?;
+            let artist_name_unicode = read_string_utf8(&mut i, "Unicode artist name")?;
+            let song_title = read_string_utf8(&mut i, "non-Unicode song title")?;
+            let song_title_unicode = read_string_utf8(&mut i, "Unicode song title")?;
+            let creator_name = read_string_utf8(&mut i, "creator name")?;
+            let difficulty = read_string_utf8(&mut i, "difficulty")?;
+            let audio_file_name = read_string_utf8(&mut i, "audio file name")?;
             let md5_beatmap_hash = read_md5_hash(&mut i).map_err(|e| {
                 let msg = format!("Error reading MD5 beatmap hash: {}", e);
                 IoError::new(ErrorKind::Other, msg.as_str())
             })?;
-            let dotosu_file_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
-                "corresponding .osu file name")?;
+            let dotosu_file_name = read_string_utf8(&mut i, "corresponding .osu file name")?;
             let ranked_status = RankedStatus::read_from_bytes(&mut i)?;
             let number_of_hitcircles = read_short(&mut i)?;
             let number_of_sliders = read_short(&mut i)?;
@@ -630,16 +624,14 @@ fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>,
             let local_offset = read_short(&mut i)?;
             let stack_leniency = read_single(&mut i)?;
             let gameplay_mode = GameplayMode::read_from_bytes(&mut i)?;
-            let song_source = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "song source")?;
-            let song_tags = fromutf8_to_ioresult(read_string_utf8(&mut i)?, "song tags")?;
+            let song_source = read_string_utf8(&mut i, "song source")?;
+            let song_tags = read_string_utf8(&mut i, "song tags")?;
             let online_offset = read_short(&mut i)?;
-            let font_used_for_song_title = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
-                "font used for song title")?;
+            let font_used_for_song_title = read_string_utf8(&mut i, "font used for song title")?;
             let unplayed = read_boolean(&mut i)?;
             let last_played = read_datetime(&mut i)?;
             let is_osz2 = read_boolean(&mut i)?;
-            let beatmap_folder_name = fromutf8_to_ioresult(read_string_utf8(&mut i)?,
-                "folder name")?;
+            let beatmap_folder_name = read_string_utf8(&mut i, "folder name")?;
             let last_checked_against_repo = read_datetime(&mut i)?;
             let ignore_beatmap_sound = read_boolean(&mut i)?;
             let ignore_beatmap_skin = read_boolean(&mut i)?;

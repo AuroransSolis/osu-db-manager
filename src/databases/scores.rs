@@ -5,37 +5,36 @@ use std::thread::{self, JoinHandle};
 use crate::deserialize_primitives::*;
 use crate::databases::{load::Load, osu::GameplayMode};
 
+#[derive(Debug, Clone)]
 pub struct Score {
-    gameplay_mode: GameplayMode,
-    score_version: i32,
-    md5_beatmap_hash: String,
-    player_name: String,
-    md5_replay_hash: String,
-    number_of_300s: i16,
-    number_of_100s: i16, // 150s in Taiko, 100s in CTB, 200s in Mania
-    number_of_50s: i16, // small fruit in CTB, 50s in Mania
-    number_of_gekis: i16, // max 300s in Mania
-    number_of_katus: i16, // 100s in mania
-    number_of_misses: i16,
-    replay_score: i32,
-    max_combo: i16,
-    perfect_combo: bool,
-    mods_used: i32,
-    empty_string: String,
-    replay_timestamp: SystemTime,
-    negative_one: i32,
-    online_score_id: i64
+    pub gameplay_mode: GameplayMode,
+    pub score_version: i32,
+    pub md5_beatmap_hash: Option<String>,
+    pub player_name: Option<String>,
+    pub md5_replay_hash: Option<String>,
+    pub number_of_300s: i16,
+    pub number_of_100s: i16, // 150s in Taiko, 100s in CTB, 200s in Mania
+    pub number_of_50s: i16, // small fruit in CTB, 50s in Mania
+    pub number_of_gekis: i16, // max 300s in Mania
+    pub number_of_katus: i16, // 100s in mania
+    pub number_of_misses: i16,
+    pub replay_score: i32,
+    pub max_combo: i16,
+    pub perfect_combo: bool,
+    pub mods_used: i32,
+    pub empty_string: Option<String>,
+    pub replay_timestamp: SystemTime,
+    pub negative_one: i32,
+    pub online_score_id: i64
 }
 
 impl Score {
     pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
         let gameplay_mode = GameplayMode::read_from_bytes(i)?;
         let score_version = read_int(i)?;
-        let md5_beatmap_hash = read_md5_hash(i).map_err(|_| IoError::new(Other,
-            "Error reading MD5 beatmap hash"))?;
-        let player_name = fromutf8_to_ioresult(read_string_utf8(i)?, "player name")?;
-        let md5_replay_hash = read_md5_hash(i).map_err(|_| IoError::new(Other,
-            "Error reading MD5 replay hash"))?;
+        let md5_beatmap_hash = read_md5_hash(i)?;
+        let player_name = read_string_utf8(i, "player name")?;
+        let md5_replay_hash = read_md5_hash(i)?;
         let number_of_300s = read_short(i)?;
         let number_of_100s = read_short(i)?;
         let number_of_50s = read_short(i)?;
@@ -46,7 +45,7 @@ impl Score {
         let max_combo = read_short(i)?;
         let perfect_combo = read_boolean(i)?;
         let mods_used = read_int(i)?;
-        let empty_string = fromutf8_to_ioresult(read_string_utf8(i)?, "empty string")?;
+        let empty_string = read_string_utf8(i, "empty string")?;
         let replay_timestamp = read_datetime(i)?;
         let negative_one = read_int(i)?;
         let online_score_id = read_long(i)?;
@@ -74,15 +73,16 @@ impl Score {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct ScoreDbBeatmap {
-    md5_beatmap_hash: String,
-    number_of_scores: i32,
-    scores: Vec<Score>
+    pub md5_beatmap_hash: Option<String>,
+    pub number_of_scores: i32,
+    pub scores: Vec<Score>
 }
 
 impl ScoreDbBeatmap {
     pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
-        let md5_beatmap_hash = fromutf8_to_ioresult(read_string_utf8(i)?, "MD5 beatmap hash")?;
+        let md5_beatmap_hash = read_string_utf8(i, "MD5 beatmap hash")?;
         let number_of_scores = read_int(i)?;
         let mut scores = Vec::with_capacity(number_of_scores as usize);
         for _ in 0..number_of_scores {
@@ -96,10 +96,11 @@ impl ScoreDbBeatmap {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct ScoresDb {
-    version: i32,
-    number_of_beatmaps: i32,
-    beatmaps: Vec<ScoreDbBeatmap>
+    pub version: i32,
+    pub number_of_beatmaps: i32,
+    pub beatmaps: Vec<ScoreDbBeatmap>
 }
 
 impl Load for ScoresDb {
@@ -164,16 +165,16 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                 let md5_beatmap_hash = read_md5_hash(&mut (&bytes[*s..*s+ 18]).iter().cloned())?;
                 let number_of_scores = read_int(&mut (&bytes[*s + 18..*s + 22]).iter().cloned())?;
                 // Skips:
-                // 18 bytes for beatmap MD5 hash
+                // 34 bytes for beatmap MD5 hash
                 // 4 bytes for number of beatmaps
-                *s += 22;
+                *s += 38;
                 let start_from = *s;
                 for _ in 0..number_of_scores {
                     // Skips:
                     // 1 byte for gameplay_mode
                     // 4 bytes for score_version
-                    // 18 bytes for MD5 beatmap hash
-                    *s += 23;
+                    // 34 bytes for MD5 beatmap hash
+                    *s += 39;
                     // Assuming 32 characters max length for username, +2 for indicator and ULEB128
                     let indicator = read_byte(&mut (&bytes[*s..*s + 1]).iter().cloned())?;
                     let player_name_len = if indicator == 0x0b {
@@ -181,14 +182,14 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     } else if indicator == 0 {
                         0
                     } else {
-                        return Err(IoError::new(InvalidData, "Read invalid indicator for player \
-                            name string."));
+                        return Err(IoError::new(InvalidData, "Read invalid indicator for score \
+                            player name."));
                     };
                     // let (player_name_len, player_name) = read_player_name_with_len(
                         // &mut (&bytes[*s..*s + 34]).iter().cloned())?;
-                    *s += player_name_len as usize + 62;
+                    *s += player_name_len as usize + 78;
                     // Skips:
-                    // 18 bytes for replay MD5 hash
+                    // 34 bytes for replay MD5 hash
                     // 2 bytes for number of 300s
                     // 2 bytes for number of 100s
                     // 2 bytes for number of 50s
@@ -203,7 +204,7 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     // 8 bytes for replay timestamp
                     // 4 bytes for 0xFFFFFFFF
                     // 8 bytes for score ID
-                    // Total of 62
+                    // Total of 78
                 }
                 (md5_beatmap_hash, number_of_scores, start_from, *s, number)
             };

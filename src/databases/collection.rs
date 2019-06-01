@@ -5,15 +5,16 @@ use std::iter::FromIterator;
 use crate::deserialize_primitives::*;
 use crate::databases::load::Load;
 
+#[derive(Debug, Clone)]
 pub struct Collection {
-    collection_name: String,
-    number_of_beatmaps: i32,
-    md5_beatmap_hashes: Vec<String>
+    pub collection_name: Option<String>,
+    pub number_of_beatmaps: i32,
+    pub md5_beatmap_hashes: Vec<Option<String>>
 }
 
 impl Collection {
     pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
-        let collection_name = fromutf8_to_ioresult(read_string_utf8(i)?, "collection name")?;
+        let collection_name = read_string_utf8(i, "collection name")?;
         let number_of_beatmaps = read_int(i)?;
         let mut md5_beatmap_hashes = Vec::with_capacity(number_of_beatmaps as usize);
         for _ in 0..number_of_beatmaps {
@@ -27,10 +28,11 @@ impl Collection {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct CollectionDb {
-    version: i32,
-    number_of_collections: i32,
-    collections: Vec<Collection>
+    pub version: i32,
+    pub number_of_collections: i32,
+    pub collections: Vec<Collection>
 }
 
 impl Load for CollectionDb {
@@ -76,18 +78,6 @@ impl Load for CollectionDb {
     }
 }
 
-/*fn get_collection_slices(bytes: &Vec<u8>) -> Vec<&[u8]> {
-    let number_of_collections = {
-        read_int(&mut bytes.iter().skip(4))?;
-    };
-    let mut start = 8;
-    let mut slices = Vec::with_capacity(number_of_collections as usize);
-    for _ in 0..slices {
-        let (collection_name_len, bytes_used) = read_uleb128_with_len(&mut bytes.iter())?;
-        let
-    }
-}*/
-
 fn spawn_collection_loader_thread(number: usize, counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>, byte_pointer: *const Vec<u8>)
     -> JoinHandle<IoResult<Vec<(usize, Collection)>>> {
@@ -103,23 +93,13 @@ fn spawn_collection_loader_thread(number: usize, counter: Arc<Mutex<usize>>,
                 } else {
                     *ctr += 1;
                 }
-                let mut start = start_read.lock().unwrap();
-                let indicator = bytes[*start];
-                if indicator != 0x0b {
-                    return Err(IoError::new(ErrorKind::InvalidData, "Read invalid indicator for \
-                        collection name String."));
-                }
-                *start += 1;
-                let (collection_name_len, bytes_used) = read_uleb128_with_len(
-                    &mut (&bytes[*start..*start + 1]).iter().cloned())?;
-                let collection_name = String::from_iter(
-                    bytes[*start + bytes_used..*start + bytes_used + collection_name_len].iter()
-                        .map(|&byte| byte as char));
-                let number_of_beatmaps = read_int(&mut (&bytes[*start + bytes_used
-                    + collection_name_len..*start + bytes_used + collection_name_len + 4]).iter().cloned())?;
                 let num = *ctr - 1;
-                *ctr += 1;
-                *start += bytes_used + collection_name_len + 4;
+                let mut start = start_read.lock().unwrap();
+                let (bytes_used, collection_name) = read_string_utf8_with_len(
+                    &mut (&bytes[*start..]).iter().cloned(), "collection name")?;
+                let number_of_beatmaps = read_int(&mut (&bytes[*start + bytes_used..*start
+                    + bytes_used + 4]).iter().cloned())?;
+                *start += bytes_used + 4;
                 let s = *start;
                 // Accounts for: 1 indicator byte, 1 length byte, and 16 bytes for MD5 hash.
                 *start += number_of_beatmaps as usize * 18;
