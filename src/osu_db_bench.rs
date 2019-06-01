@@ -48,15 +48,6 @@ make_bench!{
 
 criterion_main!{osu_db_bench}
 
-fn bench_clone_database_vector(c: &mut Criterion) {
-    c.bench_function("Cloning osu!.db vector.", move |b| {
-        let file_bytes = read(OSUDB_FILE).unwrap();
-        b.iter(|| {
-            black_box(file_bytes.clone());
-        });
-    });
-}
-
 fn bench_open_database_file(c: &mut Criterion) {
     c.bench_function("Opening osu!.db file and reading to vector", move |b| {
         b.iter(|| {
