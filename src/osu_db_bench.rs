@@ -39,10 +39,10 @@ macro_rules! make_bench {
 make_bench!{
     (1, load_osudb_jobs_1), (2, load_osudb_jobs_2), (3, load_osudb_jobs_3), (4, load_osudb_jobs_4)
     /*
-    (5, load_osudb_jobs_1), (6, load_osudb_jobs_2), (7, load_osudb_jobs_3), (8, load_osudb_jobs_4),
-    (9, load_osudb_jobs_1), (10, load_osudb_jobs_2), (11, load_osudb_jobs_3),
-    (12, load_osudb_jobs_4), (13, load_osudb_jobs_1), (14, load_osudb_jobs_2),
-    (15, load_osudb_jobs_3), (16, load_osudb_jobs_4)
+    (5, load_osudb_jobs_5), (6, load_osudb_jobs_6), (7, load_osudb_jobs_7), (8, load_osudb_jobs_8),
+    (9, load_osudb_jobs_9), (10, load_osudb_jobs_10), (11, load_osudb_jobs_11),
+    (12, load_osudb_jobs_12), (13, load_osudb_jobs_13), (14, load_osudb_jobs_14),
+    (15, load_osudb_jobs_15), (16, load_osudb_jobs_16)
     */
 }
 
