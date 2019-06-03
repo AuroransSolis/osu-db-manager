@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 num_cpus = "1.10.0"
+clap = {version = "2.33.0", features = ["suggestions"]}
 
 [dev-dependencies]
 criterion = "0.2.11"

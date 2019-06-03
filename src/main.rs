@@ -1,10 +1,11 @@
+extern crate clap;
+
 mod databases;
 mod deserialize_primitives;
 mod interactive;
 mod query;
 mod serialize_primitives;
 // mod partial_databases;
-mod help;
 mod argument;
 
 use std::fs::read;

@@ -1,109 +1,100 @@
+use std::fs::read;
 use crate::databases::merge::ConflictResolution;
+use clap::{Arg, App, SubCommand};
 
-enum ArgumentParseErrorKind {
-    InvalidArgument,
-    UnknownArgument,
-    MissingArgument
-}
-
-use self::ArgumentParseErrorKind::*;
-
-struct ArgumentParseError {
-    kind: ArgumentParseErrorKind,
-    message: &str
-}
-
-impl ArgumentParseError {
-    fn new(kind: ArgumentParseErrorKind, message: &str) -> Self {
-        ArgumentParseError {
-            kind,
-            message
-        }
-    }
-}
-
-enum Argument {
-    Jobs(usize),
-    Database((Database, String)),
-    Interface(Interface),
-    Query(DbQuery),
-    Show(ShowOptions),
-    Merge((String, String, ConflictResolution))
-}
-
-use self::Argument::*;
-use core::num::dec2flt::parse::ParseResult::Invalid;
-
-impl Argument {
-    fn from_strings(strings: Vec<String>) -> Result<Vec<Self>, ArgumentParseError> {
-        let mut strings = strings.into_iter();
-        let mut args = vec![{
-            Argument::Database(
-                (Database::from_string(strings.next()
-                    .ok_or_else(|| ArgumentParseError::new(MissingArgument,
-                        "Missing database type specifier.")?))?,
-                strings.next().ok_or_else(|| ArgumentParseError::new(MissingArgument,
-                    "Missing databasee path."))?
-                )
-            )
-        }];
-        while let Some(string) = strings.next() {
-            let short_form = match string {
-                s if &s[0..2] == "-j" => {
-                    let number = (&s[2..]).parse::<usize>().map_err(|_| {
-                        let msg = format!("Invalid argument for jobs number: {}", string);
-                        ArgumentParseError::new(InvalidArgument, msg.as_str())
-                    })?;
-                    Ok(Jobs(number))
-                },
-                "-o" => Ok(Database(Database::Osu)),
-                "-c" => Ok(Database(Database::Collection)),
-                "-s" => Ok(Database(Database::Scores)),
-                "-i" => {
-                    let
-                }
-            };
-            match string {
-
-            }
-        }
-    }
-}
-
-enum Database {
-    Osu,
-    Collection,
-    Scores
-}
-
-impl Database {
-    fn from_string(string: String) -> Result<Self, ArgumentParseError> {
-        match string.as_str() {
-            "-o" | "--osu" => Ok(Database::Osu),
-            "-c" | "--collection" => Ok(Database::Collection),
-            "-s" | "--scores" => Ok(Database::Scores),
-            _ => {
-                let msg = format!("Invalid database type: {}", string);
-                Err(ArgumentParseError::new(InvalidArgument, msg.as_str()))
-            }
-        }
-    }
-}
-
-enum Interface {
-    None,
-    Shell,
-    Tui
-}
-
-enum DbQuery {
-    OsuQuery,
-    CollectionQuery,
-    ScoresQuery
-}
-
-enum ShowOptions {
-    OsuShow,
-    CollectionShow,
-    ScoresShow
+fn create_app() -> App {
+    App::new("osu-db-manager")
+        .version("1.0.0")
+        .author("Aurorans Solis")
+        .about("Tool to read, write, browse, and merge osu! databases.")
+        .arg(Arg::with_name("osu!.db specifier")
+            .short("o")
+            .long("osu")
+            .index(1)
+            .takes_value(true)
+            .value_name("PATH")
+            .required_unless_one(&["collection.db specifier", "scores.db specifier"])
+            .help("Specifies that the given path is to an osu!.db"))
+        .arg(Arg::with_name("collection.db specifier")
+            .short("c")
+            .long("collection")
+            .index(1)
+            .takes_value(true)
+            .value_name("PATH")
+            .required_unless_one(&["osu!.db specifier", "scores.db specifier"])
+            .help("Specifies that the given path is to a collection.db"))
+        .arg(Arg::with_name("scores.db specifier")
+            .short("s")
+            .long("scores")
+            .index(1)
+            .takes_value(true)
+            .value_name("PATH")
+            .required_unless_one(&["osu!.db specifier", "collection.db specifier"])
+            .help("Specifies that the given path is to a scores.db"))
+        .arg(Arg::with_name("Interface type")
+            .short("i")
+            .long("interface")
+            .takes_value(true)
+            .value_name("INTERFACE_TYPE")
+            .possible_values(&["s", "shell", "t", "tui"])
+            .multiple(false)
+            .required(false)
+            .default_value("n")
+            .help("Interface type specifier. Valid interfaces: 't'/'tui', 's'/'shell'. Default \
+                is none (print requested information and quit)."))
+        .arg(Arg::with_name("Database query")
+            .short("q")
+            .long("query")
+            .value_name("QUERY")
+            .takes_value(true)
+            .multiple(false)
+            .required(false)
+            .help("Database query. Use 'help query TYPE' for information on what you can query \
+                in database type TYPE."))
+        .arg(Arg::with_name("Show options")
+            .short("s")
+            .long("show")
+            .value_name("SHOW_OPTIONS")
+            .takes_value(true)
+            .default_value("ALL")
+            .multiple(false)
+            .required(false)
+            .conflicts_with("Interface type")
+            .help("What information to show from each database entry. Use 'help show TYPE' for \
+                information on what you can show from each database type TYPE. Can be used in \
+                conjunction with a query."))
+        .arg(Arg::with_name("Merge")
+            .short("m")
+            .long("merge")
+            .conflicts_with("osu!.db specifier")
+            .takes_value(true)
+            .number_of_values(2)
+            .value_names(&["CONFLICT_RESOLUTION", "PATH"])
+            .default_value("merge-subentries")
+            .multiple(false)
+            .required(false)
+            .help("Merge a second database at location PATH into the second using resolution \
+                method CONFLICT_RESOLUTION. The conflict resolution method is only required if no \
+                interactive merging method is used. Use 'help merge' to for information on the \
+                available merge conflict resolution methods."))
+        .subcommand(SubCommand::with_name("help")
+            .about("Subcommand to provide additional information for options for osu-db-manager.")
+            .version("1.0.0")
+            .author("Aurorans Solis")
+            .arg(Arg::with_name("query")
+                .long("query")
+                .takes_value(true)
+                .value_name("TYPE")
+                .possible_values(&["o", "osu", "c", "collection", "s", "scores"])
+                .required(false)
+                .conflicts_with("show")
+                .help("Shows all available fields to query in database TYPE as well as examples \
+                    for querying each field of a database."))
+            .arg(Arg::with_name("show")
+                .long("show")
+                .takes_value(true)
+                .value_name("TYPE")
+                .possible_values(&["o", "osu", "c", "collection", "s", "scores"])
+                .required(false)
+                .help("Shows all available fields in database TYPE to display.")))
 }
