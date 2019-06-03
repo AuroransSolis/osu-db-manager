@@ -25,7 +25,7 @@ Input options:\n    \
             osu-db-manager -o PATH_TO_OSUDB -q CREATOR_NAME=Sotarks,AR=9\n        \
         For information on what you can query for in each database, do\n            \
             osu-db-manager [DATABASE OPTION] [-q/--query] [-h/--help]\n    \
-    -s  --show [SHOW]  Show fields from database contents using options\n        \
+    -S  --show [SHOW]  Show fields from database contents using options\n        \
         in SHOW. The format of SHOW should be the same as a QUERY. For\n        \
         information on what you can show from each database, do\n            \
             osu-db-manager [DATABASE OPTION] [-s/--show] [-h/--help]\n    \
