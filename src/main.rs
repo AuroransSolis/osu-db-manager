@@ -5,6 +5,7 @@ mod query;
 mod serialize_primitives;
 // mod partial_databases;
 mod help;
+mod argument;
 
 use std::fs::read;
 use std::time::Instant;
