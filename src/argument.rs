@@ -36,6 +36,14 @@ fn create_app<'a, 'b>() -> App<'a, 'b> {
             .required_unless_one(&["osu!.db specifier", "collection.db specifier"])
             .conflicts_with_all(&["osu!.db specifier", "collection.db specifier"])
             .help("Specifies that the given path is to a scores.db"))
+        .arg(Arg::with_name("Jobs")
+            .short("j")
+            .long("jobs")
+            .takes_value(true)
+            .number_of_values(1)
+            .value_name("JOBS")
+            .default_value("1")
+            .help("Number of threads to load the database with. Default: 1"))
         .arg(Arg::with_name("Interface type")
             .short("i")
             .long("interface")
@@ -114,6 +122,7 @@ fn create_app<'a, 'b>() -> App<'a, 'b> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Argument {
     Db(Database),
+    Jobs(usize),
     Interface(InterfaceType),
     DatabaseQuery(String),
     Show(String),
@@ -208,6 +217,12 @@ fn get_arguments<'a, 'b>(app: App<'a, 'b>) -> IoResult<Vec<Argument>> {
         unreachable!()
     };
     arguments.push(Argument::Db(db));
+    if let Some(jobs) = matches.value_of("Jobs") {
+        let jobs = jobs.parse::<usize>().map_err(IoError::new(Other, "Invalid number of jobs."))?;
+        arguments.push(Argument::Jobs(jobs));
+    } else {
+        arguments.push(Argument::Jobs(1));
+    }
     if let Some(mut values) = matches.values_of("Merge") {
         let path = values.next().unwrap(); // command is guaranteed to have two values
         let resolution = values.next().unwrap();
