@@ -1,4 +1,5 @@
 extern crate clap;
+extern crate num_cpus;
 
 mod databases;
 mod deserialize_primitives;
