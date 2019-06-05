@@ -1,4 +1,5 @@
 use std::fs::read;
+use std::io::{Result as IoResult, Error as IoError, ErrorKind::Other};
 use crate::databases::merge::ConflictResolution;
 use clap::{Arg, App, SubCommand};
 use std::hint::unreachable_unchecked;
@@ -110,6 +111,7 @@ fn create_app<'a, 'b>() -> App<'a, 'b> {
                 .help("Shows available merging methods and information on them.")))
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Argument {
     Db(Database),
     Interface(InterfaceType),
@@ -120,7 +122,7 @@ pub enum Argument {
 }
 
 impl Argument {
-    fn ref_database(&self) -> &Databse {
+    fn ref_database(&self) -> &Database {
         match self {
             Argument::Db(inner) => inner,
             _ => unreachable!()
@@ -128,6 +130,8 @@ impl Argument {
     }
 }
 
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Database {
     OsuDb(Vec<u8>),
     CollectionDb(Vec<u8>),
@@ -135,7 +139,7 @@ pub enum Database {
 }
 
 impl Database {
-    fn make_new_of_same_type(first: &Self, bytes: Vec<u8>) -> Self {
+    fn new_of_same_type(first: &Self, bytes: Vec<u8>) -> Self {
         match first {
             &Database::OsuDb(_) => Database::OsuDb(bytes),
             &Database::CollectionDb(_) => Database::CollectionDb(bytes),
@@ -144,18 +148,21 @@ impl Database {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum InterfaceType {
     Shell,
     Tui,
     None
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum HelpWith {
     Query(DbIndicator),
     Show(DbIndicator),
     Merge
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DbIndicator {
     OsuDb,
     CollectionDb,
@@ -163,7 +170,7 @@ pub enum DbIndicator {
     General
 }
 
-fn get_arguments<'a, 'b>(app: App<'a, 'b>) -> Result<Vec<Argument>, &str> {
+fn get_arguments<'a, 'b>(app: App<'a, 'b>) -> IoResult<Vec<Argument>> {
     let matches = app.get_matches();
     if let ("help", Some(help_matches)) = matches.subcommand() {
         if let Some(value) = help_matches.value_of("query") {
@@ -204,11 +211,9 @@ fn get_arguments<'a, 'b>(app: App<'a, 'b>) -> Result<Vec<Argument>, &str> {
     if let Some(mut values) = matches.values_of("Merge") {
         let path = values.next().unwrap(); // command is guaranteed to have two values
         let resolution = values.next().unwrap();
-        let second = Database::make_new_of_same_type(&arguments[0].ref_database(), read(path)?);
-        let resolution = match ConflictResolution::from_argument(resolution) {
-            Some(resolution) => resolution,
-            None => return Err("Invalid conflict resolution option.")
-        };
+        let second = Database::new_of_same_type(&arguments[0].ref_database(),read(path)?);
+        let resolution = ConflictResolution::from_argument(resolution)
+            .ok_or_else(|| IoError::new(Other, "Invalid conflict resolution option."))?;
         arguments.push(Argument::Merge((second, resolution)));
         arguments.push(if matches.is_present("Interface type") {
             Argument::Interface(match matches.value_of("Interface type").unwrap() {
@@ -239,8 +244,8 @@ fn get_arguments<'a, 'b>(app: App<'a, 'b>) -> Result<Vec<Argument>, &str> {
     if let Some(query) = matches.value_of("Database query") {
         if arguments.contains(&Argument::Interface(InterfaceType::Shell))
             || arguments.contains(&Argument::Interface(InterfaceType::Tui)) {
-            return Err("Queries can only be passed in as an argument when no interface is \
-                specified.");
+            return Err(IoError::new(Other, "Queries can only be passed in as an argument when no \
+                interface is specified."));
         } else {
             arguments.push(Argument::DatabaseQuery(query.to_string()))
         }
@@ -248,8 +253,8 @@ fn get_arguments<'a, 'b>(app: App<'a, 'b>) -> Result<Vec<Argument>, &str> {
     if let Some(show_opts) = matches.value_of("Show options") {
         if arguments.contains(&Argument::Interface(InterfaceType::Shell))
             || arguments.contains(&Argument::Interface(InterfaceType::Tui)) {
-            return Err("Show options can only be passed in as an argument when no interface is \
-                specified.");
+            return Err(IoError::new(Other, "Queries can only be passed in as an argument when no \
+                interface is specified."));
         } else {
             arguments.push(Argument::Show(show_opts.to_string()))
         }

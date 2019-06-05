@@ -1,5 +1,6 @@
 use crate::databases::osu::OsuDb;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ConflictResolution {
     IgnoreDuplicates,
     ReplaceDestination,
