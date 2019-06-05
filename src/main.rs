@@ -13,12 +13,18 @@ use std::fs::read;
 use std::time::Instant;
 
 use databases::{load::Load, osu::OsuDb, scores::ScoresDb, collection::CollectionDb};
+use argument::*;
 
 fn main() {
     let jobs = 1;
     let osudb_path = "tama-osu!.db";
     // let scoresdb_path = "old-auro-scores.db";
     // let collectiondb_path = "";
+    let arguments = get_arguments().unwrap();
+    let jobs = arguments.iter().find(|&item| item.is_jobs()).unwrap().num_jobs();
+    let database_loader = match arguments[0] {
+        Argument::Db(Database::OsuDb(_)) => OsuDb::read_from_bytes
+    };
     read_osudb(jobs, osudb_path);
     // read_scoresdb(jobs, scoresdb_path);
     // read_collectiondb(jobs, collectiondb_path);
