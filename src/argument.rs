@@ -4,8 +4,82 @@ use crate::databases::merge::ConflictResolution;
 use clap::{Arg, App, SubCommand};
 use std::hint::unreachable_unchecked;
 
-fn create_app<'a, 'b>() -> App<'a, 'b> {
-    App::new("osu-db-manager")
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Argument {
+    Db(Database),
+    Jobs(usize),
+    Interface(InterfaceType),
+    DatabaseQuery(String),
+    Show(String),
+    Merge((Database, ConflictResolution)),
+    Help(HelpWith)
+}
+
+impl Argument {
+    fn ref_database(&self) -> &Database {
+        match self {
+            Argument::Db(inner) => inner,
+            _ => unreachable!()
+        }
+    }
+
+    pub fn is_jobs(&self) -> bool {
+        match self {
+            &Jobs(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn num_jobs(&self) -> usize {
+        match self {
+            &Jobs(jobs) => jobs,
+            _ => unreachable!()
+        }
+    }
+}
+
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Database {
+    OsuDb(Vec<u8>),
+    CollectionDb(Vec<u8>),
+    ScoresDb(Vec<u8>)
+}
+
+impl Database {
+    fn new_of_same_type(first: &Self, bytes: Vec<u8>) -> Self {
+        match first {
+            &Database::OsuDb(_) => Database::OsuDb(bytes),
+            &Database::CollectionDb(_) => Database::CollectionDb(bytes),
+            &Database::ScoresDb(_) => Database::ScoresDb(bytes)
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum InterfaceType {
+    Shell,
+    Tui,
+    None
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum HelpWith {
+    Query(DbIndicator),
+    Show(DbIndicator),
+    Merge
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum DbIndicator {
+    OsuDb,
+    CollectionDb,
+    ScoresDb,
+    General
+}
+
+pub fn get_arguments() -> IoResult<Vec<Argument>> {
+    let matches = App::new("osu-db-manager")
         .version("1.0.0")
         .author("Aurorans Solis")
         .about("Tool to read, write, browse, and merge osu! databases.")
@@ -117,70 +191,7 @@ fn create_app<'a, 'b>() -> App<'a, 'b> {
                 .required_unless_one(&["query", "show"])
                 .conflicts_with_all(&["query", "show"])
                 .help("Shows available merging methods and information on them.")))
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Argument {
-    Db(Database),
-    Jobs(usize),
-    Interface(InterfaceType),
-    DatabaseQuery(String),
-    Show(String),
-    Merge((Database, ConflictResolution)),
-    Help(HelpWith)
-}
-
-impl Argument {
-    fn ref_database(&self) -> &Database {
-        match self {
-            Argument::Db(inner) => inner,
-            _ => unreachable!()
-        }
-    }
-}
-
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Database {
-    OsuDb(Vec<u8>),
-    CollectionDb(Vec<u8>),
-    ScoresDb(Vec<u8>)
-}
-
-impl Database {
-    fn new_of_same_type(first: &Self, bytes: Vec<u8>) -> Self {
-        match first {
-            &Database::OsuDb(_) => Database::OsuDb(bytes),
-            &Database::CollectionDb(_) => Database::CollectionDb(bytes),
-            &Database::ScoresDb(_) => Database::ScoresDb(bytes)
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum InterfaceType {
-    Shell,
-    Tui,
-    None
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum HelpWith {
-    Query(DbIndicator),
-    Show(DbIndicator),
-    Merge
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum DbIndicator {
-    OsuDb,
-    CollectionDb,
-    ScoresDb,
-    General
-}
-
-fn get_arguments<'a, 'b>(app: App<'a, 'b>) -> IoResult<Vec<Argument>> {
-    let matches = app.get_matches();
+        .get_matches();
     if let ("help", Some(help_matches)) = matches.subcommand() {
         if let Some(value) = help_matches.value_of("query") {
             return Ok(vec![Argument::Help(HelpWith::Query(match value {
