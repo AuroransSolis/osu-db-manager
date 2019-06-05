@@ -3,3 +3,4 @@ pub mod merge;
 pub mod osu;
 pub mod scores;
 pub mod collection;
+pub mod database;
