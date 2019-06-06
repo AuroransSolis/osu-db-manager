@@ -17,7 +17,7 @@ use argument::*;
 
 fn main() {
     let arguments = get_arguments().unwrap();
-    if let Some(help) = arguments.help {
+    if let Some(info) = arguments.info {
         println!("Got help command!");
         return;
     }

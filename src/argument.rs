@@ -1,8 +1,9 @@
 use std::fs::read;
 use std::io::{Result as IoResult, Error as IoError, ErrorKind::Other};
+
 use crate::databases::merge::ConflictResolution;
-use clap::{Arg, App, SubCommand};
-use std::hint::unreachable_unchecked;
+
+use clap::{Arg, App, SubCommand, AppSettings};
 
 pub struct Arguments {
     pub db: Option<Database>,
@@ -11,7 +12,7 @@ pub struct Arguments {
     pub database_query: Option<String>,
     pub show_options: Option<String>,
     pub merge: Option<(Database, ConflictResolution)>,
-    pub help: Option<HelpWith>
+    pub info: Option<Info>
 }
 
 impl Arguments {
@@ -23,11 +24,11 @@ impl Arguments {
             database_query: None,
             show_options: None,
             merge: None,
-            help: None
+            info: None
         }
     }
     
-    fn new_help(help: HelpWith) -> Self {
+    fn new_info(info: Info) -> Self {
         Arguments {
             db: None,
             jobs: None,
@@ -35,7 +36,7 @@ impl Arguments {
             database_query: None,
             show_options: None,
             merge: None,
-            help: Some(help)
+            info: Some(info)
         }
     }
 }
@@ -65,7 +66,7 @@ pub enum InterfaceType {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum HelpWith {
+pub enum Info {
     Query(DbIndicator),
     Show(DbIndicator),
     ConflictResolution
@@ -94,12 +95,14 @@ pub fn get_arguments() -> IoResult<Arguments> {
         .version("1.0.0")
         .author("Aurorans Solis")
         .about("Tool to read, write, browse, and merge osu! databases.")
+        .setting(AppSettings::SubcommandsNegateReqs)
         .arg(Arg::with_name("osu!.db specifier")
             .short("o")
             .long("osu")
             .takes_value(true)
             .value_name("PATH")
-            .required_unless_one(&["collection.db specifier", "scores.db specifier", "info"])
+            .required_unless_one(&["collection.db specifier", "scores.db specifier",
+                "conflict-resolution"])
             .conflicts_with_all(&["collection.db specifier", "scores.db specifier", "info"])
             .help("Specifies that the given path is to an osu!.db"))
         .arg(Arg::with_name("collection.db specifier")
@@ -206,13 +209,13 @@ pub fn get_arguments() -> IoResult<Arguments> {
                 .conflicts_with_all(&["query", "show"])
                 .help("Shows available merging methods and information on them.")))
         .get_matches();
-    if let ("help", Some(help_matches)) = matches.subcommand() {
-        if let Some(value) = help_matches.value_of("query") {
-            return Ok(Arguments::new_help(HelpWith::Query(DbIndicator::from(value))));
-        } else if let Some(value) = help_matches.value_of("show") {
-            return Ok(Arguments::new_help(HelpWith::Show(DbIndicator::from(value))));
-        } else if help_matches.is_present("conflict resolution") {
-            return Ok(Arguments::new_help(HelpWith::ConflictResolution));
+    if let ("info", Some(info_matches)) = matches.subcommand() {
+        if let Some(value) = info_matches.value_of("query") {
+            return Ok(Arguments::new_info(Info::Query(DbIndicator::from(value))));
+        } else if let Some(value) = info_matches.value_of("show") {
+            return Ok(Arguments::new_info(Info::Show(DbIndicator::from(value))));
+        } else if info_matches.is_present("conflict resolution") {
+            return Ok(Arguments::new_info(Info::ConflictResolution));
         } else { // One of the three is required, this is just for optimization purposes
             unreachable!();
         }
