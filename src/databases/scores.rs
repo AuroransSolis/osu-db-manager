@@ -77,17 +77,22 @@ impl Score {
 pub struct ScoreDbBeatmap {
     pub md5_beatmap_hash: Option<String>,
     pub number_of_scores: i32,
-    pub scores: Vec<Score>
+    pub scores: Option<Vec<Score>>
 }
 
 impl ScoreDbBeatmap {
     pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
         let md5_beatmap_hash = read_string_utf8(i, "MD5 beatmap hash")?;
         let number_of_scores = read_int(i)?;
-        let mut scores = Vec::with_capacity(number_of_scores as usize);
-        for _ in 0..number_of_scores {
-            scores.push(Score::read_from_bytes(i)?);
-        }
+        let mut scores = if number_of_scores == 0 {
+            None
+        } else {
+            let mut scores = Vec::with_capacity(number_of_scores as usize);
+            for _ in 0..number_of_scores {
+                scores.push(Score::read_from_bytes(i)?);
+            }
+            Some(scores)
+        };
         Ok(ScoreDbBeatmap {
             md5_beatmap_hash,
             number_of_scores,
@@ -124,10 +129,11 @@ impl Load for ScoresDb {
             let mut bytes_iter = bytes[0..8].iter().cloned();
             (read_int(&mut bytes_iter)?, read_int(&mut bytes_iter)?)
         };
+        println!("version: {}, number of beatmaps: {}", version, number_of_beatmaps);
         let counter = Arc::new(Mutex::new(0));
         let start_read = Arc::new(Mutex::new(8));
-        let threads = (0..jobs).map(|_| spawn_scoredbbeatmap_loader(number_of_beatmaps as usize,
-            counter.clone(), start_read.clone(), &bytes)).collect::<Vec<_>>();
+        let threads = (0..jobs).map(|i| spawn_scoredbbeatmap_loader(number_of_beatmaps as usize,
+            counter.clone(), start_read.clone(), &bytes, i)).collect::<Vec<_>>();
         let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
             .collect::<Vec<_>>();
         let mut scoredbbeatmaps = results.pop().unwrap()?;
@@ -146,30 +152,38 @@ impl Load for ScoresDb {
 }
 
 fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mutex<usize>>,
-    start_read: Arc<Mutex<usize>>, bytes_pointer: *const Vec<u8>)
+    start_read: Arc<Mutex<usize>>, bytes_pointer: *const Vec<u8>, thread_no: usize)
     -> JoinHandle<IoResult<Vec<(usize, ScoreDbBeatmap)>>> {
     let tmp = bytes_pointer as usize;
     thread::spawn(move || {
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
         let mut score_db_beatmaps = Vec::new();
         loop {
+            println!("Updating counter and start offset {}", thread_no);
             let (md5_beatmap_hash, number_of_scores, start_read, end, number) = {
                 let mut ctr = counter.lock().unwrap();
                 let number = if *ctr >= number_of_scoredbbeatmaps {
+                    println!("Finished loading scores.");
                     return Ok(score_db_beatmaps);
                 } else {
                     *ctr += 1;
                     *ctr - 1
                 };
                 let mut s = start_read.lock().unwrap();
-                let md5_beatmap_hash = read_md5_hash(&mut (&bytes[*s..*s+ 18]).iter().cloned())?;
+                println!("    locked both mutexes");
+                println!("    counter incremented to {}", *ctr);
+                println!("    using start offset: {}", *s);
+                let md5_beatmap_hash = read_md5_hash(&mut (&bytes[*s..*s+ 34]).iter().cloned())?;
+                println!("    read MD5 beatmap hash");
                 let number_of_scores = read_int(&mut (&bytes[*s + 18..*s + 22]).iter().cloned())?;
+                println!("    read number of scores: {}", number_of_scores);
                 // Skips:
                 // 34 bytes for beatmap MD5 hash
                 // 4 bytes for number of beatmaps
                 *s += 38;
                 let start_from = *s;
-                for _ in 0..number_of_scores {
+                for i in 0..number_of_scores {
+                    println!("        getting player name len info for score {}", i);
                     // Skips:
                     // 1 byte for gameplay_mode
                     // 4 bytes for score_version
@@ -185,6 +199,7 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                         return Err(IoError::new(InvalidData, "Read invalid indicator for score \
                             player name."));
                     };
+                    println!("        got player name len");
                     // let (player_name_len, player_name) = read_player_name_with_len(
                         // &mut (&bytes[*s..*s + 34]).iter().cloned())?;
                     *s += player_name_len as usize + 78;
@@ -206,13 +221,21 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     // 8 bytes for score ID
                     // Total of 78
                 }
+                println!("    got necessary info, dropping locks");
                 (md5_beatmap_hash, number_of_scores, start_from, *s, number)
             };
-            let mut scores = Vec::with_capacity(number_of_scores as usize);
-            let mut i = bytes[start_read..end].iter().cloned();
-            for _ in 0..number_of_scores {
-                scores.push(Score::read_from_bytes(&mut i)?);
-            }
+            println!("    got MD5 beatmap hash, number of scores, start offset, end offset, and beatmap number");
+            let scores = if number_of_scores == 0 {
+                None
+            } else {
+                let mut scores = Vec::with_capacity(number_of_scores as usize);
+                let mut i = bytes[start_read..end].iter().cloned();
+                for _ in 0..number_of_scores {
+                    scores.push(Score::read_from_bytes(&mut i)?);
+                }
+                Some(scores)
+            };
+            println!("    read scores");
             score_db_beatmaps.push((number, ScoreDbBeatmap {
                 md5_beatmap_hash,
                 number_of_scores,
