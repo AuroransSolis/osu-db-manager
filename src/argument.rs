@@ -4,40 +4,41 @@ use crate::databases::merge::ConflictResolution;
 use clap::{Arg, App, SubCommand};
 use std::hint::unreachable_unchecked;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Argument {
-    Db(Database),
-    Jobs(usize),
-    Interface(InterfaceType),
-    DatabaseQuery(String),
-    Show(String),
-    Merge((Database, ConflictResolution)),
-    Help(HelpWith)
+pub struct Arguments {
+    pub db: Option<Database>,
+    pub jobs: Option<usize>,
+    pub interface: Option<InterfaceType>,
+    pub database_query: Option<String>,
+    pub show_options: Option<String>,
+    pub merge: Option<(Database, ConflictResolution)>,
+    pub help: Option<HelpWith>
 }
 
-impl Argument {
-    fn ref_database(&self) -> &Database {
-        match self {
-            Argument::Db(inner) => inner,
-            _ => unreachable!()
+impl Arguments {
+    fn new() -> Self {
+        Arguments {
+            db: None,
+            jobs: None,
+            interface: None,
+            database_query: None,
+            show_options: None,
+            merge: None,
+            help: None
         }
     }
-
-    pub fn is_jobs(&self) -> bool {
-        match self {
-            &Jobs(_) => true,
-            _ => false
-        }
-    }
-
-    pub fn num_jobs(&self) -> usize {
-        match self {
-            &Jobs(jobs) => jobs,
-            _ => unreachable!()
+    
+    fn new_help(help: HelpWith) -> Self {
+        Arguments {
+            db: None,
+            jobs: None,
+            interface: None,
+            database_query: None,
+            show_options: None,
+            merge: None,
+            help: Some(help)
         }
     }
 }
-
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Database {
@@ -67,18 +68,28 @@ pub enum InterfaceType {
 pub enum HelpWith {
     Query(DbIndicator),
     Show(DbIndicator),
-    Merge
+    ConflictResolution
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DbIndicator {
     OsuDb,
     CollectionDb,
-    ScoresDb,
-    General
+    ScoresDb
 }
 
-pub fn get_arguments() -> IoResult<Vec<Argument>> {
+impl From<&str> for DbIndicator {
+    fn from(other: &str) -> Self {
+        match other {
+            "o" | "osu" => DbIndicator::OsuDb,
+            "c" | "collection" => DbIndicator::CollectionDb,
+            "s" | "scores" => DbIndicator::ScoresDb,
+            _ => unreachable!()
+        }
+    }
+}
+
+pub fn get_arguments() -> IoResult<Arguments> {
     let matches = App::new("osu-db-manager")
         .version("1.0.0")
         .author("Aurorans Solis")
@@ -142,7 +153,6 @@ pub fn get_arguments() -> IoResult<Vec<Argument>> {
             .long("show")
             .value_name("SHOW_OPTIONS")
             .takes_value(true)
-            .default_value("ALL")
             .multiple(false)
             .required(false)
             .conflicts_with("Interface type")
@@ -154,15 +164,22 @@ pub fn get_arguments() -> IoResult<Vec<Argument>> {
             .long("merge")
             .conflicts_with_all(&["osu!.db specifier", "Database query", "Show options"])
             .takes_value(true)
-            .number_of_values(2)
-            .value_names(&["CONFLICT_RESOLUTION", "PATH"])
-            .default_value("merge-subentries")
+            .value_name("PATH")
             .multiple(false)
             .required(false)
-            .help("Merge a second database at location PATH into the second using resolution \
-                method CONFLICT_RESOLUTION. The conflict resolution method is only required if no \
-                interactive merging method is used. Use 'help --merge' to for information on the \
-                available merge conflict resolution methods."))
+            .help("Merge a second database at location PATH into the one specified with the \
+                first argument. The databases will be treated as the same type, so make sure the \
+                path points to one of the same type!"))
+        .arg(Arg::with_name("Resolution")
+            .short("r")
+            .long("resolution")
+            .multiple(false)
+            .required(false)
+            .takes_value(true)
+            .value_name("RESOLUTION_TYPE")
+            .help("Method used to resolve conflicts in a merge. Only required if no interface \
+                is specified. For information on available conflict resolution methods, use 'help \
+                --conflict-resolution'."))
         .subcommand(SubCommand::with_name("help")
             .about("Subcommand to provide additional information for options for osu-db-manager.")
             .version("1.0.0")
@@ -184,8 +201,8 @@ pub fn get_arguments() -> IoResult<Vec<Argument>> {
                 .required_unless_one(&["query", "merge"])
                 .conflicts_with_all(&["query", "merge"])
                 .help("Shows all available fields in database TYPE to display."))
-            .arg(Arg::with_name("merge")
-                .long("merge")
+            .arg(Arg::with_name("conflict resolution")
+                .long("conflict-resolution")
                 .takes_value(false)
                 .multiple(false)
                 .required_unless_one(&["query", "show"])
@@ -194,96 +211,73 @@ pub fn get_arguments() -> IoResult<Vec<Argument>> {
         .get_matches();
     if let ("help", Some(help_matches)) = matches.subcommand() {
         if let Some(value) = help_matches.value_of("query") {
-            return Ok(vec![Argument::Help(HelpWith::Query(match value {
-                "o" | "osu" => DbIndicator::OsuDb,
-                "c" | "collection" => DbIndicator::CollectionDb,
-                "s" | "scores" => DbIndicator::ScoresDb,
-                "" => DbIndicator::General,
-                _ => unreachable!()
-            }))]);
+            return Ok(Arguments::new_help(HelpWith::Query(DbIndicator::from(value))));
         } else if let Some(value) = help_matches.value_of("show") {
-            return Ok(vec![Argument::Help(HelpWith::Show(match value {
-                "o" | "osu" => DbIndicator::OsuDb,
-                "c" | "collection" => DbIndicator::CollectionDb,
-                "s" | "scores" => DbIndicator::ScoresDb,
-                "" => DbIndicator::General,
-                _ => unreachable!()
-            }))]);
-        } else if help_matches.is_present("merge") {
-            return Ok(vec![Argument::Help(HelpWith::Merge)]);
-        } else {
+            return Ok(Arguments::new_help(HelpWith::Show(DbIndicator::from(value))));
+        } else if help_matches.is_present("conflict resolution") {
+            return Ok(Arguments::new_help(HelpWith::ConflictResolution));
+        } else { // One of the three is required, this is just for optimization purposes
             unreachable!();
         }
         // If the 'help' command is used, then one of 'query', 'show', or 'merge' must be used, so
         // not having one of them is 'unreachable!()'.
     }
-    let mut arguments = Vec::new();
-    let db = if let Some(path) = matches.value_of("osu!.db specifier") {
-        Database::OsuDb(read(path)?)
+    let mut arguments = Arguments::new();
+    if let Some(path) = matches.value_of("osu!.db specifier") {
+        arguments.db = Some(Database::OsuDb(read(path)?))
     } else if let Some(path) = matches.value_of("collection.db specifier") {
-        Database::CollectionDb(read(path)?)
+        arguments.db = Some(Database::CollectionDb(read(path)?));
     } else if let Some(path) = matches.value_of("scores.db specifier") {
-        Database::ScoresDb(read(path)?)
-    } else { // One of the three is required; this is just to keep rustc happy
+        arguments.db = Some(Database::ScoresDb(read(path)?));
+    } else { // One of the three is required; this is just for optimization purposes
         unreachable!()
     };
-    arguments.push(Argument::Db(db));
     if let Some(jobs) = matches.value_of("Jobs") {
-        let jobs = jobs.parse::<usize>().map_err(IoError::new(Other, "Invalid number of jobs."))?;
-        arguments.push(Argument::Jobs(jobs));
+        let jobs = jobs.parse::<usize>()
+            .map_err(|_| IoError::new(Other, "Invalid number of jobs."))?;
+        arguments.jobs = Some(jobs);
     } else {
-        arguments.push(Argument::Jobs(1));
+        arguments.jobs = Some(1);
     }
-    if let Some(mut values) = matches.values_of("Merge") {
-        let path = values.next().unwrap(); // command is guaranteed to have two values
-        let resolution = values.next().unwrap();
-        let second = Database::new_of_same_type(&arguments[0].ref_database(),read(path)?);
-        let resolution = ConflictResolution::from_argument(resolution)
-            .ok_or_else(|| IoError::new(Other, "Invalid conflict resolution option."))?;
-        arguments.push(Argument::Merge((second, resolution)));
-        arguments.push(if matches.is_present("Interface type") {
-            Argument::Interface(match matches.value_of("Interface type").unwrap() {
-                "n" | "none" => InterfaceType::None,
-                "s" | "shell" => InterfaceType::Shell,
-                "t" | "tui" => InterfaceType::Tui,
-                _ => unreachable!() // No other values are accepted
-            })
+    if let Some(path) = matches.value_of("Merge") {
+        let second = Database::new_of_same_type(arguments.db.as_ref().unwrap(),read(path)?);
+        let resolution_method = if let Some(resolution_method) = matches.value_of("Resolution") {
+            ConflictResolution::from_argument(resolution_method).ok_or_else(|| {
+                IoError::new(Other, "Invalid conflict resolution type.")
+            })?
         } else {
-            Argument::Interface(InterfaceType::None)
-        });
-        return Ok(arguments);
+            ConflictResolution::MergeSubentries
+        };
+        arguments.merge = Some((second, resolution_method));
     }
-    if matches.is_present("Interface type") {
-        if let Some(interface) = matches.value_of("Interface type") {
-            arguments.push(Argument::Interface(match interface {
-                "n" | "none" => InterfaceType::None,
-                "s" | "shell" => InterfaceType::Shell,
-                "t" | "tui" => InterfaceType::Tui,
-                _ => unreachable!() // No other values are accepted
-            }));
-        } else { // If '-i'/'--interface' is present, a value must be present
-            unreachable!();
-        }
+    if let Some(interface) = matches.value_of("Interface type") {
+        let interface = match interface {
+            "n" | "none" => InterfaceType::None,
+            "s" | "shell" => InterfaceType::Shell,
+            "t" | "tui" => InterfaceType::Tui,
+            _ => unreachable!() // No other values are accepted
+        };
+        arguments.interface = Some(interface);
     } else {
-        arguments.push(Argument::Interface(InterfaceType::None));
+        arguments.interface = Some(InterfaceType::None);
     }
     if let Some(query) = matches.value_of("Database query") {
-        if arguments.contains(&Argument::Interface(InterfaceType::Shell))
-            || arguments.contains(&Argument::Interface(InterfaceType::Tui)) {
+        if arguments.merge.is_some() {
             return Err(IoError::new(Other, "Queries can only be passed in as an argument when no \
                 interface is specified."));
         } else {
-            arguments.push(Argument::DatabaseQuery(query.to_string()))
+            arguments.database_query = Some(query.to_string());
         }
     }
     if let Some(show_opts) = matches.value_of("Show options") {
-        if arguments.contains(&Argument::Interface(InterfaceType::Shell))
-            || arguments.contains(&Argument::Interface(InterfaceType::Tui)) {
-            return Err(IoError::new(Other, "Queries can only be passed in as an argument when no \
-                interface is specified."));
+        if arguments.merge.is_some() {
+            return Err(IoError::new(Other, "Show options can only be passed in as an argument when \
+                no interface is specified."));
         } else {
-            arguments.push(Argument::Show(show_opts.to_string()))
+            arguments.show_options = Some(show_opts.to_string());
         }
+    } else if arguments.interface == Some(InterfaceType::None) {
+        arguments.show_options = Some("ALL".to_string());
     }
     Ok(arguments)
 }
