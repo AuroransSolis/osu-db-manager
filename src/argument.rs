@@ -97,7 +97,6 @@ pub fn get_arguments() -> IoResult<Arguments> {
         .arg(Arg::with_name("osu!.db specifier")
             .short("o")
             .long("osu")
-            .index(1)
             .takes_value(true)
             .value_name("PATH")
             .required_unless_one(&["collection.db specifier", "scores.db specifier"])
@@ -106,7 +105,6 @@ pub fn get_arguments() -> IoResult<Arguments> {
         .arg(Arg::with_name("collection.db specifier")
             .short("c")
             .long("collection")
-            .index(1)
             .takes_value(true)
             .value_name("PATH")
             .required_unless_one(&["osu!.db specifier", "scores.db specifier"])
@@ -115,7 +113,6 @@ pub fn get_arguments() -> IoResult<Arguments> {
         .arg(Arg::with_name("scores.db specifier")
             .short("s")
             .long("scores")
-            .index(1)
             .takes_value(true)
             .value_name("PATH")
             .required_unless_one(&["osu!.db specifier", "collection.db specifier"])
@@ -146,17 +143,17 @@ pub fn get_arguments() -> IoResult<Arguments> {
             .takes_value(true)
             .multiple(false)
             .required(false)
-            .help("Database query. Use 'help ==query TYPE' for information on what you can \
+            .help("Database query. Use 'info --query TYPE' for information on what you can \
                 query in database type TYPE. Can be used in conjunction with show options."))
         .arg(Arg::with_name("Show options")
-            .short("s")
+            .short("S")
             .long("show")
             .value_name("SHOW_OPTIONS")
             .takes_value(true)
             .multiple(false)
             .required(false)
             .conflicts_with("Interface type")
-            .help("What information to show from each database entry. Use 'help --show TYPE' \
+            .help("What information to show from each database entry. Use 'info --show TYPE' \
                 for information on what you can show from each database type TYPE. Can be used in \
                 conjunction with a query."))
         .arg(Arg::with_name("Merge")
@@ -178,9 +175,9 @@ pub fn get_arguments() -> IoResult<Arguments> {
             .takes_value(true)
             .value_name("RESOLUTION_TYPE")
             .help("Method used to resolve conflicts in a merge. Only required if no interface \
-                is specified. For information on available conflict resolution methods, use 'help \
+                is specified. For information on available conflict resolution methods, use 'info \
                 --conflict-resolution'."))
-        .subcommand(SubCommand::with_name("help")
+        .subcommand(SubCommand::with_name("info")
             .about("Subcommand to provide additional information for options for osu-db-manager.")
             .version("1.0.0")
             .author("Aurorans Solis")
@@ -189,8 +186,8 @@ pub fn get_arguments() -> IoResult<Arguments> {
                 .takes_value(true)
                 .value_name("TYPE")
                 .possible_values(&["o", "osu", "c", "collection", "s", "scores", ""])
-                .required_unless_one(&["show", "merge"])
-                .conflicts_with_all(&["show", "merge"])
+                .required_unless_one(&["show", "conflict resolution"])
+                .conflicts_with_all(&["show", "conflict resolution"])
                 .help("Shows all available fields to query in database TYPE as well as examples \
                     for querying each field of a database."))
             .arg(Arg::with_name("show")
@@ -198,8 +195,8 @@ pub fn get_arguments() -> IoResult<Arguments> {
                 .takes_value(true)
                 .value_name("TYPE")
                 .possible_values(&["o", "osu", "c", "collection", "s", "scores", ""])
-                .required_unless_one(&["query", "merge"])
-                .conflicts_with_all(&["query", "merge"])
+                .required_unless_one(&["query", "conflict resolution"])
+                .conflicts_with_all(&["query", "conflict resolution"])
                 .help("Shows all available fields in database TYPE to display."))
             .arg(Arg::with_name("conflict resolution")
                 .long("conflict-resolution")
@@ -219,7 +216,7 @@ pub fn get_arguments() -> IoResult<Arguments> {
         } else { // One of the three is required, this is just for optimization purposes
             unreachable!();
         }
-        // If the 'help' command is used, then one of 'query', 'show', or 'merge' must be used, so
+        // If the 'info' command is used, then one of 'query', 'show', or 'merge' must be used, so
         // not having one of them is 'unreachable!()'.
     }
     let mut arguments = Arguments::new();
