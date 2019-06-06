@@ -14,9 +14,18 @@ use self::OsuDatabase::*;
 impl OsuDatabase {
     pub fn read_from_bytes(jobs: usize, db: Database) -> IoResult<Self> {
         Ok(match db {
-            Database::OsuDb(b) => Osu(OsuDb::read_from_bytes(jobs, b)?),
-            Database::CollectionDb(b) => Collection(CollectionDb::read_from_bytes(jobs, b)?),
-            Database::ScoresDb(b) => Scores(ScoresDb::read_from_bytes(jobs, b)?)
+            Database::OsuDb(b) => {
+                println!("Loading osu!.db with {} thread(s).", jobs);
+                Osu(OsuDb::read_from_bytes(jobs, b)?)
+            },
+            Database::CollectionDb(b) => {
+                println!("Loading collection.db with {} thread(s).", jobs);
+                Collection(CollectionDb::read_from_bytes(jobs, b)?)
+            },
+            Database::ScoresDb(b) => {
+                println!("Loading scores.db with {} thread(s).", jobs);
+                Scores(ScoresDb::read_from_bytes(jobs, b)?)
+            }
         })
     }
 
