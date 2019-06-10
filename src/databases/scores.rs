@@ -129,7 +129,6 @@ impl Load for ScoresDb {
             let mut bytes_iter = bytes[0..8].iter().cloned();
             (read_int(&mut bytes_iter)?, read_int(&mut bytes_iter)?)
         };
-        println!("version: {}, number of beatmaps: {}", version, number_of_beatmaps);
         let counter = Arc::new(Mutex::new(0));
         let start_read = Arc::new(Mutex::new(8));
         let threads = (0..jobs).map(|i| spawn_scoredbbeatmap_loader(number_of_beatmaps as usize,
@@ -159,47 +158,50 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
         let mut score_db_beatmaps = Vec::new();
         loop {
-            println!("Updating counter and start offset {}", thread_no);
             let (md5_beatmap_hash, number_of_scores, start_read, end, number) = {
                 let mut ctr = counter.lock().unwrap();
                 let number = if *ctr >= number_of_scoredbbeatmaps {
-                    println!("Finished loading scores.");
                     return Ok(score_db_beatmaps);
                 } else {
                     *ctr += 1;
                     *ctr - 1
                 };
                 let mut s = start_read.lock().unwrap();
-                println!("    locked both mutexes");
-                println!("    counter incremented to {}", *ctr);
-                println!("    using start offset: {}", *s);
                 let md5_beatmap_hash = read_md5_hash(&mut (&bytes[*s..*s+ 34]).iter().cloned())?;
-                println!("    read MD5 beatmap hash");
-                let number_of_scores = read_int(&mut (&bytes[*s + 18..*s + 22]).iter().cloned())?;
-                println!("    read number of scores: {}", number_of_scores);
+                *s += 34;
+                let number_of_scores = read_int(&mut (&bytes[*s..*s + 4])
+                    .iter().cloned())?;
                 // Skips:
                 // 34 bytes for beatmap MD5 hash
                 // 4 bytes for number of beatmaps
-                *s += 38;
+                *s += 4;
                 let start_from = *s;
                 for i in 0..number_of_scores {
-                    println!("        getting player name len info for score {}", i);
                     // Skips:
                     // 1 byte for gameplay_mode
                     // 4 bytes for score_version
-                    // 34 bytes for MD5 beatmap hash
+                    // 34 bytes for MD5 beatmap hash/1 byte if indicator is 0
                     *s += 39;
                     // Assuming 32 characters max length for username, +2 for indicator and ULEB128
-                    let indicator = read_byte(&mut (&bytes[*s..*s + 1]).iter().cloned())?;
+                    let indicator = *bytes.get(*s).ok_or_else(|| IoError::new(Other, "Failed to \
+                        read indicator for player name."))?;
                     let player_name_len = if indicator == 0x0b {
-                        read_byte(&mut (&bytes[*s + 1..*s + 2]).iter().cloned())?
+                        *bytes.get(*s + 1).ok_or_else(|| IoError::new(Other, "Failed to read player \
+                            name length."))?
                     } else if indicator == 0 {
                         0
                     } else {
                         return Err(IoError::new(InvalidData, "Read invalid indicator for score \
                             player name."));
                     };
-                    println!("        got player name len");
+                    if player_name_len & 0b10000000 == 0b10000000 {
+                        return Err(IoError::new(InvalidData, "Read invalid player name length."));
+                    }
+                    if indicator == 0 {
+                        *s += 1;
+                    } else {
+                        *s += 2;
+                    }
                     // let (player_name_len, player_name) = read_player_name_with_len(
                         // &mut (&bytes[*s..*s + 34]).iter().cloned())?;
                     *s += player_name_len as usize + 78;
@@ -221,10 +223,8 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     // 8 bytes for score ID
                     // Total of 78
                 }
-                println!("    got necessary info, dropping locks");
                 (md5_beatmap_hash, number_of_scores, start_from, *s, number)
             };
-            println!("    got MD5 beatmap hash, number of scores, start offset, end offset, and beatmap number");
             let scores = if number_of_scores == 0 {
                 None
             } else {
@@ -235,7 +235,6 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                 }
                 Some(scores)
             };
-            println!("    read scores");
             score_db_beatmaps.push((number, ScoreDbBeatmap {
                 md5_beatmap_hash,
                 number_of_scores,
