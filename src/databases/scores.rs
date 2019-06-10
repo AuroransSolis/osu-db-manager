@@ -202,8 +202,6 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     } else {
                         *s += 2;
                     }
-                    // let (player_name_len, player_name) = read_player_name_with_len(
-                        // &mut (&bytes[*s..*s + 34]).iter().cloned())?;
                     *s += player_name_len as usize + 78;
                     // Skips:
                     // 34 bytes for replay MD5 hash
