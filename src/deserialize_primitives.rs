@@ -1,5 +1,6 @@
 use std::mem::size_of;
 use std::time::{Duration, SystemTime};
+use std::mem::transmute;
 
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 // Primitive types we need to read from databases:
@@ -47,7 +48,9 @@ pub fn read_byte(bytes: &[u8], i: &mut usize) -> ParseFileResult<u8> {
 #[inline]
 pub fn read_short(bytes: &[u8], i: &mut usize) -> ParseFileResult<i16> {
     if *i + 1 < bytes.len() {
-        let tmp = Ok(bytes[*i] as i16 + (bytes[*i + 1] as i16) << 8);
+        let tmp = Ok(unsafe {
+            transmute::<_, i16>([bytes[*i], bytes[*i + 1]])
+        });
         *i += 2;
         tmp
     } else {
@@ -58,8 +61,9 @@ pub fn read_short(bytes: &[u8], i: &mut usize) -> ParseFileResult<i16> {
 #[inline]
 pub fn read_int(bytes: &[u8], i: &mut usize) -> ParseFileResult<i32> {
     if *i + 3 < bytes.len() {
-        let tmp = Ok((bytes[*i] as i32) + ((bytes[*i + 1] as i32) << 8)
-            + ((bytes[*i + 2] as i32) << 16) + ((bytes[*i + 3] as i32) << 24));
+        let tmp = Ok(unsafe {
+            transmute::<_, i32>([bytes[*i], bytes[*i + 1], bytes[*i + 2], bytes[*i + 3]])
+        });
         *i += 4;
         tmp
     } else {
@@ -70,10 +74,10 @@ pub fn read_int(bytes: &[u8], i: &mut usize) -> ParseFileResult<i32> {
 #[inline]
 pub fn read_long(bytes: &[u8], i: &mut usize) -> ParseFileResult<i64> {
     if *i + 7 < bytes.len() {
-        let tmp = Ok((bytes[*i + 0] as i64) + (bytes[*i + 1] as i64) << 8
-            + (bytes[*i + 2] as i64) << 16 + (bytes[*i + 3] as i64) << 24
-            + (bytes[*i + 4] as i64) << 32 + (bytes[*i + 5] as i64) << 40
-            + (bytes[*i + 6] as i64) << 48 + (bytes[*i + 7] as i64) << 56);
+        let tmp = Ok(unsafe {
+            transmute::<_, i64>([bytes[*i], bytes[*i + 1], bytes[*i + 2], bytes[*i + 3],
+                bytes[*i + 4], bytes[*i + 5], bytes[*i + 6], bytes[*i + 7]])
+        });
         *i += 8;
         tmp
     } else {
