@@ -6,6 +6,7 @@ mod deserialize_primitives;
 mod argument;
 
 use crate::databases::{osu::OsuDb, scores::ScoresDb, load::Load};
+mod read_error;
 
 use criterion::{Criterion, black_box};
 use std::fs::read;
