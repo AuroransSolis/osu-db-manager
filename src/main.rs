@@ -8,8 +8,8 @@ mod query;
 mod serialize_primitives;
 // mod partial_databases;
 mod argument;
+mod read_error;
 
-use std::fs::read;
 use std::time::Instant;
 
 use databases::database::OsuDatabase;

@@ -1,9 +1,9 @@
-use std::io::{Result as IoResult, Error as IoError, ErrorKind::{Other, InvalidData}};
 use std::time::SystemTime;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use crate::deserialize_primitives::*;
 use crate::databases::{load::Load, osu::GameplayMode};
+use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 
 #[derive(Debug, Clone)]
 pub struct Score {
@@ -29,26 +29,26 @@ pub struct Score {
 }
 
 impl Score {
-    pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
-        let gameplay_mode = GameplayMode::read_from_bytes(i)?;
-        let score_version = read_int(i)?;
-        let md5_beatmap_hash = read_md5_hash(i)?;
-        let player_name = read_string_utf8(i, "player name")?;
-        let md5_replay_hash = read_md5_hash(i)?;
-        let number_of_300s = read_short(i)?;
-        let number_of_100s = read_short(i)?;
-        let number_of_50s = read_short(i)?;
-        let number_of_gekis = read_short(i)?;
-        let number_of_katus = read_short(i)?;
-        let number_of_misses = read_short(i)?;
-        let replay_score = read_int(i)?;
-        let max_combo = read_short(i)?;
-        let perfect_combo = read_boolean(i)?;
-        let mods_used = read_int(i)?;
-        let empty_string = read_string_utf8(i, "empty string")?;
-        let replay_timestamp = read_datetime(i)?;
-        let negative_one = read_int(i)?;
-        let online_score_id = read_long(i)?;
+    pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
+        let gameplay_mode = GameplayMode::read_from_bytes(bytes, i)?;
+        let score_version = read_int(bytes, i)?;
+        let md5_beatmap_hash = read_md5_hash(bytes, i)?;
+        let player_name = read_string_utf8(bytes, i, "player name")?;
+        let md5_replay_hash = read_md5_hash(bytes, i)?;
+        let number_of_300s = read_short(bytes, i)?;
+        let number_of_100s = read_short(bytes, i)?;
+        let number_of_50s = read_short(bytes, i)?;
+        let number_of_gekis = read_short(bytes, i)?;
+        let number_of_katus = read_short(bytes, i)?;
+        let number_of_misses = read_short(bytes, i)?;
+        let replay_score = read_int(bytes, i)?;
+        let max_combo = read_short(bytes, i)?;
+        let perfect_combo = read_boolean(bytes, i)?;
+        let mods_used = read_int(bytes, i)?;
+        let empty_string = read_string_utf8(bytes, i, "empty string")?;
+        let replay_timestamp = read_datetime(bytes, i)?;
+        let negative_one = read_int(bytes, i)?;
+        let online_score_id = read_long(bytes, i)?;
         Ok(Score {
             gameplay_mode,
             score_version,
@@ -81,15 +81,15 @@ pub struct ScoreDbBeatmap {
 }
 
 impl ScoreDbBeatmap {
-    pub fn read_from_bytes<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Self> {
-        let md5_beatmap_hash = read_string_utf8(i, "MD5 beatmap hash")?;
-        let number_of_scores = read_int(i)?;
+    pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
+        let md5_beatmap_hash = read_md5_hash(bytes, i)?;
+        let number_of_scores = read_int(bytes, i)?;
         let mut scores = if number_of_scores == 0 {
             None
         } else {
             let mut scores = Vec::with_capacity(number_of_scores as usize);
             for _ in 0..number_of_scores {
-                scores.push(Score::read_from_bytes(i)?);
+                scores.push(Score::read_from_bytes(bytes, i)?);
             }
             Some(scores)
         };
@@ -109,13 +109,14 @@ pub struct ScoresDb {
 }
 
 impl Load for ScoresDb {
-    fn read_single_thread(bytes: Vec<u8>) -> IoResult<Self> {
-        let mut bytes_iter = bytes.into_iter();
-        let version = read_int(&mut bytes_iter)?;
-        let number_of_beatmaps = read_int(&mut bytes_iter)?;
+    fn read_single_thread(bytes: Vec<u8>) -> ParseFileResult<Self> {
+        let mut index = 0;
+        let i = &mut index;
+        let version = read_int(&bytes, i)?;
+        let number_of_beatmaps = read_int(&bytes, i)?;
         let mut beatmaps = Vec::with_capacity(number_of_beatmaps as usize);
         for _ in 0..number_of_beatmaps {
-            beatmaps.push(ScoreDbBeatmap::read_from_bytes(&mut bytes_iter)?);
+            beatmaps.push(ScoreDbBeatmap::read_from_bytes(&bytes, i)?);
         }
         Ok(ScoresDb {
             version,
@@ -124,10 +125,10 @@ impl Load for ScoresDb {
         })
     }
 
-    fn read_multi_thread(jobs: usize, bytes: Vec<u8>) -> IoResult<Self> {
+    fn read_multi_thread(jobs: usize, bytes: Vec<u8>) -> ParseFileResult<Self> {
         let (version, number_of_beatmaps) = {
-            let mut bytes_iter = bytes[0..8].iter().cloned();
-            (read_int(&mut bytes_iter)?, read_int(&mut bytes_iter)?)
+            let mut index = 0;
+            (read_int(&bytes, &mut index)?, read_int(&bytes, &mut index)?)
         };
         let counter = Arc::new(Mutex::new(0));
         let start_read = Arc::new(Mutex::new(8));
@@ -152,13 +153,13 @@ impl Load for ScoresDb {
 
 fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>, bytes_pointer: *const Vec<u8>, thread_no: usize)
-    -> JoinHandle<IoResult<Vec<(usize, ScoreDbBeatmap)>>> {
+    -> JoinHandle<ParseFileResult<Vec<(usize, ScoreDbBeatmap)>>> {
     let tmp = bytes_pointer as usize;
     thread::spawn(move || {
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
         let mut score_db_beatmaps = Vec::new();
         loop {
-            let (md5_beatmap_hash, number_of_scores, start_read, end, number) = {
+            let (md5_beatmap_hash, number_of_scores, mut start_read, end, number) = {
                 let mut ctr = counter.lock().unwrap();
                 let number = if *ctr >= number_of_scoredbbeatmaps {
                     return Ok(score_db_beatmaps);
@@ -167,10 +168,9 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     *ctr - 1
                 };
                 let mut s = start_read.lock().unwrap();
-                let md5_beatmap_hash = read_md5_hash(&mut (&bytes[*s..*s+ 34]).iter().cloned())?;
+                let md5_beatmap_hash = read_md5_hash(bytes, &mut *s)?;
                 *s += 34;
-                let number_of_scores = read_int(&mut (&bytes[*s..*s + 4])
-                    .iter().cloned())?;
+                let number_of_scores = read_int(bytes, &mut *s)?;
                 // Skips:
                 // 34 bytes for beatmap MD5 hash
                 // 4 bytes for number of beatmaps
@@ -183,19 +183,21 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     // 34 bytes for MD5 beatmap hash/1 byte if indicator is 0
                     *s += 39;
                     // Assuming 32 characters max length for username, +2 for indicator and ULEB128
-                    let indicator = *bytes.get(*s).ok_or_else(|| IoError::new(Other, "Failed to \
-                        read indicator for player name."))?;
+                    let indicator = *bytes.get(*s)
+                        .ok_or_else(|| DbFileParseError::new(PrimitiveError, "Failed to read \
+                            indicator for player name."))?;
                     let player_name_len = if indicator == 0x0b {
-                        *bytes.get(*s + 1).ok_or_else(|| IoError::new(Other, "Failed to read player \
-                            name length."))?
+                        *bytes.get(*s + 1).ok_or_else(|| DbFileParseError::new(PrimitiveError,
+                            "Failed to read player name length."))?
                     } else if indicator == 0 {
                         0
                     } else {
-                        return Err(IoError::new(InvalidData, "Read invalid indicator for score \
+                        return Err(DbFileParseError::new(PrimitiveError, "Read invalid indicator for score \
                             player name."));
                     };
                     if player_name_len & 0b10000000 == 0b10000000 {
-                        return Err(IoError::new(InvalidData, "Read invalid player name length."));
+                        return Err(DbFileParseError::new(PrimitiveError, "Read invalid player name \
+                            length."));
                     }
                     if indicator == 0 {
                         *s += 1;
@@ -227,9 +229,9 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                 None
             } else {
                 let mut scores = Vec::with_capacity(number_of_scores as usize);
-                let mut i = bytes[start_read..end].iter().cloned();
+                let i = &mut start_read;
                 for _ in 0..number_of_scores {
-                    scores.push(Score::read_from_bytes(&mut i)?);
+                    scores.push(Score::read_from_bytes(bytes, i)?);
                 }
                 Some(scores)
             };

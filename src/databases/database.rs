@@ -1,6 +1,6 @@
-use std::io::Result as IoResult;
 use crate::databases::{osu::OsuDb, collection::CollectionDb, scores::ScoresDb, load::Load};
 use crate::argument::Database;
+use crate::read_error::ParseFileResult;
 
 #[derive(Debug)]
 pub enum OsuDatabase {
@@ -12,7 +12,7 @@ pub enum OsuDatabase {
 use self::OsuDatabase::*;
 
 impl OsuDatabase {
-    pub fn read_from_bytes(jobs: usize, db: Database) -> IoResult<Self> {
+    pub fn read_from_bytes(jobs: usize, db: Database) -> ParseFileResult<Self> {
         Ok(match db {
             Database::OsuDb(b) => {
                 println!("Loading osu!.db with {} thread(s).", jobs);
@@ -32,21 +32,24 @@ impl OsuDatabase {
     pub fn unwrap_osu(self) -> OsuDb {
         match self {
             Osu(osu) => osu,
-            _ => unreachable!()
+            Collection(_) => panic!("Tried to unwrap a CollectionDb with 'unwrap_osu()'."),
+            Scores(_) => panic!("Tried to unwrap a ScoresDb with 'unwrap_osu()'.")
         }
     }
 
     pub fn unwrap_collection(self) -> CollectionDb {
         match self {
+            Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_collection()'."),
             Collection(collection) => collection,
-            _ => unreachable!()
+            Scores(_) => panic!("Tried to unwrap a ScoresDb with 'unwrap_collection()'.")
         }
     }
 
     pub fn unwrap_scores(self) -> ScoresDb {
         match self {
-            Scores(scores) => scores,
-            _ => unreachable!()
+            Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_scores()'."),
+            Collection(_) => panic!("Tried to unwrap a CollectionDb with 'unwrap_scores()'."),
+            Scores(scores) => scores
         }
     }
 }

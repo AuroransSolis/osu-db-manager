@@ -1,10 +1,7 @@
-use std::iter::Iterator;
-use std::io::{Result as IoResult, Error as IoError};
-use std::io::ErrorKind::{Other, InvalidData};
 use std::mem::size_of;
-use std::string::FromUtf8Error;
 use std::time::{Duration, SystemTime};
-use std::iter::FromIterator;
+
+use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 // Primitive types we need to read from databases:
 // Byte
 // Short
@@ -30,56 +27,68 @@ const DATETIME_ERR: &str = "Failed to read long for datetime.";
 const HASH_ERR: &str = "Read invalid indicator byte for MD5 hash string";
 const USERNAME_ERR: &str = "Read invalid incidator byte for username string";
 
-macro_rules! other {
+macro_rules! primitive {
     ($msg:ident) => {
-        IoError::new(Other, $msg)
-    }
-}
-
-macro_rules! invalid {
-    ($msg:expr) => {
-        IoError::new(InvalidData, $msg)
+        DbFileParseError::new(PrimitiveError, $msg)
     }
 }
 
 #[inline]
-pub fn read_byte<I: Iterator<Item= u8>>(i: &mut I) -> IoResult<u8> {
-    Ok(i.next().ok_or_else(|| other!(BYTE_ERR))?)
+pub fn read_byte(bytes: &[u8], i: &mut usize) -> ParseFileResult<u8> {
+    if *i < bytes.len() {
+        let tmp = Ok(bytes[*i]);
+        *i += 1;
+        tmp
+    } else {
+        Err(primitive!(BYTE_ERR))
+    }
 }
 
 #[inline]
-pub fn read_short<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<i16> {
-    Ok(i.next().ok_or_else(|| other!(SHORT_ERR))? as i16
-        + ((i.next().ok_or_else(|| other!(SHORT_ERR))? as i16) << 8))
+pub fn read_short(bytes: &[u8], i: &mut usize) -> ParseFileResult<i16> {
+    if *i + 1 < bytes.len() {
+        let tmp = Ok(bytes[*i] as i16 + (bytes[*i + 1] as i16) << 8);
+        *i += 2;
+        tmp
+    } else {
+        Err(primitive!(SHORT_ERR))
+    }
 }
 
 #[inline]
-pub fn read_int<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<i32> {
-    Ok(i.next().ok_or_else(|| other!(INT_ERR))? as i32
-        + ((i.next().ok_or_else(|| other!(INT_ERR))? as i32) << 8)
-        + ((i.next().ok_or_else(|| other!(INT_ERR))? as i32) << 16)
-        + ((i.next().ok_or_else(|| other!(INT_ERR))? as i32) << 24))
+pub fn read_int(bytes: &[u8], i: &mut usize) -> ParseFileResult<i32> {
+    if *i + 3 < bytes.len() {
+        let tmp = Ok((bytes[*i] as i32) + ((bytes[*i + 1] as i32) << 8)
+            + ((bytes[*i + 2] as i32) << 16) + ((bytes[*i + 3] as i32) << 24));
+        *i += 4;
+        tmp
+    } else {
+        Err(primitive!(INT_ERR))
+    }
 }
 
 #[inline]
-pub fn read_long<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<i64> {
-    Ok(i.next().ok_or_else(|| other!(LONG_ERR))? as i64
-        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 8)
-        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 16)
-        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 24)
-        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 32)
-        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 40)
-        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 48)
-        + ((i.next().ok_or_else(|| other!(LONG_ERR))? as i64) << 56))
+pub fn read_long(bytes: &[u8], i: &mut usize) -> ParseFileResult<i64> {
+    if *i + 7 < bytes.len() {
+        let tmp = Ok((bytes[*i + 0] as i64) + (bytes[*i + 1] as i64) << 8
+            + (bytes[*i + 2] as i64) << 16 + (bytes[*i + 3] as i64) << 24
+            + (bytes[*i + 4] as i64) << 32 + (bytes[*i + 5] as i64) << 40
+            + (bytes[*i + 6] as i64) << 48 + (bytes[*i + 7] as i64) << 56);
+        *i += 8;
+        tmp
+    } else {
+        Err(primitive!(LONG_ERR))
+    }
 }
 
 #[inline]
-pub fn read_uleb128<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<usize> {
+pub fn read_uleb128(bytes: &[u8], i: &mut usize) -> ParseFileResult<usize> {
     let mut out = 0;
     let mut found_end = false;
     let mut shift = 0;
     while shift < size_of::<usize>() * 8 {
-        let b = i.next().ok_or_else(|| other!(ULEB128_ERR))?;
+        let b = *bytes.get(*i).ok_or_else(|| primitive!(ULEB128_ERR))?;
+        *i += 1;
         // Handle case when there's less than eight bits left in the usize
         if shift + 8 >= size_of::<usize>() * 8 {
             // If the last byte has a value that fits within the remaining number of bits, add it
@@ -94,7 +103,7 @@ pub fn read_uleb128<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<usize> {
                     of arbitrary lengths, this program will only handle ULEB128 integers \
                     representing integers up to and including {} bits in length.",
                     size_of::<usize>() * 8);
-                return Err(IoError::new(InvalidData, err_msg.as_str()));
+                return Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()));
             }
         }
         out += (b as usize & 0b01111111) << shift;
@@ -110,18 +119,19 @@ pub fn read_uleb128<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<usize> {
         let err_msg = format!("While the ULEB128 integer format supports integers \
             of arbitrary lengths, this program will only handle ULEB128 integers representing \
             integers up to and including {} bits in length.", size_of::<usize>() * 8);
-        Err(IoError::new(InvalidData, err_msg.as_str()))
+        Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
     }
 }
 
 #[inline]
-pub fn read_uleb128_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usize, usize)> {
+pub fn read_uleb128_with_len(bytes: &[u8], i: &mut usize) -> ParseFileResult<(usize, usize)> {
     let mut out = 0;
     let mut found_end = false;
     let mut shift = 0;
     let mut len = 0;
     while shift < size_of::<usize>() * 8 {
-        let b = i.next().ok_or_else(|| other!(ULEB128_ERR))?;
+        let b = read_byte(bytes, i).map_err(|_| DbFileParseError::new(PrimitiveError,
+            "Failed to read byte for ULEB128 integer."))?;
         // Handle case when there's less than eight bits left in the usize
         if shift + 8 >= size_of::<usize>() * 8 {
             // If the last byte has a value that fits within the remaining number of bits, add it
@@ -136,7 +146,7 @@ pub fn read_uleb128_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usi
                     of arbitrary lengths, this program will only handle ULEB128 integers \
                     representing integers up to and including {} bits in length.",
                     size_of::<usize>() * 8);
-                return Err(IoError::new(InvalidData, err_msg.as_str()));
+                return Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()));
             }
         }
         out += (b as usize & 0b01111111) << shift;
@@ -153,133 +163,181 @@ pub fn read_uleb128_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usi
         let err_msg = format!("While the ULEB128 integer format supports integers \
             of arbitrary lengths, this program will only handle ULEB128 integers representing \
             integers up to and including {} bits in length.", size_of::<usize>() * 8);
-        Err(IoError::new(InvalidData, err_msg.as_str()))
+        Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
     }
 }
 
 #[inline]
-pub fn read_single<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<f32> {
-    Ok(f32::from_bits(read_int(i).map_err(|_| other!(SINGLE_ERR))? as u32))
+pub fn read_single(bytes: &[u8], i: &mut usize) -> ParseFileResult<f32> {
+    Ok(f32::from_bits(read_int(bytes, i).map_err(|_| primitive!(SINGLE_ERR))? as u32))
 }
 
 #[inline]
-pub fn read_double<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<f64> {
-    Ok(f64::from_bits(read_long(i).map_err(|_| other!(DOUBLE_ERR))? as u64))
+pub fn read_double(bytes: &[u8], i: &mut usize) -> ParseFileResult<f64> {
+    Ok(f64::from_bits(read_long(bytes, i).map_err(|_| primitive!(DOUBLE_ERR))? as u64))
 }
 
 #[inline]
-pub fn read_string_utf8<I: Iterator<Item = u8>>(i: &mut I, field: &str)
-    -> IoResult<Option<String>> {
-    let indicator = i.next().ok_or_else(|| other!(STRING_ERR))?;
-    if indicator == 0 {
-        Ok(None)
-    } else if indicator == 0x0b {
-        let length = read_uleb128(i)?;
-        let mut bytes = Vec::with_capacity(length);
-        for _ in 0..length {
-            bytes.push(read_byte(i)?);
+pub fn read_string_utf8(bytes: &[u8], i: &mut usize, field: &str)
+    -> ParseFileResult<Option<String>> {
+    if *i < bytes.len() {
+        let indicator = bytes[*i];
+        *i += 1;
+        if indicator == 0x0b {
+            let length = read_uleb128(bytes, i)?;
+            if *i + length <= bytes.len() {
+                let tmp = Ok(
+                    Some(String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                        let err_msg = format!("Error reading string for {} ({})", field, e);
+                        DbFileParseError::new(PrimitiveError, err_msg.as_str())
+                    })?)
+                );
+                *i += length;
+                tmp
+            } else {
+                Err(DbFileParseError::new(PrimitiveError, "String length goes past end of file."))
+            }
+        } else if indicator == 0 {
+            Ok(None)
+        } else {
+            let err_msg = format!("Read invalid string indicator ({}, index: {}).", indicator, i);
+            Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
         }
-        Ok(Some(String::from_utf8(bytes).map_err(|e| {
-            let err_msg = format!("Error reading {} ({})", field, e);
-            IoError::new(InvalidData, err_msg.as_str())
-        })?))
     } else {
-        let err_msg = format!("Found invalid indicator for string ({})", indicator);
-        Err(IoError::new(InvalidData, err_msg.as_str()))
+        Err(primitive!(STRING_ERR))
     }
 }
 
 #[inline]
-pub fn read_string_utf8_with_len<I: Iterator<Item = u8>>(i: &mut I, field: &str)
-    -> IoResult<(usize, Option<String>)> {
-    let indicator = i.next().ok_or_else(|| other!(STRING_ERR))?;
-    if indicator == 0 {
-        Ok((1, None))
-    } else if indicator == 0x0b {
-        let (length, length_bytes) = read_uleb128_with_len(i)?;
-        let mut bytes = Vec::with_capacity(length);
-        for _ in 0..length {
-            bytes.push(read_byte(i)?);
+pub fn read_string_utf8_with_len(bytes: &[u8], i: &mut usize, field: &str)
+    -> ParseFileResult<(usize, Option<String>)> {
+    if *i < bytes.len() {
+        let indicator = bytes[*i];
+        *i += 1;
+        if indicator == 0x0b {
+            let (length, length_bytes) = read_uleb128_with_len(bytes, i)?;
+            if *i + length <= bytes.len() {
+                let tmp = Ok((
+                    1 + length_bytes + length,
+                    Some(String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                        let err_msg = format!("Error reading string for {} ({})", field, e);
+                        DbFileParseError::new(PrimitiveError, err_msg.as_str())
+                    })?)
+                ));
+                *i += length;
+                tmp
+            } else {
+                Err(DbFileParseError::new(PrimitiveError, "String length goes past end of file."))
+            }
+        } else if indicator == 0 {
+            Ok((1, None))
+        } else {
+            let err_msg = format!("Read invalid string indicator ({}).", indicator);
+            Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
         }
-        Ok((length + length_bytes + 1, Some(String::from_utf8(bytes).map_err(|e| {
-            let err_msg = format!("Error reading {} ({})", field, e);
-            IoError::new(InvalidData, err_msg.as_str())
-        })?)))
     } else {
-        let err_msg = format!("Found invalid indicator for string ({})", indicator);
-        Err(IoError::new(InvalidData, err_msg.as_str()))
+        Err(primitive!(STRING_ERR))
     }
 }
 
 #[inline]
-pub fn read_boolean<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<bool> {
-    Ok(i.next().ok_or_else(|| other!(BOOLEAN_ERR))? == 0)
+pub fn read_boolean(bytes: &[u8], i: &mut usize) -> ParseFileResult<bool> {
+    Ok(read_byte(bytes, i).map_err(|_| primitive!(BOOLEAN_ERR))? != 0)
 }
 
 #[inline]
-pub fn read_datetime<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<SystemTime> {
-    let ticks = read_long(i).map_err(|_| other!(DATETIME_ERR))?;
+pub fn read_datetime(bytes: &[u8], i: &mut usize) -> ParseFileResult<SystemTime> {
+    let ticks = read_long(bytes, i).map_err(|_| primitive!(DATETIME_ERR))?;
     let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
     Ok(SystemTime::UNIX_EPOCH + duration_since_epoch)
 }
 
 #[inline]
-pub fn read_md5_hash<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Option<String>> {
-    let indicator = read_byte(i)?;
+pub fn read_md5_hash(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<String>> {
+    let indicator = read_byte(bytes, i)?;
     if indicator == 0 {
-        return Ok(None);
-    } else if indicator != 0x0b {
+        Ok(None)
+    } else if indicator == 0x0b {
+        if *i + 33 < bytes.len() {
+            // first byte will be 32 every time
+            let hash_bytes = (bytes[*i + 1..*i + 33]).to_vec();
+            *i += 33;
+            Ok(Some(String::from_utf8(hash_bytes)
+                .map_err(|_| DbFileParseError::new(PrimitiveError, "Error reading MD5 hash."))?))
+        } else {
+            Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left to read MD5 hash."))
+        }
+    } else {
         let msg = format!("{}: {}", HASH_ERR, indicator);
-        return Err(invalid!(msg.as_str()));
+        Err(DbFileParseError::new(PrimitiveError, msg.as_str()))
     }
-    let _ = read_byte(i)?; // ULEB128 encoding for 32 uses 1 byte
-    let hash_bytes = [read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
-        read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
-        read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
-        read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
-        read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?, read_byte(i)?,
-        read_byte(i)?, read_byte(i)?, read_byte(i)?].to_vec();
-    Ok(Some(String::from_utf8(hash_bytes).map_err(|_| IoError::new(InvalidData, "Error reading \
-        MD5 hash."))?))
 }
 
 #[inline]
-pub fn read_player_name<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<Option<String>> {
-    let indicator = read_byte(i)?;
+pub fn read_player_name(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<String>> {
+    let indicator = read_byte(bytes, i)?;
     if indicator == 0 {
-        return Ok(None);
-    } else if indicator != 0x0b {
+        Ok(None)
+    } else if indicator == 0x0b {
+        // Usernames are ASCII (1 byte in Unicode too), and so should never need more than a byte
+        // for the player name string length. Additionally, from talking with a Tillerino
+        // maintainer, I have found that the longest usernames that Tillerino has read are about 20
+        // characters.
+        let player_name_len = read_byte(bytes, i).map_err(|_| DbFileParseError::new(PrimitiveError,
+            "Failed to read player name length."))?;
+        if player_name_len & 0b10000000 == 0b10000000 {
+            return Err(DbFileParseError::new(PrimitiveError, "Read invalid player name length."));
+        }
+        if *i + player_name_len as usize <= bytes.len() {
+            let tmp = Ok(Some(
+                String::from_utf8(bytes[*i..*i + player_name_len as usize].to_vec())
+                    .map_err(|_| DbFileParseError::new(PrimitiveError, "Bytes made invalid UTF-8 \
+                        string!"))?
+            ));
+            *i += player_name_len as usize;
+            tmp
+        } else {
+            Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left in buffer for \
+                specified string length."))
+        }
+    } else {
         let msg = format!("{}: {}", USERNAME_ERR, indicator);
-        return Err(invalid!(msg.as_str()));
+        return Err(primitive!(msg));
     }
-    // Usernames are ASCII (1 byte in Unicode too), and so should never need more than a byte for
-    // the player name string length
-    let len = read_byte(i)?;
-    let mut string_bytes = Vec::with_capacity(len as usize);
-    for _ in 0..len {
-        string_bytes.push(read_byte(i)?);
-    }
-    Ok(Some(String::from_utf8(string_bytes).map_err(|_| IoError::new(InvalidData, "Error reading \
-        player name."))?))
 }
 
 #[inline]
-pub fn read_player_name_with_len<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(usize, Option<String>)> {
-    let indicator = read_byte(i)?;
+pub fn read_player_name_with_len(bytes: &[u8], i: &mut usize) -> ParseFileResult<(usize, Option<String>)> {
+    let indicator = read_byte(bytes, i)?;
     if indicator == 0 {
-        return Ok((1, None));
-    } else if indicator != 0x0b {
+        Ok((1, None))
+    } else if indicator == 0x0b {
+        // Usernames are ASCII (1 byte in Unicode too), and so should never need more than a byte
+        // for the player name string length. Additionally, from talking with a Tillerino
+        // maintainer, I have found that the longest usernames that Tillerino has read are about 20
+        // characters.
+        let player_name_len = read_byte(bytes, i).map_err(|_| DbFileParseError::new(PrimitiveError,
+            "Failed to read player name length."))?;
+        if player_name_len & 0b10000000 == 0b10000000 {
+            return Err(DbFileParseError::new(PrimitiveError, "Read invalid player name length."));
+        }
+        if *i + player_name_len as usize <= bytes.len() {
+            let tmp = Ok((
+                2 + player_name_len as usize,
+                Some(
+                    String::from_utf8(bytes[*i..*i + player_name_len as usize].to_vec())
+                        .map_err(|_| DbFileParseError::new(PrimitiveError, "Bytes made invalid \
+                            UTF-8 string!"))?
+                )
+            ));
+            *i += 2 + player_name_len as usize;
+            tmp
+        } else {
+            Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left in buffer for \
+                specified string length."))
+        }
+    } else {
         let msg = format!("{}: {}", USERNAME_ERR, indicator);
-        return Err(invalid!(msg.as_str()));
+        return Err(primitive!(msg));
     }
-    // Usernames are ASCII (1 byte in Unicode too), and so should never need more than a byte for
-    // the player name string length
-    let len = read_byte(i)?;
-    let mut string_bytes = Vec::with_capacity(len as usize);
-    for _ in 0..len {
-        string_bytes.push(read_byte(i)?);
-    }
-    // The +2 is to account for the indicator and ULEB128 integer
-    Ok((len as usize + 2, Some(String::from_utf8(string_bytes).map_err(|_| IoError::new(
-        InvalidData, "Error reading player name."))?)))
 }
