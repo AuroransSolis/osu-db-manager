@@ -20,42 +20,6 @@ macro_rules! primitive {
 }
 
 #[inline]
-pub fn read_int_iter<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<i32> {
-    let obs = [i.next(), i.next(), i.next(), i.next()];
-    if let [Some(b0), Some(b1), Some(b2), Some(b3)] = obs {
-        Ok((b0 as i32) + (b1 as i32) << 8 + (b2 as i32) << 16 + (b3 as i32) << 24)
-    } else {
-        Err(IoError::new(ErrorKind::Other, "Failed to read 8 bytes for long."))
-    }
-}
-
-#[inline]
-pub fn read_double_iter<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<f64> {
-    let obs = [i.next(), i.next(), i.next(), i.next(), i.next(), i.next(), i.next(),
-        i.next()];
-    if let [Some(b0), Some(b1), Some(b2), Some(b3), Some(b4), Some(b5), Some(b6), Some(b7)] = obs {
-        Ok(f64::from_bits(((b0 as i64) + (b1 as i64) << 8 + (b2 as i64) << 16 + (b3 as i64) << 24
-            + (b4 as i64) << 32 + (b5 as i64) << 40 + (b6 as i64) << 48
-            + (b7 as i64) << 56) as u64))
-    } else {
-        Err(IoError::new(ErrorKind::Other, "Failed to read 8 bytes for long."))
-    }
-}
-
-#[inline]
-pub fn read_int_double_pair_iter<I: Iterator<Item = u8>>(i: &mut I) -> IoResult<(i32, f64)> {
-    let int_double_pair_err = IoError::new(ErrorKind::Other,
-        "Failed to read extraneous byte in int-double pair.");
-    let _ = i.next().ok_or_else(|| int_double_pair_err)?;
-    let int = read_int_iter(i)?;
-    let int_double_pair_err = IoError::new(ErrorKind::Other,
-        "Failed to read extraneous byte in int-double pair.");
-    let _ = i.next().ok_or_else(|| int_double_pair_err)?;
-    let double = read_double_iter(i)?;
-    Ok((int, double))
-}
-
-#[inline]
 pub fn read_int_double_pair(bytes: &[u8], i: &mut usize) -> ParseFileResult<(i32, f64)> {
     *i += 1;
     let int = read_int(bytes, i)?;
@@ -253,6 +217,7 @@ pub enum GameplayMode {
 }
 
 use self::GameplayMode::*;
+use core::borrow::BorrowMut;
 
 impl GameplayMode {
     #[inline]
@@ -548,7 +513,7 @@ impl Load for OsuDb {
                 None
             };
             let (player_name_len, player_name) = read_player_name_with_len(&bytes, i)?;
-            //    // version: 4
+            // version: 4
             // folder_count: 4
             // account_unlocked: 1
             // account_unlock_date: 8
@@ -611,71 +576,129 @@ fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>, start:
                 let mut s = start.lock().unwrap();
                 let start_at = *s + 4;
                 let entry_size = read_int(bytes, &mut *s)?;
+                *s += 4;
+                println!("{} => {}", start_at, *s);
                 (entry_size, start_at, *ctr - 1)
             };
             let i = &mut start;
             let artist_name = read_string_utf8(bytes, i, "non-Unicode artist name")?;
+            println!("{} | {}: {:?}", num, stringify!(artist_name), artist_name);
             let artist_name_unicode = read_string_utf8(bytes, i, "Unicode artist name")?;
+            println!("{} | {}: {:?}", num, stringify!(artist_name_unicode), artist_name_unicode);
             let song_title = read_string_utf8(bytes, i, "non-Unicode song title")?;
+            println!("{} | {}: {:?}", num, stringify!(song_title), song_title);
             let song_title_unicode = read_string_utf8(bytes, i, "Unicode song title")?;
+            println!("{} | {}: {:?}", num, stringify!(song_title_unicode), song_title_unicode);
             let creator_name = read_string_utf8(bytes, i, "creator name")?;
+            println!("{} | {}: {:?}", num, stringify!(creator_name), creator_name);
             let difficulty = read_string_utf8(bytes, i, "difficulty")?;
+            println!("{} | {}: {:?}", num, stringify!(difficulty), difficulty);
             let audio_file_name = read_string_utf8(bytes, i, "audio file name")?;
+            println!("{} | {}: {:?}", num, stringify!(audio_file_name), audio_file_name);
             let md5_beatmap_hash = read_md5_hash(bytes, i)?;
+            println!("{} | {}: {:?}", num, stringify!(md5_beatmap_hash), md5_beatmap_hash);
             let dotosu_file_name = read_string_utf8(bytes, i, "corresponding .osu file name")?;
+            println!("{} | {}: {:?}", num, stringify!(dotosu_file_name), dotosu_file_name);
             let ranked_status = RankedStatus::read_from_bytes(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(ranked_status), ranked_status);
             let number_of_hitcircles = read_short(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(number_of_hitcircles), number_of_hitcircles);
             let number_of_sliders = read_short(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(number_of_sliders), number_of_sliders);
             let number_of_spinners = read_short(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(number_of_spinners), number_of_spinners);
             let last_modification_time = read_datetime(bytes, i)?;
+            println!("{} | {}: {:?}", num, stringify!(last_modification_time), last_modification_time);
             let approach_rate = ModernWithEntrySize::read_arcshpod(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(approach_rate), approach_rate);
             let circle_size = ModernWithEntrySize::read_arcshpod(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(circle_size), circle_size);
             let hp_drain = ModernWithEntrySize::read_arcshpod(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(hp_drain), hp_drain);
             let overall_difficulty = ModernWithEntrySize::read_arcshpod(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(overall_difficulty), overall_difficulty);
             let slider_velocity = read_double(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(slider_velocity), slider_velocity);
             let (num_mcsr_standard, mcsr_standard)
                 = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
+            println!("{} | {}: {:?}", num, stringify!(num_mcsr_standard), num_mcsr_standard);
             let (num_mcsr_taiko, mcsr_taiko)
                 = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
+            println!("{} | {}: {:?}", num, stringify!(num_mcsr_taiko), num_mcsr_taiko);
             let (num_mcsr_ctb, mcsr_ctb)
                 = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
+            println!("{} | {}: {:?}", num, stringify!(num_mcsr_ctb), num_mcsr_ctb);
             let (num_mcsr_mania, mcsr_mania)
                 = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
+            println!("{} | {}: {:?}", num, stringify!(num_mcsr_mania), num_mcsr_mania);
             let drain_time = read_int(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(drain_time), drain_time);
             let total_time = read_int(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(total_time), total_time);
             let preview_offset_from_start_ms = read_int(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(preview_offset_from_start_ms), preview_offset_from_start_ms);
             let num_timing_points = read_int(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(num_timing_points), num_timing_points);
+            println!("{}: {} => {}?", num, i, *i + num_timing_points as usize * 17);
             let mut timing_points = Vec::with_capacity(num_timing_points as usize);
             for _ in 0..num_timing_points {
                 timing_points.push(TimingPoint::read_from_bytes(bytes, i)?);
             }
+            println!("{}: {}", num, i);
             let beatmap_id = read_int(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(beatmap_id), beatmap_id);
             let beatmap_set_id = read_int(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(beatmap_set_id), beatmap_set_id);
             let thread_id = read_int(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(thread_id), thread_id);
             let standard_grade = read_byte(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(standard_grade), standard_grade);
             let taiko_grade = read_byte(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(taiko_grade), taiko_grade);
             let ctb_grade = read_byte(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(ctb_grade), ctb_grade);
             let mania_grade = read_byte(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(mania_grade), mania_grade);
             let local_offset = read_short(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(local_offset), local_offset);
             let stack_leniency = read_single(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(stack_leniency), stack_leniency);
             let gameplay_mode = GameplayMode::read_from_bytes(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(gameplay_mode), gameplay_mode);
             let song_source = read_string_utf8(bytes, i, "song source")?;
+            println!("{} | {}: {:?}", num, stringify!(song_source), song_source);
             let song_tags = read_string_utf8(bytes, i, "song tags")?;
+            println!("{} | {}: {:?}", num, stringify!(song_tags), song_tags);
             let online_offset = read_short(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(online_offset), online_offset);
             let font_used_for_song_title = read_string_utf8(bytes, i, "font used for song title")?;
+            println!("{} | {}: {:?}", num, stringify!(font_used_for_song_title), font_used_for_song_title);
             let unplayed = read_boolean(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(unplayed), unplayed);
             let last_played = read_datetime(bytes, i)?;
+            println!("{} | {}: {:?}", num, stringify!(last_played), last_played);
             let is_osz2 = read_boolean(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(is_osz2), is_osz2);
             let beatmap_folder_name = read_string_utf8(bytes, i, "folder name")?;
+            println!("{} | {}: {:?}", num, stringify!(beatmap_folder_name), beatmap_folder_name);
             let last_checked_against_repo = read_datetime(bytes, i)?;
+            println!("{} | {}: {:?}", num, stringify!(last_checked_against_repo), last_checked_against_repo);
             let ignore_beatmap_sound = read_boolean(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(ignore_beatmap_sound), ignore_beatmap_sound);
             let ignore_beatmap_skin = read_boolean(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(ignore_beatmap_skin), ignore_beatmap_skin);
             let disable_storyboard = read_boolean(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(disable_storyboard), disable_storyboard);
             let disable_video = read_boolean(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(disable_video), disable_video);
             let visual_override = read_boolean(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(visual_override), visual_override);
             let unknown_short = ModernWithEntrySize::read_unknown_short(bytes, i)?;
+            println!("{} | {}: {:?}", num, stringify!(unknown_short), unknown_short);
             let offset_from_song_start_in_editor_ms = read_int(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(offset_from_song_start_in_editor_ms), offset_from_song_start_in_editor_ms);
             let mania_scroll_speed = read_byte(bytes, i)?;
+            println!("{} | {}: {}", num, stringify!(mania_scroll_speed), mania_scroll_speed);
             beatmaps.push((num, Beatmap {
                 entry_size: Some(entry_size),
                 artist_name,

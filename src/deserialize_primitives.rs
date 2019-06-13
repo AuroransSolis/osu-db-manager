@@ -186,10 +186,12 @@ pub fn read_string_utf8(bytes: &[u8], i: &mut usize, field: &str)
     -> ParseFileResult<Option<String>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
+        //println!("    indicator: {}, index: {}", indicator, i);
         *i += 1;
         if indicator == 0x0b {
             let length = read_uleb128(bytes, i)?;
             if *i + length <= bytes.len() {
+                //print!("({}..{}): ", i, *i + length);
                 let tmp = Ok(
                     Some(String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
                         let err_msg = format!("Error reading string for {} ({})", field, e);
@@ -263,6 +265,7 @@ pub fn read_md5_hash(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<Stri
         Ok(None)
     } else if indicator == 0x0b {
         if *i + 33 < bytes.len() {
+            print!("({}..{}): ", *i - 1, *i + 33);
             // first byte will be 32 every time
             let hash_bytes = (bytes[*i + 1..*i + 33]).to_vec();
             *i += 33;
