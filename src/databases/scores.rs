@@ -169,12 +169,7 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                 };
                 let mut s = start_read.lock().unwrap();
                 let md5_beatmap_hash = read_md5_hash(bytes, &mut *s)?;
-                *s += 34;
                 let number_of_scores = read_int(bytes, &mut *s)?;
-                // Skips:
-                // 34 bytes for beatmap MD5 hash
-                // 4 bytes for number of beatmaps
-                *s += 4;
                 let start_from = *s;
                 for i in 0..number_of_scores {
                     // Skips:
