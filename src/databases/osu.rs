@@ -523,7 +523,7 @@ impl Load for OsuDb {
         };
         let num_beatmaps = read_int(&bytes, &mut bytes_used)?;
         let counter = Arc::new(Mutex::new(0));
-        let start = Arc::new(Mutex::new(bytes_used + 4));
+        let start = Arc::new(Mutex::new(bytes_used));
         let beatmaps = if version >= 20160408 {
             let threads = (0..jobs)
                 .map(|_| spawn_beatmap_loader_thread(num_beatmaps as usize, counter.clone(),
@@ -576,7 +576,7 @@ fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>, start:
                 let mut s = start.lock().unwrap();
                 let start_at = *s + 4;
                 let entry_size = read_int(bytes, &mut *s)?;
-                *s += 4;
+                *s += 4 + entry_size as usize;
                 println!("{} => {}", start_at, *s);
                 (entry_size, start_at, *ctr - 1)
             };
@@ -639,12 +639,12 @@ fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>, start:
             println!("{} | {}: {}", num, stringify!(preview_offset_from_start_ms), preview_offset_from_start_ms);
             let num_timing_points = read_int(bytes, i)?;
             println!("{} | {}: {}", num, stringify!(num_timing_points), num_timing_points);
-            println!("{}: {} => {}?", num, i, *i + num_timing_points as usize * 17);
+            println!("{} | {} => {}?", num, i, *i + num_timing_points as usize * 17);
             let mut timing_points = Vec::with_capacity(num_timing_points as usize);
             for _ in 0..num_timing_points {
                 timing_points.push(TimingPoint::read_from_bytes(bytes, i)?);
             }
-            println!("{}: {}", num, i);
+            println!("{} | {}", num, i);
             let beatmap_id = read_int(bytes, i)?;
             println!("{} | {}: {}", num, stringify!(beatmap_id), beatmap_id);
             let beatmap_set_id = read_int(bytes, i)?;

@@ -186,12 +186,12 @@ pub fn read_string_utf8(bytes: &[u8], i: &mut usize, field: &str)
     -> ParseFileResult<Option<String>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
-        //println!("    indicator: {}, index: {}", indicator, i);
+        println!("    indicator: {}, index: {}", indicator, i);
         *i += 1;
         if indicator == 0x0b {
             let length = read_uleb128(bytes, i)?;
             if *i + length <= bytes.len() {
-                //print!("({}..{}): ", i, *i + length);
+                print!("({}..{}): ", i, *i + length);
                 let tmp = Ok(
                     Some(String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
                         let err_msg = format!("Error reading string for {} ({})", field, e);
