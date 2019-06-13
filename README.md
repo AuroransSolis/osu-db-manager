@@ -8,7 +8,7 @@ Here's a non-comprehensive list of smaller goals I'm working to achieve as part 
 - ~~loading databases singlethreaded~~ (COMPLETE)
 - ~~loading databases multithreaded~~ (COMPLETE)
 - querying databases (WIP)
-- parsing arguments (WIP)
+- ~~parsing arguments~~ (COMPLETE)
 - merging scores/collection databases
 - interactive browsers
 - writing databases to file
