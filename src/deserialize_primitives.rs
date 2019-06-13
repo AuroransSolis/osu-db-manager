@@ -1,6 +1,5 @@
-use std::mem::size_of;
+use std::mem::{size_of, transmute_copy};
 use std::time::{Duration, SystemTime};
-use std::mem::transmute;
 
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 // Primitive types we need to read from databases:
@@ -48,9 +47,9 @@ pub fn read_byte(bytes: &[u8], i: &mut usize) -> ParseFileResult<u8> {
 #[inline]
 pub fn read_short(bytes: &[u8], i: &mut usize) -> ParseFileResult<i16> {
     if *i + 1 < bytes.len() {
-        let tmp = Ok(unsafe {
-            transmute::<_, i16>([bytes[*i], bytes[*i + 1]])
-        });
+        let mut buf = [0; 2];
+        buf.copy_from_slice(&bytes[*i..*i + 2]);
+        let tmp = Ok(i16::from_le_bytes(buf));
         *i += 2;
         tmp
     } else {
@@ -61,9 +60,9 @@ pub fn read_short(bytes: &[u8], i: &mut usize) -> ParseFileResult<i16> {
 #[inline]
 pub fn read_int(bytes: &[u8], i: &mut usize) -> ParseFileResult<i32> {
     if *i + 3 < bytes.len() {
-        let tmp = Ok(unsafe {
-            transmute::<_, i32>([bytes[*i], bytes[*i + 1], bytes[*i + 2], bytes[*i + 3]])
-        });
+        let mut buf = [0; 4];
+        buf.copy_from_slice(&bytes[*i..*i + 4]);
+        let tmp = Ok(i32::from_le_bytes(buf));
         *i += 4;
         tmp
     } else {
@@ -74,10 +73,9 @@ pub fn read_int(bytes: &[u8], i: &mut usize) -> ParseFileResult<i32> {
 #[inline]
 pub fn read_long(bytes: &[u8], i: &mut usize) -> ParseFileResult<i64> {
     if *i + 7 < bytes.len() {
-        let tmp = Ok(unsafe {
-            transmute::<_, i64>([bytes[*i], bytes[*i + 1], bytes[*i + 2], bytes[*i + 3],
-                bytes[*i + 4], bytes[*i + 5], bytes[*i + 6], bytes[*i + 7]])
-        });
+        let mut buf = [0; 8];
+        buf.copy_from_slice(&bytes[*i..*i + 8]);
+        let tmp = Ok(i64::from_le_bytes(buf));
         *i += 8;
         tmp
     } else {

@@ -21,10 +21,9 @@ macro_rules! primitive {
 
 #[inline]
 pub fn read_int_double_pair(bytes: &[u8], i: &mut usize) -> ParseFileResult<(i32, f64)> {
-    *i += 1;
-    let int = read_int(bytes, i)?;
-    *i += 1;
-    let double = read_double(bytes, i)?;
+    let int = read_int(&bytes[*i + 1..*i + 5], &mut 0)?;
+    let double = read_double(&bytes[*i + 6..*i + 14], &mut 0)?;
+    *i += 14;
     Ok((int, double))
 }
 
@@ -38,11 +37,22 @@ pub struct TimingPoint {
 impl TimingPoint {
     #[inline]
     fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
-        Ok(TimingPoint {
-            bpm: read_double(bytes, i)?,
-            offset: read_double(bytes, i)?,
-            inherited: read_boolean(bytes, i)?
-        })
+        if *i + 17 < bytes.len() {
+            let mut double_buf = [0; 8];
+            double_buf.copy_from_slice(&bytes[*i..*i + 8]);
+            let bpm = f64::from_bits(u64::from_le_bytes(double_buf));
+            double_buf.copy_from_slice(&bytes[*i + 8..*i + 16]);
+            let offset = f64::from_bits(u64::from_le_bytes(double_buf));
+            let inherited = bytes[*i + 16] != 0;
+            *i += 17;
+            Ok(TimingPoint {
+                bpm,
+                offset,
+                inherited
+            })
+        } else {
+            Err(DbFileParseError::new(PrimitiveError, "Insufficient bytes to read timing point."))
+        }
     }
 }
 
