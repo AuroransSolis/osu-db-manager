@@ -1,11 +1,9 @@
 use crate::databases::{
-    complete::{osu::OsuDb, collection::CollectionDb, scores::ScoresDb},
-    partial::{
-        partial_osu::PartialOsuDb,
-        partial_collection::PartialCollectionDb,
-        partial_scores::PartialScoresDb
-    },
-    load::Load};
+    osu::{osudb::OsuDb, partial_osudb::PartialOsuDb},
+    collection::{collectiondb::CollectionDb, partial_collectiondb::PartialCollectionDb},
+    scores::{scoresdb::ScoresDb, partial_scoresdb::PartialScoresDb},
+    load::Load
+};
 use crate::argument::Database;
 use crate::read_error::ParseFileResult;
 

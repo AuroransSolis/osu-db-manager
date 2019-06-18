@@ -1,4 +1,6 @@
-
+use crate::deserialize_primitives::*;
+use crate::databases::scores::score::Score;
+use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
 pub struct ScoreDbBeatmap {

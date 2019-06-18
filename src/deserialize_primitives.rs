@@ -1,4 +1,4 @@
-use std::mem::{size_of, transmute_copy};
+use std::mem::size_of;
 use std::time::{Duration, SystemTime};
 
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};

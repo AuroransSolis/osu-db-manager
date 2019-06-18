@@ -1,3 +1,5 @@
+use crate::masks::mask::Mask;
+
 #[derive(Copy, Clone, Debug)]
 pub struct CollectionMask {
     pub collection_name: bool,

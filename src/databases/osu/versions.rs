@@ -1,4 +1,6 @@
-
+use crate::read_error::ParseFileResult;
+use crate::deserialize_primitives::*;
+use crate::databases::osu::primitives::{read_int_double_pair, ByteSingle::{self, *}};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Legacy;
@@ -9,7 +11,7 @@ pub struct Modern;
 #[derive(Copy, Clone, Debug)]
 pub struct ModernWithEntrySize;
 
-trait ReadVersionSpecificData {
+pub trait ReadVersionSpecificData {
     fn read_entry_size(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<i32>>;
     fn read_arcshpod(bytes: &[u8], i: &mut usize) -> ParseFileResult<ByteSingle>;
     fn read_mod_combo_star_ratings(bytes: &[u8], i: &mut usize)
@@ -94,4 +96,12 @@ impl ReadVersionSpecificData for ModernWithEntrySize {
     fn read_unknown_short(_bytes: &[u8], _i: &mut usize) -> ParseFileResult<Option<i16>> {
         Ok(None)
     }
+}
+
+pub trait ReadPartialVersionSpecificData {
+    fn read_entry_size(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<i32>>;
+    fn read_arcshpod(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<ByteSingle>>;
+    fn read_mod_combo_star_ratings(bytes: &[u8], i: &mut usize)
+        -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)>;
+    fn read_unknown_short(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<i16>>;
 }

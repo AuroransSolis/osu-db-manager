@@ -60,7 +60,7 @@ impl Mask for ScoreMask {
             && self.number_of_50s && self.number_of_gekis && self.number_of_katus
             && self.number_of_misses && self.replay_score && self.max_combo&& self.perfect_combo
             && self.mods_used && self.empty_string && self.replay_timestamp && self.negative_one
-            && online_score_id
+            && self.online_score_id
     }
     
     fn from_show_and_query(show: Self, query: Self) -> Self {
@@ -84,6 +84,32 @@ impl Mask for ScoreMask {
             replay_timestamp: show.replay_timestamp || query.replay_timestamp,
             negative_one: show.negative_one || query.negative_one,
             online_score_id: show.online_score_id || query.online_score_id
+        }
+    }
+}
+
+impl Default for ScoreMask {
+    fn default() -> Self {
+        ScoreMask {
+            gameplay_mode: true,
+            score_version: true,
+            md5_beatmap_hash: true,
+            player_name: true,
+            md5_replay_hash: true,
+            number_of_300s: true,
+            number_of_100s: true,
+            number_of_50s: true,
+            number_of_gekis: true,
+            number_of_katus: true,
+            number_of_misses: true,
+            replay_score: true,
+            max_combo: true,
+            perfect_combo: true,
+            mods_used: true,
+            empty_string: true,
+            replay_timestamp: true,
+            negative_one: true,
+            online_score_id: true
         }
     }
 }
@@ -131,6 +157,16 @@ impl Mask for ScoreDbBeatmapMask {
     }
 }
 
+impl Default for ScoreDbBeatmapMask {
+    fn default() -> Self {
+        ScoreDbBeatmapMask {
+            md5_beatmap_hash: true,
+            number_of_scores: true,
+            scores_mask: Some(ScoreMask::default())
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct ScoresDbMask {
     pub version: bool,
@@ -170,6 +206,16 @@ impl Mask for ScoresDbMask {
                 (None, Some(query_mask)) => Some(query_mask),
                 (None, None) => None
             }
+        }
+    }
+}
+
+impl Default for ScoresDbMask {
+    fn default() -> Self {
+        ScoresDbMask {
+            version: true,
+            number_of_beatmaps: true,
+            beatmaps_mask: Some(ScoreDbBeatmapMask::default())
         }
     }
 }

@@ -1,10 +1,8 @@
-use std::io::{Result as IoResult, Error as IoError, ErrorKind};
 use std::time::SystemTime;
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use crate::deserialize_primitives::*;
-use crate::databases::load::Load;
+use crate::databases::{load::Load, osu::{primitives::*, beatmap::Beatmap, versions::*}};
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 
 #[derive(Debug, Clone)]
