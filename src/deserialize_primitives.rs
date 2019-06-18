@@ -260,7 +260,7 @@ pub fn read_md5_hash(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<Stri
     if indicator == 0 {
         Ok(None)
     } else if indicator == 0x0b {
-        if *i + 33 < bytes.len() {
+        if *i + 32 < bytes.len() {
             // first byte will be 32 every time
             let hash_bytes = (bytes[*i + 1..*i + 33]).to_vec();
             *i += 33;
