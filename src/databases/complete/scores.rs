@@ -2,7 +2,7 @@ use std::time::SystemTime;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use crate::deserialize_primitives::*;
-use crate::databases::{load::Load, osu::GameplayMode};
+use crate::databases::{load::Load, complete::osu::GameplayMode};
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 
 #[derive(Debug, Clone)]
