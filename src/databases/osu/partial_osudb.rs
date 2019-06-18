@@ -7,65 +7,8 @@ use std::fs::File;
 use std::time::SystemTime;
 use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidData, Cursor};
 
-pub struct PartialOsuDb {
-    pub version: Option<i32>,
-    pub folder_count: Option<i32>,
-    pub account_unlocked: Option<bool>,
-    pub account_unlock_date: Option<SystemTime>,
-    pub player_name: Option<String>,
-    pub number_of_beatmaps: Option<i32>,
-    pub beatmaps: Option<Vec<Beatmap>>,
-    pub unknown_int: Option<i32>
-}
-
-impl PartialDb for PartialOsuDb {}
-
 pub trait ReadPartialVersionSpecificData {
 
-}
-
-macro_rules! read_or_advance {
-    ($cursor:ident, $advance:literal, $condition:expr, $load:expr) => {
-        if $condition {
-            Some($load)
-        } else {
-            let current_pos = $cursor.position();
-            $cursor.set_position(current_pos + $advance);
-            None
-        }
-    }
-}
-
-impl PartialOsuDb {
-    pub fn load_from_query<V: ReadPartialVersionSpecificData>(file: &mut File, jobs: usize,
-        query: &OsuDbQuery) -> IoResult<Self> {
-        let mut cursor = Cursor::new(file);
-        let version = read_or_advance!(cursor, 4, query.version, read_int(cursor)?);
-        let folder_count = read_or_advance!(cursor, 4, query.folder_count, read_int(cursor)?);
-        let account_unlocked = read_or_advance!(cursor, 1, query.account_unlocked,
-            read_boolean(cursor)?);
-        let account_unlock_date = read_or_advance!(cursor, 8, query.account_unlock_date,
-            read_datetime(cursor)?);
-        let player_name = if query.player_name {
-            Some(fromutf8_to_ioresult(read_string_utf8(cursor)?, "player name")?)
-        } else {
-            let new_pos = read_uleb128(cursor)? as u64 + cursor.position();
-            cursor.set_position(new_pos);
-            None
-        };
-        let number_of_beatmaps = read_or_advance!(cursor, 4, query.number_of_beatmaps,
-            read_int(cursor));
-        let beatmaps = if let Some = query.beatmap {
-            if let Some = number_of_beatmaps {
-
-            } else {
-                return Err(IoError::new(InvalidData, "Attempted to load in beatmaps \
-                    without loading in number of beatmaps!"));
-            }
-        } else {
-
-        };
-    }
 }
 
 pub struct PartialBeatmap {
@@ -129,4 +72,59 @@ pub struct PartialBeatmap {
     unknown_short: Option<i16>,
     offset_from_song_start_in_editor_ms: Option<i32>,
     mania_scroll_speed: Option<u8>
+}
+
+pub struct PartialOsuDb {
+    pub version: Option<i32>,
+    pub folder_count: Option<i32>,
+    pub account_unlocked: Option<bool>,
+    pub account_unlock_date: Option<SystemTime>,
+    pub player_name: Option<String>,
+    pub number_of_beatmaps: Option<i32>,
+    pub beatmaps: Option<Vec<Beatmap>>,
+    pub unknown_int: Option<i32>
+}
+
+macro_rules! read_or_advance {
+    ($cursor:ident, $advance:literal, $condition:expr, $load:expr) => {
+        if $condition {
+            Some($load)
+        } else {
+            let current_pos = $cursor.position();
+            $cursor.set_position(current_pos + $advance);
+            None
+        }
+    }
+}
+
+impl PartialOsuDb {
+    pub fn load_from_query<V: ReadPartialVersionSpecificData>(file: &mut File, jobs: usize,
+        query: &OsuDbQuery) -> IoResult<Self> {
+        let mut cursor = Cursor::new(file);
+        let version = read_or_advance!(cursor, 4, query.version, read_int(cursor)?);
+        let folder_count = read_or_advance!(cursor, 4, query.folder_count, read_int(cursor)?);
+        let account_unlocked = read_or_advance!(cursor, 1, query.account_unlocked,
+            read_boolean(cursor)?);
+        let account_unlock_date = read_or_advance!(cursor, 8, query.account_unlock_date,
+            read_datetime(cursor)?);
+        let player_name = if query.player_name {
+            Some(fromutf8_to_ioresult(read_string_utf8(cursor)?, "player name")?)
+        } else {
+            let new_pos = read_uleb128(cursor)? as u64 + cursor.position();
+            cursor.set_position(new_pos);
+            None
+        };
+        let number_of_beatmaps = read_or_advance!(cursor, 4, query.number_of_beatmaps,
+            read_int(cursor));
+        let beatmaps = if let Some = query.beatmap {
+            if let Some = number_of_beatmaps {
+
+            } else {
+                return Err(IoError::new(InvalidData, "Attempted to load in beatmaps \
+                    without loading in number of beatmaps!"));
+            }
+        } else {
+
+        };
+    }
 }

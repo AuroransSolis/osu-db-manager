@@ -1,18 +1,34 @@
-use crate::databases::{complete::{osu::OsuDb, collection::CollectionDb, scores::ScoresDb}, load::Load};
+use crate::databases::{
+    complete::{osu::OsuDb, collection::CollectionDb, scores::ScoresDb},
+    partial::{
+        partial_osu::PartialOsuDb,
+        partial_collection::PartialCollectionDb,
+        partial_scores::PartialScoresDb
+    },
+    load::Load};
 use crate::argument::Database;
 use crate::read_error::ParseFileResult;
 
 #[derive(Debug)]
 pub enum OsuDatabase {
+    Complete(CompleteDatabase),
+    Partial
+}
+
+pub enum CompleteDatabase {
     Osu(OsuDb),
     Collection(CollectionDb),
     Scores(ScoresDb)
 }
 
+pub enum PartialDatabase {
+
+}
+
 use self::OsuDatabase::*;
 
 impl OsuDatabase {
-    pub fn read_from_bytes(jobs: usize, db: Database) -> ParseFileResult<Self> {
+    pub fn read_from_bytes(jobs: usize, db: DatabaseAndMask) -> ParseFileResult<Self> {
         Ok(match db {
             Database::OsuDb(b) => {
                 println!("Loading osu!.db with {} thread(s).", jobs);
