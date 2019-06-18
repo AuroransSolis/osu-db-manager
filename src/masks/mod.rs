@@ -1,4 +1,4 @@
-mod mask;
-mod osu_mask;
-mod collection_mask;
-mod scores_mask;
+pub mod mask;
+pub mod osu_mask;
+pub mod collection_mask;
+pub mod scores_mask;

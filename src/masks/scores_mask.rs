@@ -23,48 +23,6 @@ pub struct ScoreMask {
     pub online_score_id: bool
 }
 
-/*
-    gameplay_mode: bool,
-    score_version: bool,
-    md5_beatmap_hash: bool,
-    player_name: bool,
-    md5_replay_hash: bool,
-    number_of_300s: bool,
-    number_of_100s: bool,
-    number_of_50s: bool,
-    number_of_gekis: bool,
-    number_of_katus: bool,
-    number_of_misses: bool,
-    replay_score: bool,
-    max_combo: bool,
-    perfect_combo: bool,
-    mods_used: bool,
-    empty_string: bool,
-    replay_timestamp: bool,
-    negative_one: bool,
-    online_score_id: bool
-    
-    gameplay_mode,
-    score_version,
-    md5_beatmap_hash,
-    player_name,
-    md5_replay_hash,
-    number_of_300s,
-    number_of_100s,
-    number_of_50s,
-    number_of_gekis,
-    number_of_katus,
-    number_of_misses,
-    replay_score,
-    max_combo,
-    perfect_combo,
-    mods_used,
-    empty_string,
-    replay_timestamp,
-    negative_one,
-    online_score_id
-*/
-
 impl ScoreMask {
     pub fn new(gameplay_mode: bool, score_version: bool, md5_beatmap_hash: bool, player_name: bool,
         md5_replay_hash: bool, number_of_300s: bool, number_of_100s: bool, number_of_50s: bool,
@@ -126,6 +84,92 @@ impl Mask for ScoreMask {
             replay_timestamp: show.replay_timestamp || query.replay_timestamp,
             negative_one: show.negative_one || query.negative_one,
             online_score_id: show.online_score_id || query.online_score_id
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct ScoreDbBeatmapMask {
+    pub md5_beatmap_hash: bool,
+    pub number_of_scores: bool,
+    pub scores_mask: Option<ScoreMask>
+}
+
+impl ScoreDbBeatmapMask {
+    pub fn new(md5_beatmap_hash: bool, number_of_scores: bool, scores_mask: Option<ScoreMask>)
+        -> Self {
+        ScoreDbBeatmapMask {
+            md5_beatmap_hash,
+            number_of_scores,
+            scores_mask
+        }
+    }
+}
+
+impl Mask for ScoreDbBeatmapMask {
+    fn is_complete(&self) -> bool {
+        if let Some(scores_mask) = self.scores_mask {
+            scores_mask.is_complete() && self.md5_beatmap_hash && self.number_of_scores
+        } else {
+            false
+        }
+    }
+
+    fn from_show_and_query(show: Self, query: Self) -> Self {
+        ScoreDbBeatmapMask {
+            md5_beatmap_hash: show.md5_beatmap_hash || query.md5_beatmap_hash,
+            number_of_scores: show.number_of_scores || query.number_of_scores,
+            scores_mask: match (show.scores_mask, query.scores_mask) {
+                (Some(show_mask), Some(query_mask)) => {
+                    Some(ScoreMask::from_show_and_query(show_mask, query_mask))
+                },
+                (Some(show_mask), None) => Some(show_mask),
+                (None, Some(query_mask)) =>  Some(query_mask),
+                (None, None) => None
+            }
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct ScoresDbMask {
+    pub version: bool,
+    pub number_of_beatmaps: bool,
+    pub beatmaps_mask: Option<ScoreDbBeatmapMask>
+}
+
+impl ScoresDbMask {
+    pub fn new(version: bool, number_of_beatmaps: bool, beatmaps_mask: Option<ScoreDbBeatmapMask>)
+        -> Self {
+        ScoresDbMask {
+            version,
+            number_of_beatmaps,
+            beatmaps_mask
+        }
+    }
+}
+
+impl Mask for ScoresDbMask {
+    fn is_complete(&self) -> bool {
+        if let Some(beatmaps_mask) = self.beatmaps_mask {
+            beatmaps_mask.is_complete() && self.version && self.number_of_beatmaps
+        } else {
+            false
+        }
+    }
+
+    fn from_show_and_query(show: Self, query: Self) -> Self {
+        ScoresDbMask {
+            version: show.version || query.version,
+            number_of_beatmaps: show.number_of_beatmaps || query.number_of_beatmaps,
+            beatmaps_mask: match (show.beatmaps_mask, query.beatmaps_mask) {
+                (Some(show_mask), Some(query_mask)) => {
+                    Some(ScoreDbBeatmapMask::from_show_and_query(show_mask, query_mask))
+                },
+                (Some(show_mask), None) => Some(show_mask),
+                (None, Some(query_mask)) => Some(query_mask),
+                (None, None) => None
+            }
         }
     }
 }
