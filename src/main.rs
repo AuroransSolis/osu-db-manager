@@ -9,6 +9,7 @@ mod serialize_primitives;
 // mod partial_databases;
 mod argument;
 mod read_error;
+mod masks;
 mod db_masks;
 
 use std::time::Instant;

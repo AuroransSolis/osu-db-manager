@@ -1,4 +1,4 @@
-use crate::databases::{osu::OsuDb, collection::CollectionDb, scores::ScoresDb, load::Load};
+use crate::databases::{complete::{osu::OsuDb, collection::CollectionDb, scores::ScoresDb}, load::Load};
 use crate::argument::Database;
 use crate::read_error::ParseFileResult;
 
