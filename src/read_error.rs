@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ParseErrorKind {
     PrimitiveError,
     OsuDbError,
@@ -7,7 +7,7 @@ pub enum ParseErrorKind {
     Other
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DbFileParseError {
     kind: ParseErrorKind,
     message: String
