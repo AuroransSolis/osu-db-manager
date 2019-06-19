@@ -5,7 +5,7 @@ use crate::deserialize_primitives::*;
 pub struct Collection {
     pub collection_name: Option<String>,
     pub number_of_beatmaps: i32,
-    pub md5_beatmap_hashes: Vec<Option<String>>
+    pub md5_beatmap_hashes: Vec<String>
 }
 
 impl Collection {

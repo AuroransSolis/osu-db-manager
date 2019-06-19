@@ -14,7 +14,7 @@ pub struct Beatmap {
     pub creator_name: Option<String>,
     pub difficulty: Option<String>,
     pub audio_file_name: Option<String>,
-    pub md5_beatmap_hash: Option<String>,
+    pub md5_beatmap_hash: String,
     pub dotosu_file_name: Option<String>,
     pub ranked_status: RankedStatus,
     pub number_of_hitcircles: i16,
@@ -69,7 +69,7 @@ pub struct Beatmap {
 }
 
 impl Beatmap {
-    fn read_from_bytes<T: ReadVersionSpecificData>(bytes: &[u8], i: &mut usize)
+    pub fn read_from_bytes<T: ReadVersionSpecificData>(bytes: &[u8], i: &mut usize)
         -> ParseFileResult<Self> {
         let entry_size = T::read_entry_size(bytes, i)?;
         let artist_name = read_string_utf8(bytes, i, "non-Unicode artist name")?;

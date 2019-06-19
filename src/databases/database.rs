@@ -13,14 +13,18 @@ pub enum OsuDatabase {
     Partial
 }
 
+#[derive(Debug)]
 pub enum CompleteDatabase {
     Osu(OsuDb),
     Collection(CollectionDb),
     Scores(ScoresDb)
 }
 
+#[derive(Debug)]
 pub enum PartialDatabase {
-
+    Osu(PartialOsuDb),
+    Collection(PartialCollectionDb),
+    Scores(Partial)
 }
 
 use self::OsuDatabase::*;

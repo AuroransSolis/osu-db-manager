@@ -115,16 +115,16 @@ impl Default for ScoreMask {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct ScoreDbBeatmapMask {
+pub struct ScoresDbBeatmapMask {
     pub md5_beatmap_hash: bool,
     pub number_of_scores: bool,
     pub scores_mask: Option<ScoreMask>
 }
 
-impl ScoreDbBeatmapMask {
+impl ScoresDbBeatmapMask {
     pub fn new(md5_beatmap_hash: bool, number_of_scores: bool, scores_mask: Option<ScoreMask>)
         -> Self {
-        ScoreDbBeatmapMask {
+        ScoresDbBeatmapMask {
             md5_beatmap_hash,
             number_of_scores,
             scores_mask
@@ -132,7 +132,7 @@ impl ScoreDbBeatmapMask {
     }
 }
 
-impl Mask for ScoreDbBeatmapMask {
+impl Mask for ScoresDbBeatmapMask {
     fn is_complete(&self) -> bool {
         if let Some(scores_mask) = self.scores_mask {
             scores_mask.is_complete() && self.md5_beatmap_hash && self.number_of_scores
@@ -142,7 +142,7 @@ impl Mask for ScoreDbBeatmapMask {
     }
 
     fn from_show_and_query(show: Self, query: Self) -> Self {
-        ScoreDbBeatmapMask {
+        ScoresDbBeatmapMask {
             md5_beatmap_hash: show.md5_beatmap_hash || query.md5_beatmap_hash,
             number_of_scores: show.number_of_scores || query.number_of_scores,
             scores_mask: match (show.scores_mask, query.scores_mask) {
@@ -157,9 +157,9 @@ impl Mask for ScoreDbBeatmapMask {
     }
 }
 
-impl Default for ScoreDbBeatmapMask {
+impl Default for ScoresDbBeatmapMask {
     fn default() -> Self {
-        ScoreDbBeatmapMask {
+        ScoresDbBeatmapMask {
             md5_beatmap_hash: true,
             number_of_scores: true,
             scores_mask: Some(ScoreMask::default())

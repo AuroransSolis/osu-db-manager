@@ -30,7 +30,7 @@ pub struct TimingPoint {
 
 impl TimingPoint {
     #[inline]
-    fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
+    pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
         if *i + 17 < bytes.len() {
             let mut double_buf = [0; 8];
             double_buf.copy_from_slice(&bytes[*i..*i + 8]);

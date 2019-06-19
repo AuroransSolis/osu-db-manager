@@ -116,7 +116,7 @@ fn spawn_partial_collection_loader_thread(mask: CollectionMask, number: usize,
                 (collection_name, number_of_beatmaps, num, s)
             };
             let mut i = &mut start;
-            let mut md5_beatmap_hashes = if let Some(collections_mask) = mask.md5_beatmap_hashes {
+            let mut md5_beatmap_hashes = if mask.md5_beatmap_hashes {
                 let mut tmp = Vec::with_capacity(number_of_beatmaps as usize);
                 for _ in 0..number_of_beatmaps {
                     tmp.push(read_md5_hash(bytes, i)?);
