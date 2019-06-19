@@ -171,11 +171,11 @@ impl Default for ScoresDbBeatmapMask {
 pub struct ScoresDbMask {
     pub version: bool,
     pub number_of_beatmaps: bool,
-    pub beatmaps_mask: Option<ScoreDbBeatmapMask>
+    pub beatmaps_mask: Option<ScoresDbBeatmapMask>
 }
 
 impl ScoresDbMask {
-    pub fn new(version: bool, number_of_beatmaps: bool, beatmaps_mask: Option<ScoreDbBeatmapMask>)
+    pub fn new(version: bool, number_of_beatmaps: bool, beatmaps_mask: Option<ScoresDbBeatmapMask>)
         -> Self {
         ScoresDbMask {
             version,

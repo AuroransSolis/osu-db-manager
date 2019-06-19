@@ -11,8 +11,14 @@ pub struct PartialScoresDbBeatmap {
 }
 
 impl PartialScoresDbBeatmap {
-    pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
-        let md5_beatmap_hash = read_md5_hash(bytes, i)?;
+    pub fn read_from_bytes(mask: ScoresDbBeatmapMask, bytes: &[u8], i: &mut usize)
+        -> ParseFileResult<Self> {
+        let md5_beatmap_hash = if mask.md5_beatmap_hash {
+            Some(read_md5_hash(bytes, i)?)
+        } else {
+            *i += 34;
+            None
+        };
         let number_of_scores = read_int(bytes, i)?;
         let mut scores = if number_of_scores == 0 {
             None
@@ -23,7 +29,7 @@ impl PartialScoresDbBeatmap {
             }
             Some(scores)
         };
-        Ok(ScoreDbBeatmap {
+        Ok(PartialScoresDbBeatmap {
             md5_beatmap_hash,
             number_of_scores,
             scores

@@ -21,6 +21,19 @@ pub fn read_int_double_pair(bytes: &[u8], i: &mut usize) -> ParseFileResult<(i32
     Ok((int, double))
 }
 
+pub fn maybe_read_int_double_pair(c: bool, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<Option<(i32, f64)>> {
+    if c {
+        let int = read_int(&bytes[*i + 1..*i + 5], &mut 0)?;
+        let double = read_double(&bytes[*i + 6..*i + 14], &mut 0)?;
+        *i += 14;
+        Ok(Some((int, double)))
+    } else {
+        *i += 14;
+        Ok(None)
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct TimingPoint {
     bpm: f64,
@@ -46,6 +59,31 @@ impl TimingPoint {
             })
         } else {
             Err(DbFileParseError::new(PrimitiveError, "Insufficient bytes to read timing point."))
+        }
+    }
+
+    pub fn maybe_read_from_bytes(c: bool, bytes: &[u8], i: &mut usize)
+        -> ParseFileResult<Option<Self>> {
+        if c {
+            if *i + 17 < bytes.len() {
+                let mut double_buf = [0; 8];
+                double_buf.copy_from_slice(&bytes[*i..*i + 8]);
+                let bpm = f64::from_bits(u64::from_le_bytes(double_buf));
+                double_buf.copy_from_slice(&bytes[*i + 8..*i + 16]);
+                let offset = f64::from_bits(u64::from_le_bytes(double_buf));
+                let inherited = bytes[*i + 16] != 0;
+                *i += 17;
+                Ok(Some(TimingPoint {
+                    bpm,
+                    offset,
+                    inherited
+                }))
+            } else {
+                Err(DbFileParseError::new(PrimitiveError, "Insufficient bytes to read timing point."))
+            }
+        } else {
+            *i += 17;
+            Ok(None)
         }
     }
 }
@@ -80,6 +118,29 @@ impl RankedStatus {
                 let err_msg = format!("Found invalid ranked status value ({})", b);
                 Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
             }
+        }
+    }
+    
+    #[inline]
+    pub fn maybe_read_from_bytes(c: bool, bytes: &[u8], i: &mut usize)
+        -> ParseFileResult<Option<Self>> {
+        if c {
+            match read_byte(bytes, i).map_err(|_| primitive!(RANKED_STATUS_ERR))? {
+                0 => Ok(Some(Unknown)),
+                1 => Ok(Some(Unsubmitted)),
+                2 => Ok(Some(PendingWIPGraveyard)),
+                3 => Ok(Some(Unused)),
+                4 => Ok(Some(Ranked)),
+                5 => Ok(Some(Approved)),
+                6 => Ok(Some(Qualified)),
+                7 => Ok(Some(Loved)),
+                b @ _ => {
+                    let err_msg = format!("Found invalid ranked status value ({})", b);
+                    Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
+                }
+            }
+        } else {
+            Ok(None)
         }
     }
 }
@@ -139,6 +200,26 @@ impl GameplayMode {
                 let err_msg = format!("Read invalid gamemode specifier ({})", b);
                 Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
             }
+        }
+    }
+    
+    #[inline]
+    pub fn maybe_read_from_bytes(c: bool, bytes: &[u8], i: &mut usize)
+        -> ParseFileResult<Option<Self>> {
+        if c {
+            let b = read_byte(bytes, i).map_err(|_| primitive!(GAMEPLAY_MODE_ERR))?;
+            match b {
+                0 => Ok(Some(Standard)),
+                1 => Ok(Some(Taiko)),
+                2 => Ok(Some(Ctb)),
+                3 => Ok(Some(Mania)),
+                _ => {
+                    let err_msg = format!("Read invalid gamemode specifier ({})", b);
+                    Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
+                }
+            }
+        } else {
+            Ok(None)
         }
     }
 }

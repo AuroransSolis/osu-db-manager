@@ -1,57 +1,79 @@
-use std::thread;
-use std::sync::{JoinHandle, Arc, Mutex};
+use std::thread::{self, JoinHandle};
+use std::sync::{Arc, Mutex};
 
 use crate::deserialize_primitives::*;
-use crate::read_error::ParseFileResult;
-use crate::databases::scores::{
-    partial_score::PartialScore,
-    partial_scoresdb_beatmap::PartialScoresDbBeatmap
+use crate::read_error::{ParseFileResult, ParseErrorKind::PrimitiveError};
+use crate::databases::{
+    scores::{
+        partial_score::PartialScore,
+        partial_scoresdb_beatmap::PartialScoresDbBeatmap
+    },
+    load::PartialLoad
 };
+use crate::masks::scores_mask::{ScoresDbMask, ScoresDbBeatmapMask};
 
 #[derive(Debug, Clone)]
 pub struct PartialScoresDb {
     pub version: Option<i32>,
     pub number_of_beatmaps: i32,
-    pub beatmaps: Option<Vec<PartialScoreDbBeatmap>>
+    pub beatmaps: Option<Vec<PartialScoresDbBeatmap>>
 }
 
-impl Load for PartialScoresDb {
-    fn read_single_thread(bytes: Vec<u8>) -> ParseFileResult<Self> {
+impl PartialLoad<ScoresDbMask> for PartialScoresDb {
+    fn read_single_thread(mask: ScoresDbMask, bytes: Vec<u8>) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
-        let version = read_int(&bytes, i)?;
+        let version = if mask.version {
+            Some(read_int(&bytes, i)?)
+        } else {
+            *i += 4;
+            None
+        };
         let number_of_beatmaps = read_int(&bytes, i)?;
-        let mut beatmaps = Vec::with_capacity(number_of_beatmaps as usize);
-        for _ in 0..number_of_beatmaps {
-            beatmaps.push(PartialScoreDbBeatmap::read_from_bytes(&bytes, i)?);
-        }
-        Ok(ScoresDb {
+        let mut beatmaps = if let Some(m) = mask.beatmaps_mask {
+            let mut tmp = Vec::with_capacity(number_of_beatmaps as usize);
+            for _ in 0..number_of_beatmaps {
+                tmp.push(PartialScoresDbBeatmap::read_from_bytes(m, &bytes, i)?);
+            }
+            Some(tmp)
+        } else {
+            None
+        };
+        Ok(PartialScoresDb {
             version,
             number_of_beatmaps,
             beatmaps
         })
     }
 
-    fn read_multi_thread(jobs: usize, bytes: Vec<u8>) -> ParseFileResult<Self> {
+    fn read_multi_thread(mask: ScoresDbMask, jobs: usize, bytes: Vec<u8>) -> ParseFileResult<Self> {
         let (version, number_of_beatmaps) = {
             let mut index = 0;
-            (read_int(&bytes, &mut index)?, read_int(&bytes, &mut index)?)
+            (if mask.version {
+                Some(read_int(&bytes, &mut index)?)
+            } else {
+                index += 4;
+                None
+            }, read_int(&bytes, &mut index)?)
         };
-        let counter = Arc::new(Mutex::new(0));
-        let start_read = Arc::new(Mutex::new(8));
-        let threads = (0..jobs).map(|i| spawn_partial_scoredb_beatmap_loader(
-            number_of_beatmaps as usize, counter.clone(), start_read.clone(), &bytes, i))
-            .collect::<Vec<_>>();
-        let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
-            .collect::<Vec<_>>();
-        let mut scoredbbeatmaps = results.pop().unwrap()?;
-        for scoredbbeatmap_result in results {
-            scoredbbeatmaps.append(&mut scoredbbeatmap_result?);
+        if let Some(m) = mask.beatmaps_mask {
+            let counter = Arc::new(Mutex::new(0));
+            let start_read = Arc::new(Mutex::new(8));
+            let threads = (0..jobs).map(|i| spawn_partial_scoredb_beatmap_loader(m,
+                number_of_beatmaps as usize, counter.clone(), start_read.clone(), &bytes, i))
+                .collect::<Vec<_>>();
+            let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
+                .collect::<Vec<_>>();
+            let mut partial_scoredb_beatmaps = results.pop().unwrap()?;
+            for partial_scoredb_beatmap_result in results {
+                partial_scoredb_beatmaps.append(&mut partial_scoredb_beatmap_result?);
+            }
+            partial_scoredb_beatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
+            let beatmaps = partial_scoredb_beatmaps.into_iter()
+                .map(|(_, scoredbbeatmap)| scoredbbeatmap)
+                .collect::<Vec<PartialScoresDbBeatmap>>();
         }
-        scoredbbeatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
-        let beatmaps = scoredbbeatmaps.into_iter().map(|(_, scoredbbeatmap)| scoredbbeatmap)
-            .collect::<Vec<ScoreDbBeatmap>>();
-        Ok(ScoresDb {
+        Ok(PartialScoresDb {
             version,
             number_of_beatmaps,
             beatmaps
@@ -59,24 +81,30 @@ impl Load for PartialScoresDb {
     }
 }
 
-fn spawn_partial_scoredb_beatmap_loader(number_of_scoredb_beatmaps: usize, counter: Arc<Mutex<usize>>,
-    start_read: Arc<Mutex<usize>>, bytes_pointer: *const Vec<u8>, thread_no: usize)
-    -> JoinHandle<ParseFileResult<Vec<(usize, ScoreDbBeatmap)>>> {
+fn spawn_partial_scoredb_beatmap_loader(mask: ScoresDbBeatmapMask,
+    number_of_scoredb_beatmaps: usize, counter: Arc<Mutex<usize>>, start_read: Arc<Mutex<usize>>,
+    bytes_pointer: *const Vec<u8>, thread_no: usize)
+    -> JoinHandle<ParseFileResult<Vec<(usize, PartialScoresDbBeatmap)>>> {
     let tmp = bytes_pointer as usize;
     thread::spawn(move || {
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
-        let mut score_db_beatmaps = Vec::new();
+        let mut partial_scoresdb_beatmaps = Vec::new();
         loop {
             let (md5_beatmap_hash, number_of_scores, mut start_read, end, number) = {
                 let mut ctr = counter.lock().unwrap();
                 let number = if *ctr >= number_of_scoredb_beatmaps {
-                    return Ok(score_db_beatmaps);
+                    return Ok(partial_scoresdb_beatmaps);
                 } else {
                     *ctr += 1;
                     *ctr - 1
                 };
                 let mut s = start_read.lock().unwrap();
-                let md5_beatmap_hash = read_md5_hash(bytes, &mut *s)?;
+                let md5_beatmap_hash = if mask.md5_beatmap_hash {
+                    Some(read_md5_hash(bytes, &mut *s)?)
+                } else {
+                    *s += 34;
+                    None
+                };
                 let number_of_scores = read_int(bytes, &mut *s)?;
                 let start_from = *s;
                 for i in 0..number_of_scores {
@@ -128,17 +156,21 @@ fn spawn_partial_scoredb_beatmap_loader(number_of_scoredb_beatmaps: usize, count
                 }
                 (md5_beatmap_hash, number_of_scores, start_from, *s, number)
             };
-            let scores = if number_of_scores == 0 {
-                None
-            } else {
-                let mut scores = Vec::with_capacity(number_of_scores as usize);
-                let i = &mut start_read;
-                for _ in 0..number_of_scores {
-                    scores.push(Score::read_from_bytes(bytes, i)?);
+            let partial_scores = if let Some(m) = mask.scores_mask {
+                if number_of_scores == 0 {
+                    None
+                } else {
+                    let mut tmp = Vec::with_capacity(number_of_scores as usize);
+                    let i = &mut start_read;
+                    for _ in 0..number_of_scores {
+                        tmp.push(Score::read_from_bytes(bytes, i)?);
+                    }
+                    Some(tmp)
                 }
-                Some(scores)
+            } else {
+                None
             };
-            score_db_beatmaps.push((number, ScoreDbBeatmap {
+            partial_scoresdb_beatmaps.push((number, PartialScoresDbBeatmap {
                 md5_beatmap_hash,
                 number_of_scores,
                 scores

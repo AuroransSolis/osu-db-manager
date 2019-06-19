@@ -9,6 +9,7 @@ mod serialize_primitives;
 mod argument;
 mod read_error;
 mod masks;
+mod maybe_deserialize_primitives;
 
 use std::time::Instant;
 
