@@ -6,7 +6,7 @@ use crate::masks::collection_mask::CollectionMask;
 pub struct PartialCollection {
     pub collection_name: Option<String>,
     pub number_of_beatmaps: i32,
-    pub md5_beatmap_hashes: Option<Vec<Option<String>>>
+    pub md5_beatmap_hashes: Option<Vec<String>>
 }
 
 impl PartialCollection {

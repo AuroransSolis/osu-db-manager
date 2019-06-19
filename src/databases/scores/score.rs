@@ -8,9 +8,9 @@ use crate::databases::osu::primitives::GameplayMode;
 pub struct Score {
     pub gameplay_mode: GameplayMode,
     pub score_version: i32,
-    pub md5_beatmap_hash: Option<String>,
+    pub md5_beatmap_hash: String,
     pub player_name: Option<String>,
-    pub md5_replay_hash: Option<String>,
+    pub md5_replay_hash: String,
     pub number_of_300s: i16,
     pub number_of_100s: i16, // 150s in Taiko, 100s in CTB, 200s in Mania
     pub number_of_50s: i16, // small fruit in CTB, 50s in Mania

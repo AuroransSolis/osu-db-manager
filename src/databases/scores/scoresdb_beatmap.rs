@@ -4,7 +4,7 @@ use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
 pub struct ScoreDbBeatmap {
-    pub md5_beatmap_hash: Option<String>,
+    pub md5_beatmap_hash: String,
     pub number_of_scores: i32,
     pub scores: Option<Vec<Score>>
 }
