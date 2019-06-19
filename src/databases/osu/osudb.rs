@@ -1,14 +1,15 @@
 use std::time::SystemTime;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+
 use crate::deserialize_primitives::*;
+use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 use crate::databases::{
     load::Load,
     osu::{primitives::*, beatmap::Beatmap,
         versions::{Legacy, Modern, ModernWithEntrySize, ReadVersionSpecificData}
     }
 };
-use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 
 #[derive(Debug, Clone)]
 pub struct OsuDb {

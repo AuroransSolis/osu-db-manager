@@ -39,7 +39,7 @@ pub struct PartialBeatmap {
     drain_time: Option<i32>,
     total_time: Option<i32>,
     preview_offset_from_start_ms: Option<i32>,
-    num_timing_points: Option<i32>,
+    num_timing_points: i32,
     timing_points: Option<Vec<TimingPoint>>,
     beatmap_id: Option<i32>,
     beatmap_set_id: Option<i32>,
@@ -70,55 +70,10 @@ pub struct PartialBeatmap {
     mania_scroll_speed: Option<u8>
 }
 
-macro_rules! read_or_advance_sized {
-    ($condition:expr, $true_branch:expr, $index:ident + $amt:literal) => {{
-        if $condition {
-            Some($true_branch)
-        } else {
-            *$index += $amt;
-            None
-        }
-    }};
-}
-
-fn read_or_advance_sized<T>(condition: bool, bytes: &[u8], i: &mut usize, increment: usize,
-    read: fn(&[u8], &mut usize) -> T) -> ParseFileResult<Option<T>> {
-    if condition {
-        Some(read(bytes, i)?)
-    } else {
-        *i += increment;
-        None
-    }
-}
-
-macro_rules! read_or_advance_string {
-    ($condition:expr, read_string_utf8($bytes:ident, $index:ident, $field:literal)) => {{
-        if $condition {
-            Some(read_string_utf8($bytes, $index, $field)?)
-        } else {
-            let indicator = read_byte($bytes, $index)?;
-            if indicator == 0 {
-                None
-            } else if indicator == 0x0b {
-                let len = read_uleb128($bytes, $index)?;
-                *$index += len;
-                None
-            } else {
-                return Err(DbFileParseError::new(PrimitiveError, format!("Read invalid string \
-                    indicator for {}", $field)));
-            }
-        }
-    }};
-}
-
 impl PartialBeatmap {
     pub fn read_from_bytes<T: ReadPartialVersionSpecificData>(mask: BeatmapMask, bytes: &[u8],
         i: &mut usize) -> ParseFileResult<Self> {
         let entry_size = T::maybe_read_entry_size(c, bytes, i)?;
-        let entry_size = read_or_advance_sized(mask.entry_size, bytes, i, 4,
-            |b, ind| T::read_entry_size(b, ind))?;
-        let entry_size = read_or_advance_sized!(mask.entry_size, T::read_entry_size(bytes, i)?,
-            i + 4);
         let artist_name = maybe_read_string_utf8(mask.artist_name, bytes, i,
             "non-Unicode artist name")?;
         let artist_name_unicode = maybe_read_string_utf8(mask.artist_name_unicode, bytes, i,
@@ -127,63 +82,77 @@ impl PartialBeatmap {
             "non-Unicode song title")?;
         let song_title_unicode = maybe_read_string_utf8(mask.song_title_unicode, bytes, i,
             "Unicode song title")?;
-        let creator_name = maybe_read_string_utf8(mask.creator_name, bytes, i, "creator name");
-        let difficulty = maybe_read_string_utf8(mask.difficulty, byte, i, "difficulty");
+        let creator_name = maybe_read_string_utf8(mask.creator_name, bytes, i, "creator name")?;
+        let difficulty = maybe_read_string_utf8(mask.difficulty, byte, i, "difficulty")?;
         let difficulty = maybe_read_string_utf8(mask.difficulty, bytes, i, "difficulty")?;
         let audio_file_name = maybe_read_string_utf8(mask.audio_file_name, bytes, i,
             "audio file name")?;
         let md5_beatmap_hash = maybe_read_md5_hash(mask.md5_beatmap_hash, bytes, i)?;
         let dotosu_file_name = maybe_read_string_utf8(mask.dotosu_file_name, bytes, i,
             "corresponding .osu file name")?;
-        let ranked_status = RankedStatus::read_from_bytes(bytes, i)?;
-        let number_of_hitcircles = read_short(bytes, i)?;
-        let number_of_sliders = read_short(bytes, i)?;
-        let number_of_spinners = read_short(bytes, i)?;
-        let last_modification_time = read_datetime(bytes, i)?;
-        let approach_rate = T::read_arcshpod(bytes, i)?;
-        let circle_size = T::read_arcshpod(bytes, i)?;
-        let hp_drain = T::read_arcshpod(bytes, i)?;
-        let overall_difficulty = T::read_arcshpod(bytes, i)?;
-        let slider_velocity = read_double(bytes, i)?;
-        let (num_mcsr_standard, mcsr_standard) = T::read_mod_combo_star_ratings(bytes, i)?;
-        let (num_mcsr_taiko, mcsr_taiko) = T::read_mod_combo_star_ratings(bytes, i)?;
-        let (num_mcsr_ctb, mcsr_ctb) = T::read_mod_combo_star_ratings(bytes, i)?;
-        let (num_mcsr_mania, mcsr_mania) = T::read_mod_combo_star_ratings(bytes, i)?;
-        let drain_time = read_int(bytes, i)?;
-        let total_time = read_int(bytes, i)?;
-        let preview_offset_from_start_ms = read_int(bytes, i)?;
+        let ranked_status = RankedStatus::maybe_read_from_bytes(mask.ranked_status, bytes, i)?;
+        let number_of_hitcircles = maybe_read_short(mask.number_of_hitcircles, bytes, i)?;
+        let number_of_sliders = maybe_read_short(mask.number_of_sliders, bytes, i)?;
+        let number_of_spinners = maybe_read_short(mask.number_of_spinners, bytes, i)?;
+        let last_modification_time = maybe_read_datetime(mask.last_modification_time, bytes, i)?;
+        let approach_rate = T::maybe_read_arcshpod(mask.approach_rate, bytes, i)?;
+        let circle_size = T::maybe_read_arcshpod(mask.circle_size, bytes, i)?;
+        let hp_drain = T::maybe_read_arcshpod(mask.hp_drain, bytes, i)?;
+        let overall_difficulty = T::maybe_read_arcshpod(mask.overall_difficulty, bytes, i)?;
+        let slider_velocity = maybe_read_double(mask.slider_velocity, bytes, i)?;
+        let (num_mcsr_standard, mcsr_standard) = T::maybe_read_mod_combo_star_ratings(
+            mask.mod_combo_star_ratings_standard, bytes, i)?;
+        let (num_mcsr_taiko, mcsr_taiko) = T::maybe_read_mod_combo_star_ratings(
+            mask.mod_combo_star_ratings_taiko, bytes, i)?;
+        let (num_mcsr_ctb, mcsr_ctb) = T::maybe_read_mod_combo_star_ratings(
+            mask.mod_combo_star_ratings_ctb, bytes, i)?;
+        let (num_mcsr_mania, mcsr_mania) = T::maybe_read_mod_combo_star_ratings(
+            mask.mod_combo_star_ratings_mania, bytes, i)?;
+        let drain_time = maybe_read_int(mask.drain_time, bytes, i)?;
+        let total_time = maybe_read_int(mask.total_time, bytes, i)?;
+        let preview_offset_from_start_ms = maybe_read_int(mask.preview_offset_from_start_ms, bytes, i)?;
         let num_timing_points = read_int(bytes, i)?;
-        let mut timing_points = Vec::with_capacity(num_timing_points as usize);
-        for _ in 0..num_timing_points {
-            timing_points.push(TimingPoint::read_from_bytes(bytes, i)?);
-        }
-        let beatmap_id = read_int(bytes, i)?;
-        let beatmap_set_id = read_int(bytes, i)?;
-        let thread_id = read_int(bytes, i)?;
-        let standard_grade = read_byte(bytes, i)?;
-        let taiko_grade = read_byte(bytes, i)?;
-        let ctb_grade = read_byte(bytes, i)?;
-        let mania_grade = read_byte(bytes, i)?;
-        let local_offset = read_short(bytes, i)?;
-        let stack_leniency = read_single(bytes, i)?;
-        let gameplay_mode = GameplayMode::read_from_bytes(bytes, i)?;
-        let song_source = read_string_utf8(bytes, i, "song source")?;
-        let song_tags = read_string_utf8(bytes, i, "song tags")?;
-        let online_offset = read_short(bytes, i)?;
-        let font_used_for_song_title = read_string_utf8(bytes, i, "font used for song title")?;
-        let unplayed = read_boolean(bytes, i)?;
-        let last_played = read_datetime(bytes, i)?;
-        let is_osz2 = read_boolean(bytes, i)?;
-        let beatmap_folder_name = read_string_utf8(bytes, i, "folder name")?;
-        let last_checked_against_repo = read_datetime(bytes, i)?;
-        let ignore_beatmap_sound = read_boolean(bytes, i)?;
-        let ignore_beatmap_skin = read_boolean(bytes, i)?;
-        let disable_storyboard = read_boolean(bytes, i)?;
-        let disable_video = read_boolean(bytes, i)?;
-        let visual_override = read_boolean(bytes, i)?;
-        let unknown_short = T::read_unknown_short(bytes, i)?;
-        let offset_from_song_start_in_editor_ms = read_int(bytes, i)?;
-        let mania_scroll_speed = read_byte(bytes, i)?;
+        let mut timing_points = if mask.timing_points {
+            let mut tmp = Vec::with_capacity(num_timing_points as usize);
+            for _ in 0..num_timing_points {
+                tmp.push(TimingPoint::read_from_bytes(bytes, i)?);
+            }
+            Some(tmp)
+        } else {
+            *i += num_timing_points as usize * 17;
+            None
+        };
+        let beatmap_id = maybe_read_int(mask.beatmap_id, bytes, i)?;
+        let beatmap_set_id = maybe_read_int(mask.beatmap_set_id, bytes, i)?;
+        let thread_id = maybe_read_int(mask.thread_id, bytes, i)?;
+        let standard_grade = maybe_read_byte(mask.standard_grade, bytes, i)?;
+        let taiko_grade = maybe_read_byte(mask.taiko_grade, bytes, i)?;
+        let ctb_grade = maybe_read_byte(mask.ctb_grade, bytes, i)?;
+        let mania_grade = maybe_read_byte(mask.mania_grade, bytes, i)?;
+        let local_offset = maybe_read_short(mask.local_offset, bytes, i)?;
+        let stack_leniency = maybe_read_single(mask.stack_leniency, bytes, i)?;
+        let gameplay_mode = GameplayMode::maybe_read_from_bytes(mask.gameplay_mode, bytes, i)?;
+        let song_source = maybe_read_string_utf8(mask.song_source, bytes, i, "song source")?;
+        let song_tags = maybe_read_string_utf8(mask.song_tags, bytes, i, "song tags")?;
+        let online_offset = maybe_read_short(mask.online_offset, bytes, i)?;
+        let font_used_for_song_title = maybe_read_string_utf8(mask.font_used_for_song_title, bytes,
+            i, "font used for song title")?;
+        let unplayed = maybe_read_boolean(mask.unplayed, bytes, i)?;
+        let last_played = maybe_read_datetime(mask.last_played, bytes, i)?;
+        let is_osz2 = maybe_read_boolean(mask.is_osz2, bytes, i)?;
+        let beatmap_folder_name = maybe_read_string_utf8(mask.beatmap_folder_name, bytes, i,
+            "folder name")?;
+        let last_checked_against_repo = maybe_read_datetime(mask.last_checked_against_repo, bytes,
+            i)?;
+        let ignore_beatmap_sound = maybe_read_boolean(mask.ignore_beatmap_sound, bytes, i)?;
+        let ignore_beatmap_skin = maybe_read_boolean(mask.ignore_beatmap_skin, bytes, i)?;
+        let disable_storyboard = maybe_read_boolean(mask.disable_storyboard, bytes, i)?;
+        let disable_video = maybe_read_boolean(mask.disable_video, bytes, i)?;
+        let visual_override = maybe_read_boolean(mask.visual_override, bytes, i)?;
+        let unknown_short = T::maybe_read_unknown_short(mask.unknown_short, bytes, i)?;
+        let offset_from_song_start_in_editor_ms = maybe_read_int(
+            mask.offset_from_song_start_in_editor_ms, bytes, i)?;
+        let ania_scroll_speed = maybe_read_byte(mask.mania_scroll_speed, bytes, i)?;
         Ok(PartialBeatmap {
             entry_size,
             artist_name,

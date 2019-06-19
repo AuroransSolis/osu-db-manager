@@ -120,7 +120,7 @@ impl ReadPartialVersionSpecificData for Legacy {
     fn maybe_read_arcshpod(c: bool, bytes: &[u8], i: &mut usize)
         -> ParseFileResult<Option<ByteSingle>> {
         if c {
-            Ok(Byte(read_byte(bytes, i)?))
+            Ok(Some(Byte(read_byte(bytes, i)?)))
         } else {
             *i += 1;
             Ok(None)
@@ -151,7 +151,7 @@ impl ReadPartialVersionSpecificData for Modern {
     fn maybe_read_arcshpod(c: bool, bytes: &[u8], i: &mut usize)
         -> ParseFileResult<Option<ByteSingle>> {
         if c {
-            Ok(Single(read_single(bytes, i)?))
+            Ok(Some(Single(read_single(bytes, i)?)))
         } else {
             *i += 4;
             Ok(None)
@@ -170,7 +170,7 @@ impl ReadPartialVersionSpecificData for Modern {
             Ok((Some(num_int_doubles), Some(int_double_pairs)))
         } else {
             *i += num_int_doubles as usize * 14;
-            Ok(None, None)
+            Ok((None, None))
         }
     }
 
@@ -191,7 +191,7 @@ impl ReadPartialVersionSpecificData for ModernWithEntrySize {
     fn maybe_read_arcshpod(c: bool, bytes: &[u8], i: &mut usize)
         -> ParseFileResult<Option<ByteSingle>> {
         if c {
-            Ok(Single(read_single(bytes, i)?))
+            Ok(Some(Single(read_single(bytes, i)?)))
         } else {
             *i += 4;
             Ok(None)
@@ -210,7 +210,7 @@ impl ReadPartialVersionSpecificData for ModernWithEntrySize {
             Ok((Some(num_int_doubles), Some(int_double_pairs)))
         } else {
             *i += num_int_doubles as usize * 14;
-            Ok(None, None)
+            Ok((None, None))
         }
     }
 

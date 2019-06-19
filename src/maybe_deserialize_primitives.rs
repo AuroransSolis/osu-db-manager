@@ -38,7 +38,7 @@ macro_rules! primitive {
 pub fn maybe_read_byte(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<u8>> {
     if c {
         if *i < bytes.len() {
-            let tmp = Ok(bytes[*i]);
+            let tmp = bytes[*i];
             *i += 1;
             Ok(Some(tmp))
         } else {
@@ -56,7 +56,7 @@ pub fn maybe_read_short(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult
         if *i + 1 < bytes.len() {
             let mut buf = [0; 2];
             buf.copy_from_slice(&bytes[*i..*i + 2]);
-            let tmp = Ok(i16::from_le_bytes(buf));
+            let tmp = i16::from_le_bytes(buf);
             *i += 2;
             Ok(Some(tmp))
         } else {
@@ -74,7 +74,7 @@ pub fn maybe_read_int(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<O
         if *i + 3 < bytes.len() {
             let mut buf = [0; 4];
             buf.copy_from_slice(&bytes[*i..*i + 4]);
-            let tmp = Ok(i32::from_le_bytes(buf));
+            let tmp = i32::from_le_bytes(buf);
             *i += 4;
             Ok(Some(tmp))
         } else {
@@ -92,7 +92,7 @@ pub fn maybe_read_long(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<
         if *i + 7 < bytes.len() {
             let mut buf = [0; 8];
             buf.copy_from_slice(&bytes[*i..*i + 8]);
-            let tmp = Ok(i64::from_le_bytes(buf));
+            let tmp = i64::from_le_bytes(buf);
             *i += 8;
             Ok(Some(tmp))
         } else {
@@ -138,7 +138,7 @@ pub fn maybe_read_uleb128(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResu
             shift += 7;
         }
         if found_end {
-            Ok(out)
+            Ok(Some(out))
         } else {
             let err_msg = format!("While the ULEB128 integer format supports integers \
             of arbitrary lengths, this program will only handle ULEB128 integers representing \
@@ -147,11 +147,12 @@ pub fn maybe_read_uleb128(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResu
         }
     } else {
         let mut found_end = false;
-        while shift < size_of::<usize>() * 8 {
-            let b = *bytes.get(*i).ok_or_else(|| primitive!(ULEB128_ERR))?;
+        loop {
+            let b = *bytes.get(*i).ok_or_else(|| DbFileParseError::new(PrimitiveError, "Consumed \
+                to end of buffer looking for end of ULEB128 integer."))?;
             *i += 1;
-            if b && 0b10000000 == 0 {
-                found_end = false;
+            if b & 0b10000000 == 0 {
+                break;
             }
         }
         if found_end {
@@ -295,7 +296,7 @@ pub fn maybe_read_string_utf8_with_len(c: bool, bytes: &[u8], i: &mut usize, fie
 }*/
 
 #[inline]
-pub fn maybe_read_boolean(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<bool> {
+pub fn maybe_read_boolean(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<bool>> {
     if c {
         Ok(Some(read_byte(bytes, i).map_err(|_| primitive!(BOOLEAN_ERR))? != 0))
     } else {
@@ -375,7 +376,7 @@ pub fn maybe_read_player_name(c: bool, bytes: &[u8], i: &mut usize)
                 specified string length."))
             }
         } else {
-            *i += player_name_len;
+            *i += player_name_len as usize;
             Ok(None)
         }
     } else {
