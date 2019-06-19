@@ -255,17 +255,17 @@ pub fn read_datetime(bytes: &[u8], i: &mut usize) -> ParseFileResult<SystemTime>
 }
 
 #[inline]
-pub fn read_md5_hash(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<String>> {
+pub fn read_md5_hash(bytes: &[u8], i: &mut usize) -> ParseFileResult<String> {
     let indicator = read_byte(bytes, i)?;
     if indicator == 0 {
-        Ok(None)
+        Err(DbFileParseError::new(PrimitiveError, "Missing hash! Indicator was 0."))
     } else if indicator == 0x0b {
         if *i + 32 < bytes.len() {
             // first byte will be 32 every time
             let hash_bytes = (bytes[*i + 1..*i + 33]).to_vec();
             *i += 33;
-            Ok(Some(String::from_utf8(hash_bytes)
-                .map_err(|_| DbFileParseError::new(PrimitiveError, "Error reading MD5 hash."))?))
+            Ok(String::from_utf8(hash_bytes)
+                .map_err(|_| DbFileParseError::new(PrimitiveError, "Error reading MD5 hash."))?)
         } else {
             Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left to read MD5 hash."))
         }
