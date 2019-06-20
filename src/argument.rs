@@ -1,9 +1,9 @@
 use std::fs::read;
 use std::io::{Result as IoResult, Error as IoError, ErrorKind::Other};
 
-use crate::databases::merge::ConflictResolution;
-
 use clap::{Arg, App, SubCommand, AppSettings};
+
+use crate::databases::merge::ConflictResolution;
 
 pub struct Arguments {
     pub db: Option<Database>,

@@ -35,8 +35,8 @@ impl Load for ScoresDb {
         };
         let counter = Arc::new(Mutex::new(0));
         let start_read = Arc::new(Mutex::new(8));
-        let threads = (0..jobs).map(|i| spawn_scoredbbeatmap_loader(number_of_beatmaps as usize,
-            counter.clone(), start_read.clone(), &bytes, i)).collect::<Vec<_>>();
+        let threads = (0..jobs).map(|_| spawn_scoredbbeatmap_loader(number_of_beatmaps as usize,
+            counter.clone(), start_read.clone(), &bytes)).collect::<Vec<_>>();
         let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
             .collect::<Vec<_>>();
         let mut scoredbbeatmaps = results.pop().unwrap()?;
@@ -55,14 +55,14 @@ impl Load for ScoresDb {
 }
 
 fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mutex<usize>>,
-    start_read: Arc<Mutex<usize>>, bytes_pointer: *const Vec<u8>, thread_no: usize)
+    start_read: Arc<Mutex<usize>>, bytes_pointer: *const Vec<u8>)
     -> JoinHandle<ParseFileResult<Vec<(usize, ScoreDbBeatmap)>>> {
     let tmp = bytes_pointer as usize;
     thread::spawn(move || {
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
         let mut score_db_beatmaps = Vec::new();
         loop {
-            let (md5_beatmap_hash, number_of_scores, mut start_read, end, number) = {
+            let (md5_beatmap_hash, number_of_scores, mut start_read, number) = {
                 let mut ctr = counter.lock().unwrap();
                 let number = if *ctr >= number_of_scoredbbeatmaps {
                     return Ok(score_db_beatmaps);
@@ -74,7 +74,7 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                 let md5_beatmap_hash = read_md5_hash(bytes, &mut *s)?;
                 let number_of_scores = read_int(bytes, &mut *s)?;
                 let start_from = *s;
-                for i in 0..number_of_scores {
+                for _ in 0..number_of_scores {
                     // Skips:
                     // 1 byte for gameplay_mode
                     // 4 bytes for score_version
@@ -121,7 +121,7 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     // 8 bytes for score ID
                     // Total of 78
                 }
-                (md5_beatmap_hash, number_of_scores, start_from, *s, number)
+                (md5_beatmap_hash, number_of_scores, start_from, number)
             };
             let scores = if number_of_scores == 0 {
                 None

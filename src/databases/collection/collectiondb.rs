@@ -72,15 +72,14 @@ fn spawn_collection_loader_thread(number: usize, counter: Arc<Mutex<usize>>,
                 }
                 let num = *ctr - 1;
                 let mut start = start_read.lock().unwrap();
-                let (bytes_used, collection_name) = read_string_utf8_with_len(
-                    bytes, &mut *start, "collection name")?;
+                let collection_name = read_string_utf8(bytes, &mut *start, "collection name")?;
                 let number_of_beatmaps = read_int(bytes, &mut *start)?;
                 let s = *start;
                 // Accounts for: 1 indicator byte, 1 length byte, and 32 bytes for MD5 hash.
                 *start += number_of_beatmaps as usize * 34;
                 (collection_name, number_of_beatmaps, num, s)
             };
-            let mut i = &mut start;
+            let i = &mut start;
             let mut md5_beatmap_hashes = Vec::with_capacity(number_of_beatmaps as usize);
             for _ in 0..number_of_beatmaps {
                 md5_beatmap_hashes.push(read_md5_hash(bytes, i)?);

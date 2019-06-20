@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use crate::read_error::{ParseFileResult, ParseErrorKind::*};
+use crate::read_error::{DbFileParseError, ParseFileResult, ParseErrorKind::*};
 use crate::deserialize_primitives::*;
 
 // Deserializing osu!.db-specific data types

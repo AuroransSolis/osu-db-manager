@@ -1,14 +1,15 @@
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use crate::deserialize_primitives::*;
+use crate::maybe_deserialize_primitives::*;
 use crate::databases::{load::PartialLoad, collection::partial_collection::PartialCollection};
-use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::PrimitiveError};
+use crate::read_error::ParseFileResult;
 use crate::masks::collection_mask::{CollectionDbMask, CollectionMask};
 
 #[derive(Debug, Clone)]
 pub struct PartialCollectionDb {
     pub version: Option<i32>,
-    pub number_of_collections: i32,
+    pub number_of_collections: Option<i32>,
     pub collections: Option<Vec<PartialCollection>>
 }
 
@@ -16,19 +17,23 @@ impl PartialLoad<CollectionDbMask> for PartialCollectionDb {
     fn read_single_thread(mask: CollectionDbMask, bytes: Vec<u8>) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
-        let version = if mask.version {
-            Some(read_int(&bytes, i)?)
+        let version = maybe_read_int(mask.version, &bytes, i)?;
+        let number_of_collections = read_int(&bytes, i)?;
+        let collections = if let Some(collections_mask) = mask.collections_mask {
+            if number_of_collections == 0 {
+                None
+            } else {
+                let mut tmp = Vec::with_capacity(number_of_collections as usize);
+                for _ in 0..number_of_collections {
+                    tmp.push(PartialCollection::read_from_bytes(collections_mask, &bytes, i)?);
+                }
+                Some(tmp)
+            }
         } else {
-            *i += 4;
             None
         };
-        let number_of_collections = read_int(&bytes, i)?;
-        let mut collections = if let Some(collections_mask) = mask.collections_mask {
-            let mut tmp = Vec::with_capacity(number_of_collections as usize);
-            for _ in 0..number_of_collections {
-                tmp.push(PartialCollection::read_from_bytes(collections_mask, &bytes, i)?);
-            }
-            Some(tmp)
+        let number_of_collections = if mask.number_of_collections {
+            Some(number_of_collections)
         } else {
             None
         };
@@ -50,22 +55,32 @@ impl PartialLoad<CollectionDbMask> for PartialCollectionDb {
                 None
             }, read_int(&bytes, &mut index)?)
         };
-        let partial_collections = if let Some(collections_mask) = mask.collections_mask {
-            let counter = Arc::new(Mutex::new(0));
-            let start_read = Arc::new(Mutex::new(8));
-            let threads = (0..jobs)
-                .map(|_| spawn_partial_collection_loader_thread(collections_mask,
-                    number_of_collections as usize, counter.clone(), start_read.clone(), &bytes))
-                .collect::<Vec<_>>();
-            let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
-                .collect::<Vec<_>>();
-            let mut partial_collections = results.pop().unwrap()?;
-            for partial_collection_result in results {
-                partial_collections.append(&mut partial_collection_result?);
+        let collections = if let Some(collections_mask) = mask.collections_mask {
+            if number_of_collections == 0 {
+                None
+            } else {
+                let counter = Arc::new(Mutex::new(0));
+                let start_read = Arc::new(Mutex::new(8));
+                let threads = (0..jobs)
+                    .map(|_| spawn_partial_collection_loader_thread(collections_mask,
+                        number_of_collections as usize, counter.clone(), start_read.clone(),
+                        &bytes))
+                    .collect::<Vec<_>>();
+                let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
+                    .collect::<Vec<_>>();
+                let mut partial_collections = results.pop().unwrap()?;
+                for partial_collection_result in results {
+                    partial_collections.append(&mut partial_collection_result?);
+                }
+                partial_collections.sort_by(|(a, _), (b, _)| a.cmp(b));
+                Some(partial_collections.into_iter().map(|(_, partial_collection)| partial_collection)
+                    .collect::<Vec<PartialCollection>>())
             }
-            partial_collections.sort_by(|(a, _), (b, _)| a.cmp(b));
-            Some(partial_collections.into_iter().map(|(_, partial_collection)| partial_collection)
-                .collect::<Vec<PartialCollection>>())
+        } else {
+            None
+        };
+        let number_of_collections = if mask.number_of_collections {
+            Some(number_of_collections)
         } else {
             None
         };
@@ -78,9 +93,9 @@ impl PartialLoad<CollectionDbMask> for PartialCollectionDb {
 }
 
 fn spawn_partial_collection_loader_thread(mask: CollectionMask, number: usize,
-    counter: Arc<Mutex<usize>>, start_read: Arc<Mutex<usize>>, byte_pointer: *const Vec<u8>)
+    counter: Arc<Mutex<usize>>, start_read: Arc<Mutex<usize>>, bytes_pointer: *const Vec<u8>)
     -> JoinHandle<ParseFileResult<Vec<(usize, PartialCollection)>>> {
-    let tmp = byte_pointer as usize;
+    let tmp = bytes_pointer as usize;
     thread::spawn(move || {
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
         let mut collections = Vec::new();
@@ -94,34 +109,30 @@ fn spawn_partial_collection_loader_thread(mask: CollectionMask, number: usize,
                 }
                 let num = *ctr - 1;
                 let mut start = start_read.lock().unwrap();
-                let collection_name = if mask.collection_name {
-                    read_string_utf8(bytes, &mut *start, "collection name")?
-                } else {
-                    let indicator = read_byte(bytes, &mut *start)?;
-                    if indicator == 0 {
-                        None
-                    } else if indicator == 0x0b {
-                        let len = read_uleb128(bytes, &mut *start)?;
-                        *start += len;
-                        None
-                    } else {
-                        return Err(DbFileParseError::new(PrimitiveError, "Read invalid indicator \
-                            for collection name string."));
-                    }
-                };
+                let collection_name = maybe_read_string_utf8(mask.collection_name, bytes,
+                    &mut *start, "collection name")?;
                 let number_of_beatmaps = read_int(bytes, &mut *start)?;
                 let s = *start;
                 // Accounts for: 1 indicator byte, 1 length byte, and 32 bytes for MD5 hash.
                 *start += number_of_beatmaps as usize * 34;
                 (collection_name, number_of_beatmaps, num, s)
             };
-            let mut i = &mut start;
-            let mut md5_beatmap_hashes = if mask.md5_beatmap_hashes {
-                let mut tmp = Vec::with_capacity(number_of_beatmaps as usize);
-                for _ in 0..number_of_beatmaps {
-                    tmp.push(read_md5_hash(bytes, i)?);
+            let i = &mut start;
+            let md5_beatmap_hashes = if mask.md5_beatmap_hashes {
+                if number_of_beatmaps == 0 {
+                    None
+                } else {
+                    let mut tmp = Vec::with_capacity(number_of_beatmaps as usize);
+                    for _ in 0..number_of_beatmaps {
+                        tmp.push(read_md5_hash(bytes, i)?);
+                    }
+                    Some(tmp)
                 }
-                Some(tmp)
+            } else {
+                None
+            };
+            let number_of_beatmaps = if mask.number_of_beatmaps {
+                Some(number_of_beatmaps)
             } else {
                 None
             };

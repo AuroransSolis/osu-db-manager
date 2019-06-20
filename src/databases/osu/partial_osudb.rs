@@ -1,4 +1,6 @@
 use std::time::SystemTime;
+use std::thread::{self, JoinHandle};
+use std::sync::{Arc, Mutex};
 
 use crate::deserialize_primitives::*;
 use crate::maybe_deserialize_primitives::*;
@@ -7,7 +9,7 @@ use crate::databases::{
     load::PartialLoad,
     osu::{
         partial_beatmap::PartialBeatmap,
-        primitives::{ByteSingle::*, GameplayMode, TimingPoint},
+        primitives::{GameplayMode, TimingPoint, RankedStatus},
         versions::{Legacy, Modern, ModernWithEntrySize, ReadPartialVersionSpecificData}
     }
 };
@@ -30,7 +32,7 @@ impl PartialLoad<OsuDbMask> for PartialOsuDb {
         let mut index = 0;
         let i = &mut index;
         let version = read_int(&bytes, i)?;
-        let folder_count = maybe_read_int(mask.folder_count, &byte, i)?;
+        let folder_count = maybe_read_int(mask.folder_count, &bytes, i)?;
         let account_unlocked = maybe_read_boolean(mask.account_unlocked, &bytes, i)?;
         let account_unlock_date = if let Some(true) = account_unlocked {
             *i += 8;
@@ -39,20 +41,20 @@ impl PartialLoad<OsuDbMask> for PartialOsuDb {
             maybe_read_datetime(mask.account_unlock_date, &bytes, i)?
         };
         let player_name = maybe_read_player_name(mask.player_name, &bytes, i)?;
-        let num_beatmaps = read_int(&bytes, &mut index)?;
+        let num_beatmaps = read_int(&bytes, i)?;
         let (beatmaps, unknown_int) = if let Some(m) = mask.beatmap_mask {
             let mut tmp = Vec::with_capacity(num_beatmaps as usize);
             if version < 20140609 {
                 for _ in 0..num_beatmaps {
-                    tmp.push(PartialBeatmap::read_from_bytes::<Legacy>(&bytes, i)?);
+                    tmp.push(PartialBeatmap::read_from_bytes::<Legacy>(m, &bytes, i)?);
                 }
             } else if version >= 20140609 && version < 20160408 {
                 for _ in 0..num_beatmaps {
-                    tmp.push(PartialBeatmap::read_from_bytes::<Modern>(&bytes, i)?);
+                    tmp.push(PartialBeatmap::read_from_bytes::<Modern>(m, &bytes, i)?);
                 }
             } else if version >= 20160408 {
                 for _ in 0..num_beatmaps {
-                    tmp.push(PartialBeatmap::read_from_bytes::<ModernWithEntrySize>(&bytes, i)?);
+                    tmp.push(PartialBeatmap::read_from_bytes::<ModernWithEntrySize>(m, &bytes, i)?);
                 }
             } else {
                 let err_msg = format!("Read version with no associated beatmap loading method {}",
@@ -64,7 +66,11 @@ impl PartialLoad<OsuDbMask> for PartialOsuDb {
         } else {
             (None, maybe_read_int(mask.unknown_int, &bytes[bytes.len() - 4..bytes.len()], i)?)
         };
-        let unknown_int = read_int(&bytes, &mut index)?;
+        let version = if mask.version {
+            Some(version)
+        } else {
+            None
+        };
         Ok(PartialOsuDb {
             version,
             folder_count,
@@ -83,47 +89,52 @@ impl PartialLoad<OsuDbMask> for PartialOsuDb {
             let mut index = 0;
             let i = &mut index;
             let version = read_int(&bytes, i)?;
-            let folder_count = read_int(&bytes, i)?;
-            let account_unlocked = read_boolean(&bytes, i)?;
-            let account_unlock_date = if !account_unlocked {
-                Some(read_datetime(&bytes, i)?)
-            } else {
-                let _ = read_datetime(&bytes, i)?;
+            let folder_count = maybe_read_int(mask.folder_count, &bytes, i)?;
+            let account_unlocked = maybe_read_boolean(mask.account_unlocked, &bytes, i)?;
+            let account_unlock_date = if let Some(true) = account_unlocked {
+                *i += 8;
                 None
+            } else {
+                maybe_read_datetime(mask.account_unlock_date, &bytes, i)?
             };
-            let (player_name_len, player_name) = read_player_name_with_len(&bytes, i)?;
-            // version: 4
-            // folder_count: 4
-            // account_unlocked: 1
-            // account_unlock_date: 8
-            // player_name_string: player_name_len
-            let bytes_used = 4 + 4 + 1 + 8 + player_name_len;
-            (version, folder_count, account_unlocked, account_unlock_date, player_name, bytes_used)
+            let player_name = maybe_read_player_name(mask.player_name, &bytes, i)?;
+            (version, folder_count, account_unlocked, account_unlock_date, player_name, *i)
         };
         let num_beatmaps = read_int(&bytes, &mut bytes_used)?;
         let counter = Arc::new(Mutex::new(0));
         let start = Arc::new(Mutex::new(bytes_used));
-        let beatmaps = if version >= 20160408 {
-            let threads = (0..jobs)
-                .map(|_| spawn_beatmap_loader_thread(num_beatmaps as usize, counter.clone(),
-                    start.clone(), &bytes)).collect::<Vec<_>>();
-            let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
-                .collect::<Vec<_>>();
-            let mut beatmaps = results.pop().unwrap()?;
-            for beatmap_result in results {
-                beatmaps.append(&mut beatmap_result?);
+        let (beatmaps, unknown_int) = if let Some(m) = mask.beatmap_mask {
+            if version >= 20160408 {
+                let threads = (0..jobs)
+                    .map(|_| spawn_partial_beatmap_loader_thread(m, num_beatmaps as usize,
+                        counter.clone(), start.clone(), &bytes)).collect::<Vec<_>>();
+                let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
+                    .collect::<Vec<_>>();
+                let mut beatmaps = results.pop().unwrap()?;
+                for beatmap_result in results {
+                    beatmaps.append(&mut beatmap_result?);
+                }
+                beatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
+                let beatmaps = beatmaps.into_iter().map(|(_, beatmap)| beatmap).collect::<Vec<_>>();
+                let unknown_int = maybe_read_int(mask.unknown_int, &bytes,
+                    &mut start.lock().unwrap())?;
+                (Some(beatmaps), unknown_int)
+            } else if version / 1000 <= 2016 && version / 1000 >= 2007 { // catch valid versions
+                return Err(DbFileParseError::new(OsuDbError, "osu!.db versions older than 20160408 do \
+                not support multithreaded loading due to lacking an entry size."));
+            } else {
+                let err_msg = format!("Read version with no associated beatmap loading method: {}",
+                    version);
+                return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
             }
-            beatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
-            beatmaps.into_iter().map(|(_, beatmap)| beatmap).collect::<Vec<_>>()
-        } else if version / 1000 <= 2016 && version / 1000 >= 2007 { // catch valid versions
-            return Err(DbFileParseError::new(OsuDbError, "osu!.db versions older than 20160408 do \
-                not support multithreaded loading."));
         } else {
-            let err_msg = format!("Read version with no associated beatmap loading method: {}",
-                version);
-            return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
+            (None, maybe_read_int(mask.unknown_int, &bytes[bytes.len() - 4..bytes.len()], &mut 0)?)
         };
-        let unknown_int = read_int(&bytes, &mut *start.lock().unwrap())?;
+        let version  = if mask.version {
+            Some(version)
+        } else {
+            None
+        };
         Ok(PartialOsuDb {
             version,
             folder_count,
@@ -138,8 +149,9 @@ impl PartialLoad<OsuDbMask> for PartialOsuDb {
 }
 
 #[inline]
-fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>, start: Arc<Mutex<usize>>,
-    bytes_pointer: *const Vec<u8>) -> JoinHandle<ParseFileResult<Vec<(usize, PartialBeatmap)>>> {
+fn spawn_partial_beatmap_loader_thread(mask: BeatmapMask, number: usize, counter: Arc<Mutex<usize>>,
+    start: Arc<Mutex<usize>>, bytes_pointer: *const Vec<u8>)
+    -> JoinHandle<ParseFileResult<Vec<(usize, PartialBeatmap)>>> {
     let tmp = bytes_pointer as usize;
     thread::spawn(move || {
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
@@ -159,69 +171,99 @@ fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>, start:
                 (entry_size, start_at, *ctr - 1)
             };
             let i = &mut start;
-            let artist_name = read_string_utf8(bytes, i, "non-Unicode artist name")?;
-            let artist_name_unicode = read_string_utf8(bytes, i, "Unicode artist name")?;
-            let song_title = read_string_utf8(bytes, i, "non-Unicode song title")?;
-            let song_title_unicode = read_string_utf8(bytes, i, "Unicode song title")?;
-            let creator_name = read_string_utf8(bytes, i, "creator name")?;
-            let difficulty = read_string_utf8(bytes, i, "difficulty")?;
-            let audio_file_name = read_string_utf8(bytes, i, "audio file name")?;
-            let md5_beatmap_hash = read_md5_hash(bytes, i)?;
-            let dotosu_file_name = read_string_utf8(bytes, i, "corresponding .osu file name")?;
-            let ranked_status = RankedStatus::read_from_bytes(bytes, i)?;
-            let number_of_hitcircles = read_short(bytes, i)?;
-            let number_of_sliders = read_short(bytes, i)?;
-            let number_of_spinners = read_short(bytes, i)?;
-            let last_modification_time = read_datetime(bytes, i)?;
-            let approach_rate = ModernWithEntrySize::read_arcshpod(bytes, i)?;
-            let circle_size = ModernWithEntrySize::read_arcshpod(bytes, i)?;
-            let hp_drain = ModernWithEntrySize::read_arcshpod(bytes, i)?;
-            let overall_difficulty = ModernWithEntrySize::read_arcshpod(bytes, i)?;
-            let slider_velocity = read_double(bytes, i)?;
+            let artist_name = maybe_read_string_utf8(mask.artist_name, bytes, i,
+                "non-Unicode artist name")?;
+            let artist_name_unicode = maybe_read_string_utf8(mask.artist_name_unicode, bytes, i,
+                "Unicode artist name")?;
+            let song_title = maybe_read_string_utf8(mask.song_title, bytes, i,
+                "non-Unicode song title")?;
+            let song_title_unicode = maybe_read_string_utf8(mask.song_title_unicode, bytes, i,
+                "Unicode song title")?;
+            let creator_name = maybe_read_string_utf8(mask.creator_name, bytes, i, "creator name")?;
+            let difficulty = maybe_read_string_utf8(mask.difficulty, bytes, i, "difficulty")?;
+            let audio_file_name = maybe_read_string_utf8(mask.audio_file_name, bytes, i,
+                "audio file name")?;
+            let md5_beatmap_hash = maybe_read_md5_hash(mask.md5_beatmap_hash, bytes, i)?;
+            let dotosu_file_name = maybe_read_string_utf8(mask.dotosu_file_name, bytes, i,
+                "corresponding .osu file name")?;
+            let ranked_status = RankedStatus::maybe_read_from_bytes(mask.ranked_status, bytes, i)?;
+            let number_of_hitcircles = maybe_read_short(mask.number_of_hitcircles, bytes, i)?;
+            let number_of_sliders = maybe_read_short(mask.number_of_sliders, bytes, i)?;
+            let number_of_spinners = maybe_read_short(mask.number_of_spinners, bytes, i)?;
+            let last_modification_time = maybe_read_datetime(mask.last_modification_time, bytes,
+                i)?;
+            let approach_rate = ModernWithEntrySize::maybe_read_arcshpod(mask.approach_rate, bytes,
+                i)?;
+            let circle_size = ModernWithEntrySize::maybe_read_arcshpod(mask.circle_size, bytes, i)?;
+            let hp_drain = ModernWithEntrySize::maybe_read_arcshpod(mask.hp_drain, bytes, i)?;
+            let overall_difficulty = ModernWithEntrySize::maybe_read_arcshpod(
+                mask.overall_difficulty, bytes, i)?;
+            let slider_velocity = maybe_read_double(mask.slider_velocity, bytes, i)?;
             let (num_mcsr_standard, mcsr_standard)
-                = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
+                = ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
+                mask.mod_combo_star_ratings_standard, bytes, i)?;
             let (num_mcsr_taiko, mcsr_taiko)
-                = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
+                = ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
+                mask.mod_combo_star_ratings_taiko, bytes, i)?;
             let (num_mcsr_ctb, mcsr_ctb)
-                = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
+                = ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
+                mask.mod_combo_star_ratings_ctb, bytes, i)?;
             let (num_mcsr_mania, mcsr_mania)
-                = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
-            let drain_time = read_int(bytes, i)?;
-            let total_time = read_int(bytes, i)?;
-            let preview_offset_from_start_ms = read_int(bytes, i)?;
+                = ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
+                mask.mod_combo_star_ratings_mania, bytes, i)?;
+            let drain_time = maybe_read_int(mask.drain_time, bytes, i)?;
+            let total_time = maybe_read_int(mask.total_time, bytes, i)?;
+            let preview_offset_from_start_ms = maybe_read_int(mask.preview_offset_from_start_ms,
+                bytes, i)?;
             let num_timing_points = read_int(bytes, i)?;
-            let mut timing_points = Vec::with_capacity(num_timing_points as usize);
-            for _ in 0..num_timing_points {
-                timing_points.push(TimingPoint::read_from_bytes(bytes, i)?);
-            }
-            let beatmap_id = read_int(bytes, i)?;
-            let beatmap_set_id = read_int(bytes, i)?;
-            let thread_id = read_int(bytes, i)?;
-            let standard_grade = read_byte(bytes, i)?;
-            let taiko_grade = read_byte(bytes, i)?;
-            let ctb_grade = read_byte(bytes, i)?;
-            let mania_grade = read_byte(bytes, i)?;
-            let local_offset = read_short(bytes, i)?;
-            let stack_leniency = read_single(bytes, i)?;
-            let gameplay_mode = GameplayMode::read_from_bytes(bytes, i)?;
-            let song_source = read_string_utf8(bytes, i, "song source")?;
-            let song_tags = read_string_utf8(bytes, i, "song tags")?;
-            let online_offset = read_short(bytes, i)?;
-            let font_used_for_song_title = read_string_utf8(bytes, i, "font used for song title")?;
-            let unplayed = read_boolean(bytes, i)?;
-            let last_played = read_datetime(bytes, i)?;
-            let is_osz2 = read_boolean(bytes, i)?;
-            let beatmap_folder_name = read_string_utf8(bytes, i, "folder name")?;
-            let last_checked_against_repo = read_datetime(bytes, i)?;
-            let ignore_beatmap_sound = read_boolean(bytes, i)?;
-            let ignore_beatmap_skin = read_boolean(bytes, i)?;
-            let disable_storyboard = read_boolean(bytes, i)?;
-            let disable_video = read_boolean(bytes, i)?;
-            let visual_override = read_boolean(bytes, i)?;
-            let unknown_short = ModernWithEntrySize::read_unknown_short(bytes, i)?;
-            let offset_from_song_start_in_editor_ms = read_int(bytes, i)?;
-            let mania_scroll_speed = read_byte(bytes, i)?;
-            beatmaps.push((num, Beatmap {
+            let timing_points = if mask.timing_points {
+                let mut tmp = Vec::with_capacity(num_timing_points as usize);
+                for _ in 0..num_timing_points {
+                    tmp.push(TimingPoint::read_from_bytes(bytes, i)?);
+                }
+                Some(tmp)
+            } else {
+                *i += num_timing_points as usize * 17;
+                None
+            };
+            let num_timing_points = if mask.num_timing_points {
+                Some(num_timing_points)
+            } else {
+                None
+            };
+            let beatmap_id = maybe_read_int(mask.beatmap_id, bytes, i)?;
+            let beatmap_set_id = maybe_read_int(mask.beatmap_set_id, bytes, i)?;
+            let thread_id = maybe_read_int(mask.thread_id, bytes, i)?;
+            let standard_grade = maybe_read_byte(mask.standard_grade, bytes, i)?;
+            let taiko_grade = maybe_read_byte(mask.taiko_grade, bytes, i)?;
+            let ctb_grade = maybe_read_byte(mask.ctb_grade, bytes, i)?;
+            let mania_grade = maybe_read_byte(mask.mania_grade, bytes, i)?;
+            let local_offset = maybe_read_short(mask.local_offset, bytes, i)?;
+            let stack_leniency = maybe_read_single(mask.stack_leniency, bytes, i)?;
+            let gameplay_mode = GameplayMode::maybe_read_from_bytes(mask.gameplay_mode, bytes, i)?;
+            let song_source = maybe_read_string_utf8(mask.song_source, bytes, i, "song source")?;
+            let song_tags = maybe_read_string_utf8(mask.song_tags, bytes, i, "song tags")?;
+            let online_offset = maybe_read_short(mask.online_offset, bytes, i)?;
+            let font_used_for_song_title = maybe_read_string_utf8(mask.font_used_for_song_title,
+                bytes, i, "font used for song title")?;
+            let unplayed = maybe_read_boolean(mask.unplayed, bytes, i)?;
+            let last_played = maybe_read_datetime(mask.last_played, bytes, i)?;
+            let is_osz2 = maybe_read_boolean(mask.is_osz2, bytes, i)?;
+            let beatmap_folder_name = maybe_read_string_utf8(mask.beatmap_folder_name, bytes, i,
+                "folder name")?;
+            let last_checked_against_repo = maybe_read_datetime(mask.last_checked_against_repo,
+                bytes, i)?;
+            let ignore_beatmap_sound = maybe_read_boolean(mask.ignore_beatmap_sound, bytes, i)?;
+            let ignore_beatmap_skin = maybe_read_boolean(mask.ignore_beatmap_skin, bytes, i)?;
+            let disable_storyboard = maybe_read_boolean(mask.disable_storyboard, bytes, i)?;
+            let disable_video = maybe_read_boolean(mask.disable_video, bytes, i)?;
+            let visual_override = maybe_read_boolean(mask.visual_override, bytes, i)?;
+            let unknown_short = ModernWithEntrySize::maybe_read_unknown_short(mask.unknown_short,
+                bytes, i)?;
+            let offset_from_song_start_in_editor_ms = maybe_read_int(
+                mask.offset_from_song_start_in_editor_ms, bytes, i)?;
+            let mania_scroll_speed = maybe_read_byte(mask.mania_scroll_speed, bytes, i)?;
+            beatmaps.push((num, PartialBeatmap {
                 entry_size: Some(entry_size),
                 artist_name,
                 artist_name_unicode,

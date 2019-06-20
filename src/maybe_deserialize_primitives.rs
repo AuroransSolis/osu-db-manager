@@ -146,7 +146,6 @@ pub fn maybe_read_uleb128(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResu
             Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
         }
     } else {
-        let mut found_end = false;
         loop {
             let b = *bytes.get(*i).ok_or_else(|| DbFileParseError::new(PrimitiveError, "Consumed \
                 to end of buffer looking for end of ULEB128 integer."))?;
@@ -155,12 +154,7 @@ pub fn maybe_read_uleb128(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResu
                 break;
             }
         }
-        if found_end {
-            Ok(None)
-        } else {
-            Err(DbFileParseError::new(PrimitiveError, "Could not find end to ULEB128 integer in \
-                order to skip it."))
-        }
+        Ok(None)
     }
 }
 

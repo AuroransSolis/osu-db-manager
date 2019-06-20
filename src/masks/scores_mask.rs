@@ -200,7 +200,7 @@ impl Mask for ScoresDbMask {
             number_of_beatmaps: show.number_of_beatmaps || query.number_of_beatmaps,
             beatmaps_mask: match (show.beatmaps_mask, query.beatmaps_mask) {
                 (Some(show_mask), Some(query_mask)) => {
-                    Some(ScoreDbBeatmapMask::from_show_and_query(show_mask, query_mask))
+                    Some(ScoresDbBeatmapMask::from_show_and_query(show_mask, query_mask))
                 },
                 (Some(show_mask), None) => Some(show_mask),
                 (None, Some(query_mask)) => Some(query_mask),
@@ -215,7 +215,7 @@ impl Default for ScoresDbMask {
         ScoresDbMask {
             version: true,
             number_of_beatmaps: true,
-            beatmaps_mask: Some(ScoreDbBeatmapMask::default())
+            beatmaps_mask: Some(ScoresDbBeatmapMask::default())
         }
     }
 }

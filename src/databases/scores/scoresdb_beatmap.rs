@@ -13,7 +13,7 @@ impl ScoreDbBeatmap {
     pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
         let md5_beatmap_hash = read_md5_hash(bytes, i)?;
         let number_of_scores = read_int(bytes, i)?;
-        let mut scores = if number_of_scores == 0 {
+        let scores = if number_of_scores == 0 {
             None
         } else {
             let mut scores = Vec::with_capacity(number_of_scores as usize);

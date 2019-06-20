@@ -1,4 +1,4 @@
-use crate::databases::complete::osu::OsuDb;
+use crate::databases::osu::osudb::OsuDb;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ConflictResolution {
