@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 num_cpus = "1.10.0"
 clap = {version = "2.33.0", features = ["suggestions"]}
+rand = "0.7.0-pre.1"
 
 [dev-dependencies]
 criterion = "0.2.11"
@@ -15,6 +16,11 @@ criterion = "0.2.11"
 name = "osu_db_bench"
 harness = false
 path = "src/osu_db_bench.rs"
+
+[[bench]]
+name = "primitives_bench"
+harness = false
+path = "src/primitives_bench.rs"
 
 [profile.release]
 opt-level = 3
