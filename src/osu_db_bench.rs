@@ -4,8 +4,10 @@ extern crate num_cpus;
 mod databases;
 mod deserialize_primitives;
 mod argument;
+mod maybe_deserialize_primitives;
+mod masks;
 
-use crate::databases::{osu::OsuDb, scores::ScoresDb, load::Load};
+use crate::databases::{osu::osudb::OsuDb, scores::scoresdb::ScoresDb, load::Load};
 mod read_error;
 
 use criterion::{Criterion, black_box};

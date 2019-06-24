@@ -1,4 +1,6 @@
 use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::cmp::PartialEq;
+use std::ops::Range;
 
 use crate::read_error::{DbFileParseError, ParseFileResult, ParseErrorKind::*};
 use crate::deserialize_primitives::*;
@@ -174,6 +176,47 @@ impl Display for ByteSingle {
             Byte(b) => format!("{}", b),
             Single(s) => format!("{}", s)
         })
+    }
+}
+
+impl PartialEq for ByteSingle {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Byte(b0), Byte(b1)) => b0 == b1,
+            (Byte(b), Single(s)) => s.floor() as u64 == b as u64 || s.ceil() as u64 == b as u64,
+            (Single(s), Byte(b)) => s.floor() as u64 == b as u64 || s.ceil() as u64 == b as u64,
+            (Single(s0), Single(s1)) => s0 == s1
+        }
+    }
+}
+
+impl ByteSingle {
+    pub fn is_in_range(&self, range: Range<ByteSingle>) -> bool {
+        let Range { start, end } = range;
+        match (*self, start, end) {
+            (Byte(n), Byte(s), Byte(e)) => n >= s && n < e,
+            (Byte(n), Byte(s), Single(e)) => n >= s && (n as f32) < e,
+            (Byte(n), Single(s), Byte(e)) => n as f32 >= s && n < e,
+            (Byte(n), Single(s), Single(e)) => n as f32 >= s && (n as f32) < e,
+            (Single(n), Byte(s), Byte(e)) => n >= s as f32 && n < e as f32,
+            (Single(n), Byte(s), Single(e)) => n >= s as f32 && n < e,
+            (Single(n), Single(s), Byte(e)) => n >= s && n < e as f32,
+            (Single(n), Single(s), Single(e)) => n >= s && n < e
+        }
+    }
+
+    fn is_in_range_inclusive(&self, range: Range<ByteSingle>) -> bool {
+        let Range { start, end } = range;
+        match (*self, start, end) {
+            (Byte(n), Byte(s), Byte(e)) => n >= s && n <= e,
+            (Byte(n), Byte(s), Single(e)) => n >= s && (n as f32) <= e,
+            (Byte(n), Single(s), Byte(e)) => n as f32 >= s && n <= e,
+            (Byte(n), Single(s), Single(e)) => n as f32 >= s && (n as f32) <= e,
+            (Single(n), Byte(s), Byte(e)) => n >= s as f32 && n <= e as f32,
+            (Single(n), Byte(s), Single(e)) => n >= s as f32 && n <= e,
+            (Single(n), Single(s), Byte(e)) => n >= s && n <= e as f32,
+            (Single(n), Single(s), Single(e)) => n >= s && n <= e
+        }
     }
 }
 

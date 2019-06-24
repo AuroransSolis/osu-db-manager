@@ -4,6 +4,7 @@ pub enum ParseErrorKind {
     OsuDbError,
     CollectionDbError,
     ScoresDbError,
+    QueryError,
     Other
 }
 
