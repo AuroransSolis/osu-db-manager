@@ -36,7 +36,7 @@ pub fn maybe_read_int_double_pair(c: bool, bytes: &[u8], i: &mut usize)
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct TimingPoint {
     bpm: f64,
     offset: f64,
@@ -90,7 +90,7 @@ impl TimingPoint {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum RankedStatus {
     Unknown,
     Unsubmitted,
@@ -220,7 +220,7 @@ impl ByteSingle {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum GameplayMode {
     Standard,
     Taiko,

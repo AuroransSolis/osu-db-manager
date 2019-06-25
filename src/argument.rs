@@ -1,7 +1,7 @@
 use std::fs::read;
 use std::io::{Result as IoResult, Error as IoError, ErrorKind::Other};
 
-use clap::{Arg, App, SubCommand, AppSettings};
+use clap::{Arg, App, SubCommand, AppSettings, ArgGroup};
 
 use crate::databases::merge::ConflictResolution;
 
@@ -101,26 +101,22 @@ pub fn get_arguments() -> IoResult<Arguments> {
             .long("osu")
             .takes_value(true)
             .value_name("PATH")
-            .required_unless_one(&["collection.db specifier", "scores.db specifier",
-                "conflict-resolution"])
-            .conflicts_with_all(&["collection.db specifier", "scores.db specifier", "info"])
             .help("Specifies that the given path is to an osu!.db"))
         .arg(Arg::with_name("collection.db specifier")
             .short("c")
             .long("collection")
             .takes_value(true)
             .value_name("PATH")
-            .required_unless_one(&["osu!.db specifier", "scores.db specifier", "info"])
-            .conflicts_with_all(&["osu!.db specifier", "scores.db specifier", "info"])
             .help("Specifies that the given path is to a collection.db"))
         .arg(Arg::with_name("scores.db specifier")
             .short("s")
             .long("scores")
             .takes_value(true)
             .value_name("PATH")
-            .required_unless_one(&["osu!.db specifier", "collection.db specifier", "info"])
-            .conflicts_with_all(&["osu!.db specifier", "collection.db specifier", "info"])
             .help("Specifies that the given path is to a scores.db"))
+        .group(ArgGroup::with_name("Database type indicator and path")
+            .args(&["osu!.db specifier", "collection.db specifier", "scores.db specifier"])
+            .required(true))
         .arg(Arg::with_name("Jobs")
             .short("j")
             .long("jobs")
@@ -144,7 +140,10 @@ pub fn get_arguments() -> IoResult<Arguments> {
             .long("query")
             .value_name("QUERY")
             .takes_value(true)
-            .multiple(false)
+            .multiple(true)
+            .min_values(1)
+            .max_values(67) // Complete beatmap + osu!.db query
+            .allow_hyphen_values(true)
             .required(false)
             .help("Database query. Use 'info --query TYPE' for information on what you can \
                 query in database type TYPE. Can be used in conjunction with show options."))
@@ -153,7 +152,10 @@ pub fn get_arguments() -> IoResult<Arguments> {
             .long("show")
             .value_name("SHOW_OPTIONS")
             .takes_value(true)
-            .multiple(false)
+            .multiple(true)
+            .min_values(1)
+            .max_values(67) // Complete beatmap + osu!.db show options
+            .allow_hyphen_values(true)
             .required(false)
             .conflicts_with("Interface type")
             .help("What information to show from each database entry. Use 'info --show TYPE' \
@@ -164,8 +166,10 @@ pub fn get_arguments() -> IoResult<Arguments> {
             .long("merge")
             .conflicts_with_all(&["osu!.db specifier", "Database query", "Show options"])
             .takes_value(true)
-            .value_name("PATH")
-            .multiple(false)
+            .min_values(1)
+            .max_values(2)
+            .value_names(&["PATH", "OSU_DB_PATH"])
+            .multiple(true)
             .required(false)
             .help("Merge a second database at location PATH into the one specified with the \
                 first argument. The databases will be treated as the same type, so make sure the \
