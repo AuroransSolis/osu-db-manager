@@ -8,6 +8,7 @@ edition = "2018"
 num_cpus = "1.10.0"
 clap = {version = "2.33.0", features = ["suggestions"]}
 rand = "0.7.0-pre.1"
+chrono = "0.4.7"
 
 [dev-dependencies]
 criterion = "0.2.11"
