@@ -1,3 +1,4 @@
+#[macro_use] mod macros;
 pub mod osu;
 pub mod collection;
 pub mod scores;
