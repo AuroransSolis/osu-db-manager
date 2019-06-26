@@ -20,16 +20,95 @@ pub enum Comparison<T: Clone + PartialEq + PartialOrd> {
     IrII(Range<T>) // in range [a, b]
 }
 
+use self::Comparison::*;
+
 impl<T: Clone + PartialEq + PartialOrd + FromStr> Comparison<T> {
     fn from_str(s: &str) -> IoResult<Self> {
-        if !s.contains('(') {
+        // If it's just "=4" or "=9.2" or something. Not a range.
+        if is_number(s) {
             Eq(s.parse::<T>().map_err(|e| {
                 let msg = format!("Invalid number: {}\nParse error: {}", s, e);
                 Err(IoError::new(InvalidInput, msg.as_str()))
             })?)
+        } else if is_number(s) {
+            let (first, middle) = s.split_at(1);
+            let (middle, last) = middle.split_at(s.len() - 1);
+            println!("{} | {} | {}", first, middle, last); // Just for debug purposes - will remove
+            let mut spliterator = middle.split("..");
+            let (start, end) = (spliterator.next().ok_or_else(|| {
+                IoError::new(InvalidInput, "Invalid range format.")
+            })?, spliterator.next().ok_or_else(|| {
+                IoError::new(InvalidInput, "Invalid range format.")
+            })?);
+            let start = start.parse::<T>().map_err(|e| {
+                let msg = format!("Failed to parse start of range.\n{}", e);
+                IoError::new(InvalidInput, msg.as_str())
+            })?;
+            let end = end.parse::<T>().map_err(|e| {
+                let msg = format!("Failed to parse end of range.\n{}", e);
+                IoError::new(InvalidInput, msg.as_str())
+            })?;
+            if start == "" {
+                match (first, last) {
+                    ("(", ")") | ("[", ")") => Ok(Lt(end)),
+                    ("(", "]") | ("[", "]") => Ok(LtE(end)),
+                    _ => Err(IoError::new(InvalidInput, "Unrecognized range type."))
+                }
+            } else if end == "" {
+                match (first, last) {
+                    ("(", ")") | ("(", "]") => Ok(Gt(end)),
+                    ("[", ")") | ("[", "]") => Ok(GtE(end)),
+                    _ => Err(IoError::new(InvalidInput, "Unrecognized range type."))
+                }
+            } else {
+                match (first, last) {
+                    ("(", ")") => Ok(IrEE(start..end)),
+                    ("(", "]") => Ok(IrEI(start..end)),
+                    ("[", ")") => Ok(IrIE(start..end)),
+                    ("[", "]") => Ok(IrII(start..end)),
+                    _ => Err(IoError::new(InvalidInput, "Unrecognized range type."))
+                }
+            }
         } else {
-            let
+            Err(IoError::new(InvalidInput, "Input not recognized as number or range."))
         }
+    }
+}
+
+pub(crate) fn is_number(s: &str) -> bool {
+    let mut period_count = 0;
+    for c in s.chars() {
+        if c == '.' {
+            period_count += 1;
+        }
+        if period_count > 1 {
+            return false;
+        }
+        if !(c.is_numeric() || c.is_ascii_hexdigit()) {
+            return false;
+        }
+    }
+    true
+}
+
+pub(crate) fn is_range(s: &str) -> bool {
+    if (s.starts_with('(') || c.starts_with('[')) && (s.ends_with(')') || s.ends_with(']')) {
+        let (_, middle) = s.split_at(1);
+        let (middle, _) = middle.split_at(middle.len() - 1);
+        let mut spliterator = middle.split("..");
+        let start = if let Some(s) = spliterator.next() {
+            s
+        } else {
+            return false;
+        };
+        let end = if let Some(s) = spliterator.next() {
+            s
+        } else {
+            return false;
+        };
+        is_number(start) && is_number(end)
+    } else {
+        false
     }
 }
 
