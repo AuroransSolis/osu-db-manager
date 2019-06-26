@@ -185,9 +185,6 @@ pub fn get_arguments() -> IoResult<Arguments> {
                 is specified. For information on available conflict resolution methods, use 'info \
                 --conflict-resolution'."))
         .subcommand(SubCommand::with_name("info")
-            .about("Subcommand to provide additional information for options for osu-db-manager.")
-            .version("1.0.0")
-            .author("Aurorans Solis")
             .arg(Arg::with_name("query")
                 .long("query")
                 .takes_value(true)
