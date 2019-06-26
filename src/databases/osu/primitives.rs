@@ -1,9 +1,12 @@
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::cmp::PartialEq;
 use std::ops::Range;
+use std::str::FromStr;
+use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidInput};
 
 use crate::read_error::{DbFileParseError, ParseFileResult, ParseErrorKind::*};
 use crate::deserialize_primitives::*;
+use crate::query::is_number;
 
 // Deserializing osu!.db-specific data types
 const RANKED_STATUS_ERR: &str = "Failed to read byte for ranked status.";
@@ -104,6 +107,52 @@ pub enum RankedStatus {
 
 use self::RankedStatus::*;
 
+impl Display for RankedStatus {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        write!(f, "{}", match self {
+            Unknown => "Unknown",
+            Unsubmitted => "Unsubmitted",
+            PendingWIPGraveyard => "Pending/WIP/Graveyard",
+            Unused => "Unused",
+            Ranked => "Ranked",
+            Approved => "Approved",
+            Qualified => "Qualified",
+            Loved => "Loved"
+        })
+    }
+}
+
+impl FromStr for RankedStatus {
+    type Err = IoError;
+
+    fn from_str(s: &str) -> IoResult<Self> {
+        match s.to_lowercase().as_str() {
+            "unknown" => Ok(Unknown),
+            "unsubmitted" => Ok(Unsubmitted),
+            "pending" | "wip" | "graveyard" => Ok(PendingWIPGraveyard),
+            "unused" => Ok(Unused),
+            "ranked" => Ok(Ranked),
+            "approved" => Ok(Approved),
+            "qualified" => Ok(Qualified),
+            "loved" => Ok(Loved),
+            _ => {
+                let msg = format!("Invalid ranked status: {}\n\
+                Valid status types:\n \
+                 - Unknown\n \
+                 - Unsubmitted\n \
+                 - Pending\n \
+                 - WIP\n \
+                 - Graveyard\n \
+                 - Ranked\n \
+                 - Approved\n \
+                 - Qualified\n \
+                 - Loved", s);
+                Err(IoError::new(InvalidInput, msg.as_str()))
+            }
+        }
+    }
+}
+
 impl RankedStatus {
     #[inline]
     pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
@@ -147,21 +196,6 @@ impl RankedStatus {
     }
 }
 
-impl Display for RankedStatus {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        write!(f, "{}", match self {
-            Unknown => "Unknown",
-            Unsubmitted => "Unsubmitted",
-            PendingWIPGraveyard => "Pending/WIP/Graveyard",
-            Unused => "Unused",
-            Ranked => "Ranked",
-            Approved => "Approved",
-            Qualified => "Qualified",
-            Loved => "Loved"
-        })
-    }
-}
-
 #[derive(Copy, Clone, Debug)]
 pub enum ByteSingle {
     Byte(u8),
@@ -186,6 +220,29 @@ impl PartialEq for ByteSingle {
             (Byte(b), Single(s)) => s.floor() as u64 == b as u64 || s.ceil() as u64 == b as u64,
             (Single(s), Byte(b)) => s.floor() as u64 == b as u64 || s.ceil() as u64 == b as u64,
             (Single(s0), Single(s1)) => s0 == s1
+        }
+    }
+}
+
+impl FromStr for ByteSingle {
+    type Err = IoError;
+
+    fn from_str(s: &str) -> IoResult<Self> {
+        if is_number(s) {
+            if s.contains('.') {
+                Ok(Single(s.parse::<f32>().map_err(|e| {
+                    let msg = format!("Failed to parse input: {}\n{}", s, e);
+                    IoError::new(InvalidInput, msg.as_str())
+                })?))
+            } else {
+                Ok(Byte(s.parse::<u8>().map_err(|e| {
+                    let msg = format!("Failed to parse input: {}\n{}", s, e);
+                    IoError::new(InvalidInput, msg.as_str())
+                })?))
+            }
+        } else {
+            let msg = format!("Input is not a number ({})", s);
+            Err(IoError::new(InvalidInput, msg.as_str()))
         }
     }
 }
@@ -229,6 +286,23 @@ pub enum GameplayMode {
 }
 
 use self::GameplayMode::*;
+
+impl FromStr for GameplayMode {
+    type Err = IoError;
+    
+    fn from_str(s: &str) -> IoResult<Self> {
+        match s.to_lowercase().as_str() {
+            "osu!" | "osu" | "osu!standard" | "standard" => Ok(Standard),
+            "osu!taiko" | "taiko" => Ok(Taiko),
+            "osu!ctb" | "ctb" | "catch the beat" => Ok(Ctb),
+            "osu!mania" | "mania" => Ok(Mania),
+            _ => {
+                let msg = format!("Unrecognized gameplay mode: {}", s);
+                Err(IoError::new(InvalidInput, msg.as_str()))
+            }
+        }
+    }
+}
 
 impl GameplayMode {
     #[inline]
