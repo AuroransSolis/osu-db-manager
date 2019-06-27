@@ -1,7 +1,7 @@
 use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidInput};
-use std::time::SystemTime;
 
 use clap::{Arg, App, SubCommand, AppSettings, ArgGroup};
+use chrono::naive::NaiveDate;
 
 use crate::query::Comparison;
 use crate::databases::osu::primitives::{RankedStatus, ByteSingle, GameplayMode};
@@ -21,7 +21,7 @@ pub struct BeatmapQuery {
     pub number_of_hitcircles: Option<Comparison<i16>>,
     pub number_of_sliders: Option<Comparison<i16>>,
     pub number_of_spinners: Option<Comparison<i16>>,
-    pub last_modification_time: Option<Comparison<SystemTime>>,
+    pub last_modification_time: Option<Comparison<NaiveDate>>,
     pub approach_rate: Option<Comparison<ByteSingle>>,
     pub circle_size: Option<Comparison<ByteSingle>>,
     pub hp_drain: Option<Comparison<ByteSingle>>,
@@ -50,10 +50,10 @@ pub struct BeatmapQuery {
     pub online_offset: Option<Comparison<i16>>,
     pub font_used_for_song_title: Option<Comparison<String>>,
     pub unplayed: Option<Comparison<bool>>,
-    pub last_played: Option<Comparison<SystemTime>>,
+    pub last_played: Option<Comparison<NaiveDate>>,
     pub is_osz2: Option<Comparison<bool>>,
     pub beatmap_folder_name: Option<Comparison<String>>,
-    pub last_checked_against_repo: Option<Comparison<SystemTime>>,
+    pub last_checked_against_repo: Option<Comparison<NaiveDate>>,
     pub ignore_beatmap_sound: Option<Comparison<bool>>,
     pub ignore_beatmap_skin: Option<Comparison<bool>>,
     pub disable_storyboard: Option<Comparison<bool>>,

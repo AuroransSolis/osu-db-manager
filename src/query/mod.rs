@@ -2,6 +2,7 @@
 pub mod osu;
 pub mod collection;
 pub mod scores;
+pub mod query;
 
 use std::ops::Range;
 use std::cmp::{PartialEq, PartialOrd};
@@ -31,16 +32,19 @@ impl<T: Clone + PartialEq + PartialOrd + FromStr> Comparison<T> {
                 let msg = format!("Invalid number: {}\nParse error: {}", s, e);
                 Err(IoError::new(InvalidInput, msg.as_str()))
             })?)
-        } else if is_number(s) {
+        } else if is_valid_range(s) {
             let (first, middle) = s.split_at(1);
             let (middle, last) = middle.split_at(s.len() - 1);
-            println!("{} | {} | {}", first, middle, last); // Just for debug purposes - will remove
             let mut spliterator = middle.split("..");
             let (start, end) = (spliterator.next().ok_or_else(|| {
                 IoError::new(InvalidInput, "Invalid range format.")
             })?, spliterator.next().ok_or_else(|| {
                 IoError::new(InvalidInput, "Invalid range format.")
             })?);
+            if start == "" && end == "" {
+                return Err(IoError::new(InvalidInput,
+                    "At least one of the range bounds must be defined."));
+            }
             let start = start.parse::<T>().map_err(|e| {
                 let msg = format!("Failed to parse start of range.\n{}", e);
                 IoError::new(InvalidInput, msg.as_str())
@@ -50,25 +54,25 @@ impl<T: Clone + PartialEq + PartialOrd + FromStr> Comparison<T> {
                 IoError::new(InvalidInput, msg.as_str())
             })?;
             if start == "" {
-                match (first, last) {
-                    ("(", ")") | ("[", ")") => Ok(Lt(end)),
-                    ("(", "]") | ("[", "]") => Ok(LtE(end)),
-                    _ => Err(IoError::new(InvalidInput, "Unrecognized range type."))
-                }
+                Ok(match (first, last) {
+                    ("(", ")") | ("[", ")") => Lt(end),
+                    ("(", "]") | ("[", "]") => LtE(end),
+                    _ => unreachable!()
+                })
             } else if end == "" {
-                match (first, last) {
-                    ("(", ")") | ("(", "]") => Ok(Gt(end)),
-                    ("[", ")") | ("[", "]") => Ok(GtE(end)),
-                    _ => Err(IoError::new(InvalidInput, "Unrecognized range type."))
-                }
+                Ok(match (first, last) {
+                    ("(", ")") | ("(", "]") => Gt(end),
+                    ("[", ")") | ("[", "]") => GtE(end),
+                    _ => unreachable!()
+                })
             } else {
-                match (first, last) {
-                    ("(", ")") => Ok(IrEE(start..end)),
-                    ("(", "]") => Ok(IrEI(start..end)),
-                    ("[", ")") => Ok(IrIE(start..end)),
-                    ("[", "]") => Ok(IrII(start..end)),
-                    _ => Err(IoError::new(InvalidInput, "Unrecognized range type."))
-                }
+                Ok(match (first, last) {
+                    ("(", ")") => IrEE(start..end),
+                    ("(", "]") => IrEI(start..end),
+                    ("[", ")") => IrIE(start..end),
+                    ("[", "]") => IrII(start..end),
+                    _ => unreachable!()
+                })
             }
         } else {
             Err(IoError::new(InvalidInput, "Input not recognized as number or range."))
@@ -92,8 +96,8 @@ pub(crate) fn is_number(s: &str) -> bool {
     true
 }
 
-pub(crate) fn is_range(s: &str) -> bool {
-    if (s.starts_with('(') || c.starts_with('[')) && (s.ends_with(')') || s.ends_with(']')) {
+pub(crate) fn is_valid_range(s: &str) -> bool {
+    if (s.starts_with('(') || s.starts_with('[')) && (s.ends_with(')') || s.ends_with(']')) {
         let (_, middle) = s.split_at(1);
         let (middle, _) = middle.split_at(middle.len() - 1);
         let mut spliterator = middle.split("..");
@@ -107,7 +111,12 @@ pub(crate) fn is_range(s: &str) -> bool {
         } else {
             return false;
         };
-        is_number(start) && is_number(end)
+        match (start == "", end == "") {
+            (true, true) => false,
+            (true, false) => is_number(start),
+            (false, true) => is_number(end),
+            (false, false) => is_number(start) && is_number(end)
+        }
     } else {
         false
     }

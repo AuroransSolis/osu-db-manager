@@ -4,7 +4,12 @@ use clap::{Arg, App, SubCommand, AppSettings, ArgGroup};
 use chrono::prelude::*;
 
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::QueryError};
-use crate::query::{AskCompareIgnore, Comparison, osu::beatmap_query::BeatmapQuery};
+use crate::query::{
+    AskCompareIgnore,
+    Comparison,
+    osu::beatmap_query::BeatmapQuery,
+    query::QueryStruct
+};
 use crate::masks::osu_mask::OsuDbMask;
 
 pub struct OsuDbQuery {
@@ -17,6 +22,8 @@ pub struct OsuDbQuery {
     pub beatmap_query: Option<BeatmapQuery>,
     pub unknown_int: bool
 }
+
+impl QueryStruct for OsuDbQuery;
 
 impl OsuDbQuery {
     fn from_arg(values: Vec<&str>) -> IoResult<Self> {
@@ -587,7 +594,11 @@ impl OsuDbQuery {
                 ".osu file name", dotosu_file_name;
                 "Beatmap folder name", beatmap_folder_name;
             });
-            let
+            get_and_assign_datetime!(subcommand_matches {
+                "Last modification time", last_modification_time;
+                "Last played", last_played;
+                "Last checked against repo", last_checked_against_repo;
+            });
             Some(BeatmapQuery {
                 entry_size,
                 artist_name,
