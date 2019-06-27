@@ -1,7 +1,6 @@
 use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidInput};
 
 use clap::{Arg, App, SubCommand, AppSettings, ArgGroup};
-use chrono::prelude::*;
 
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::QueryError};
 use crate::query::{
@@ -26,17 +25,7 @@ pub struct OsuDbQuery {
 impl QueryStruct for OsuDbQuery {}
 
 impl OsuDbQuery {
-    fn from_arg(values: Vec<&str>) -> IoResult<Self> {
-        let mut args = Vec::new();
-        for arg in s.split_whitespace() {
-            let mut tmp = if arg.starts_with('-') {
-                '-'.to_string()
-            } else {
-                String::new()
-            };
-            tmp += arg;
-            args.push(tmp);
-        }
+    pub fn from_args(args: Vec<&str>) -> IoResult<Self> {
         let matches = App::new("osu!.db query parser")
             .arg(Arg::with_name("Version")
                 .long("VERSION")
@@ -68,7 +57,7 @@ impl OsuDbQuery {
                 .required(false)
                 .takes_value(false)
                 .multiple(false))
-            .subcommand(SubCommand::with_name("Beatmap query/filter")
+            .subcommand(SubCommand::with_name("query")
                 .arg(Arg::with_name("Entry size")
                     .long("ENTRY-SIZE")
                     .multiple(false)
@@ -515,24 +504,12 @@ impl OsuDbQuery {
             .get_matches_from(args.into_iter());
         let [mut version, mut folder_count, mut account_unlocked, mut account_unlock_date,
             mut player_name, mut number_of_beatmaps, mut unknown_int] = [false; 7];
-        if matches.is_present("Version") {
-            version = true;
-        }
-        if matches.is_present("Folder count") {
-            folder_count = true;
-        }
-        if matches.is_present("Account unlocked") {
-            account_unlocked = true;
-        }
-        if matches.is_present("Account unlock date") {
-            account_unlock_date = true;
-        }
-        if matches.is_present("Player name") {
-            player_name = true;
-        }
-        if matches.is_present("Number of beatmaps") {
-            number_of_beatmaps = true;
-        }
+        let version = matches.is_present("Version");
+        let folder_count = matches.is_present("Folder count");
+        let account_unlocked = matches.is_present("Account unlocked");
+        let account_unlock_date = matches.is_present("Account unlock date");
+        let player_name = matches.is_present("Player name");
+        let number_of_beatmaps = matches.is_present("Number of beatmaps");
         let beatmap_query = if let Some(subcommand_matches) = matches.subcommand_matches("Beatmap query/filter") {
             get_parse_and_assign!(subcommand_matches {
                 "Entry size", entry_size => i32;
@@ -567,18 +544,7 @@ impl OsuDbQuery {
                 "Local offset", local_offset => i16;
                 "Stack leniency", stack_leniency => f32;
                 "Gameplay mode", gameplay_mode => GameplayMode;
-                "Song source", song_source => String;
-                "Song tags", song_tags => String;
                 "Online offset", online_offset => i16;
-                "Font used for song title", font_used_for_song_title => String;
-                "Unplayed", unplayed => bool;
-                "Last played", last_played => SystemTime;
-                "Is OSZ2", is_osz2 => bool;
-                "Ignore beatmap sound", ignore_beatmap_sound => bool;
-                "Ignore beatmap skin", ignore_beatmap_skin => bool;
-                "Disable storyboard", disable_storyboard => bool;
-                "Disable video", disable_video => bool;
-                "Visual override", visual_override => bool;
                 "Offset from song start in editor (ms)", offset_from_song_start_in_editor_ms => i32;
                 "Mania scroll speed", mania_scroll_speed => u8;
             });
@@ -593,11 +559,23 @@ impl OsuDbQuery {
                 "MD5 beatmap hash", md5_beatmap_hash;
                 ".osu file name", dotosu_file_name;
                 "Beatmap folder name", beatmap_folder_name;
+                "Song source", song_source => String;
+                "Song tags", song_tags => String;
+                "Font used for song title", font_used_for_song_title => String;
             });
             get_and_assign_datetime!(subcommand_matches {
                 "Last modification time", last_modification_time;
                 "Last played", last_played;
                 "Last checked against repo", last_checked_against_repo;
+            });
+            get_and_assign_bool!(subcommand_matches {
+                "Unplayed", unplayed;
+                "Is OSZ2", is_osz2;
+                "Ignore beatmap sound", ignore_beatmap_sound;
+                "Ignore beatmap skin", ignore_beatmap_skin;
+                "Disable storyboard", disable_storyboard;
+                "Disable video", disable_video;
+                "Visual override", visual_override;
             });
             Some(BeatmapQuery {
                 entry_size,
