@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use chrono::NaiveDate;
 
 use crate::deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
@@ -22,7 +22,7 @@ pub struct Score {
     pub perfect_combo: bool,
     pub mods_used: i32,
     pub empty_string: Option<String>,
-    pub replay_timestamp: SystemTime,
+    pub replay_timestamp: NaiveDate,
     pub negative_one: i32,
     pub online_score_id: i64
 }

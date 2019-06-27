@@ -1,6 +1,7 @@
-use std::time::SystemTime;
 use std::thread::{self, JoinHandle};
 use std::sync::{Arc, Mutex};
+
+use chrono::NaiveDate;
 
 use crate::deserialize_primitives::*;
 use crate::maybe_deserialize_primitives::*;
@@ -20,7 +21,7 @@ pub struct PartialOsuDb {
     pub version: Option<i32>,
     pub folder_count: Option<i32>,
     pub account_unlocked: Option<bool>,
-    pub account_unlock_date: Option<SystemTime>,
+    pub account_unlock_date: Option<NaiveDate>,
     pub player_name: Option<String>,
     pub number_of_beatmaps: i32,
     pub beatmaps: Option<Vec<PartialBeatmap>>,

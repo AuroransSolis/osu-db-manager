@@ -1,5 +1,7 @@
 use std::mem::size_of;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
+
+use chrono::{naive::NaiveDate, Duration as ChronoDuration};
 
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 use crate::deserialize_primitives::*;
@@ -158,51 +160,6 @@ pub fn maybe_read_uleb128(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResu
     }
 }
 
-/*#[inline]
-pub fn maybe_read_uleb128_with_len(c: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<(usize, usize)> {
-    let mut out = 0;
-    let mut found_end = false;
-    let mut shift = 0;
-    let mut len = 0;
-    while shift < size_of::<usize>() * 8 {
-        let b = read_byte(bytes, i).map_err(|_| DbFileParseError::new(PrimitiveError,
-            "Failed to read byte for ULEB128 integer."))?;
-        // Handle case when there's less than eight bits left in the usize
-        if shift + 8 >= size_of::<usize>() * 8 {
-            // If the last byte has a value that fits within the remaining number of bits, add it
-            // to our total and break the loop
-            if 0b11111111 >> (size_of::<usize>() * 8 - shift) | b
-                < (0b10000000 >> size_of::<usize>() * 8 - shift - 1) {
-                out += (b as usize) << shift;
-                found_end = true;
-                break;
-            } else {
-                let err_msg = format!("While the ULEB128 integer format supports integers \
-                    of arbitrary lengths, this program will only handle ULEB128 integers \
-                    representing integers up to and including {} bits in length.",
-                    size_of::<usize>() * 8);
-                return Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()));
-            }
-        }
-        out += (b as usize & 0b01111111) << shift;
-        if b & 0b10000000 == 0 {
-            found_end = true;
-            break;
-        }
-        shift += 7;
-        len += 1;
-    }
-    if found_end {
-        Ok((out, len))
-    } else {
-        let err_msg = format!("While the ULEB128 integer format supports integers \
-            of arbitrary lengths, this program will only handle ULEB128 integers representing \
-            integers up to and including {} bits in length.", size_of::<usize>() * 8);
-        Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
-    }
-}*/
-
 #[inline]
 pub fn maybe_read_single(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<f32>> {
     if c {
@@ -257,38 +214,6 @@ pub fn maybe_read_string_utf8(c: bool, bytes: &[u8], i: &mut usize, field: &str)
     }
 }
 
-/*#[inline]
-pub fn maybe_read_string_utf8_with_len(c: bool, bytes: &[u8], i: &mut usize, field: &str)
-    -> ParseFileResult<(usize, Option<String>)> {
-    if *i < bytes.len() {
-        let indicator = bytes[*i];
-        *i += 1;
-        if indicator == 0x0b {
-            let (length, length_bytes) = read_uleb128_with_len(bytes, i)?;
-            if *i + length <= bytes.len() {
-                let tmp = Ok((
-                    1 + length_bytes + length,
-                    Some(String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
-                        let err_msg = format!("Error reading string for {} ({})", field, e);
-                        DbFileParseError::new(PrimitiveError, err_msg.as_str())
-                    })?)
-                ));
-                *i += length;
-                tmp
-            } else {
-                Err(DbFileParseError::new(PrimitiveError, "String length goes past end of file."))
-            }
-        } else if indicator == 0 {
-            Ok((1, None))
-        } else {
-            let err_msg = format!("Read invalid string indicator ({}).", indicator);
-            Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
-        }
-    } else {
-        Err(primitive!(STRING_ERR))
-    }
-}*/
-
 #[inline]
 pub fn maybe_read_boolean(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<bool>> {
     if c {
@@ -301,11 +226,16 @@ pub fn maybe_read_boolean(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResu
 
 #[inline]
 pub fn maybe_read_datetime(c: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<Option<SystemTime>> {
+    -> ParseFileResult<Option<NaiveDate>> {
     if c {
         let ticks = read_long(bytes, i).map_err(|_| primitive!(DATETIME_ERR))?;
         let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
-        Ok(Some(SystemTime::UNIX_EPOCH + duration_since_epoch))
+        let chrono_duration = ChronoDuration::from_std(duration_since_epoch).map_err(|e| {
+            let msg = format!("Failed to convert std::time::Duration to chrono::Duration\n\
+                {}", e);
+            DbFileParseError(PrimitiveError, msg)
+        })?;
+        Ok(Some(NaiveDate::from_ymd(1970, 0, 0) + chrono_duration))
     } else {
         *i += 8;
         Ok(None)

@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use chrono::NaiveDate;
 
 use crate::deserialize_primitives::*;
 use crate::maybe_deserialize_primitives::*;
@@ -22,7 +22,7 @@ pub struct PartialBeatmap {
     pub number_of_hitcircles: Option<i16>,
     pub number_of_sliders: Option<i16>,
     pub number_of_spinners: Option<i16>,
-    pub last_modification_time: Option<SystemTime>,
+    pub last_modification_time: Option<NaiveDate>,
     pub approach_rate: Option<ByteSingle>,
     pub circle_size: Option<ByteSingle>,
     pub hp_drain: Option<ByteSingle>,
@@ -56,10 +56,10 @@ pub struct PartialBeatmap {
     pub online_offset: Option<i16>,
     pub font_used_for_song_title: Option<String>,
     pub unplayed: Option<bool>,
-    pub last_played: Option<SystemTime>,
+    pub last_played: Option<NaiveDate>,
     pub is_osz2: Option<bool>,
     pub beatmap_folder_name: Option<String>,
-    pub last_checked_against_repo: Option<SystemTime>,
+    pub last_checked_against_repo: Option<NaiveDate>,
     pub ignore_beatmap_sound: Option<bool>,
     pub ignore_beatmap_skin: Option<bool>,
     pub disable_storyboard: Option<bool>,

@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use chrono::NaiveDate;
 
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 use crate::deserialize_primitives::*;
@@ -20,7 +20,7 @@ pub struct Beatmap {
     pub number_of_hitcircles: i16,
     pub number_of_sliders: i16,
     pub number_of_spinners: i16,
-    pub last_modification_time: SystemTime,
+    pub last_modification_time: NaiveDate,
     pub approach_rate: ByteSingle,
     pub circle_size: ByteSingle,
     pub hp_drain: ByteSingle,
@@ -54,10 +54,10 @@ pub struct Beatmap {
     pub online_offset: i16,
     pub font_used_for_song_title: Option<String>,
     pub unplayed: bool,
-    pub last_played: SystemTime,
+    pub last_played: NaiveDate,
     pub is_osz2: bool,
     pub beatmap_folder_name: Option<String>,
-    pub last_checked_against_repo: SystemTime,
+    pub last_checked_against_repo: NaiveDate,
     pub ignore_beatmap_sound: bool,
     pub ignore_beatmap_skin: bool,
     pub disable_storyboard: bool,

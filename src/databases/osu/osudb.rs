@@ -1,6 +1,7 @@
-use std::time::SystemTime;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+
+use chrono::NaiveDate;
 
 use crate::deserialize_primitives::*;
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
@@ -16,7 +17,7 @@ pub struct OsuDb {
     pub version: i32,
     pub folder_count: i32,
     pub account_unlocked: bool,
-    pub account_unlock_date: Option<SystemTime>,
+    pub account_unlock_date: Option<NaiveDate>,
     pub player_name: Option<String>,
     pub number_of_beatmaps: i32,
     pub beatmaps: Vec<Beatmap>,

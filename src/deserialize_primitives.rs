@@ -1,5 +1,7 @@
 use std::mem::size_of;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
+
+use chrono::{naive::NaiveDate, Duration as ChronoDuration};
 
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 // Primitive types we need to read from databases:
@@ -248,10 +250,15 @@ pub fn read_boolean(bytes: &[u8], i: &mut usize) -> ParseFileResult<bool> {
 }
 
 #[inline]
-pub fn read_datetime(bytes: &[u8], i: &mut usize) -> ParseFileResult<SystemTime> {
+pub fn read_datetime(bytes: &[u8], i: &mut usize) -> ParseFileResult<NaiveDate> {
     let ticks = read_long(bytes, i).map_err(|_| primitive!(DATETIME_ERR))?;
     let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
-    Ok(SystemTime::UNIX_EPOCH + duration_since_epoch)
+    let chrono_duration = ChronoDuration::from_std(duration_since_epoch).map_err(|e| {
+        let msg = format!("Failed to convert std::time::Duration to chrono::Duration\n\
+                {}", e);
+        DbFileParseError(PrimitiveError, msg)
+    })?;
+    Ok(NaiveDate::from_ymd(1970, 0, 0) + chrono_duration)
 }
 
 #[inline]

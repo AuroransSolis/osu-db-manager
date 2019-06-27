@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use chrono::NaiveDate;
 
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
@@ -23,7 +23,7 @@ pub struct PartialScore {
     pub perfect_combo: Option<bool>,
     pub mods_used: Option<i32>,
     pub empty_string: Option<String>,
-    pub replay_timestamp: Option<SystemTime>,
+    pub replay_timestamp: Option<NaiveDate>,
     pub negative_one: Option<i32>,
     pub online_score_id: Option<i64>
 }
