@@ -37,9 +37,6 @@ fn datetime_from_str(s: &str) -> IoResult<NaiveDate> {
     })
 }
 
-fn tmp(m: &str) {
-}
-
 #[macro_export]
 macro_rules! get_and_assign_datetime {
     ($matches:ident { $($arg_name:literal, $var:ident);+ }) => {
@@ -86,6 +83,28 @@ macro_rules! get_and_assign_datetime {
                 } else {
                     Some(datetime_from_str(m)?)
                 }
+            } else {
+                None
+            };
+        )+
+    }
+}
+
+#[macro_export]
+macro_rules! get_and_assign_bool {
+    ($matches:ident { $($arg_name:literal, $var:ident);+ }) => {
+        $(
+            let $var = if let Some(m) = $matches.value_of($arg_name) {
+                Some(match m.to_lowercase().as_str() {
+                    "t" | "true" | "y" | "yes" => Comparison::Eq(true),
+                    "f" | "false" | "n" | "no" => Comparison::Eq(false),
+                    _ => {
+                        let msg = format!("Could not parse {} as a boolean. Valid inputs are:\n \
+                         - t/true/y/yes\n \
+                         - f/false/n/no");
+                        return Err(IoError::new(InvalidInput, msg.as_str()));
+                    }
+                })
             } else {
                 None
             };
