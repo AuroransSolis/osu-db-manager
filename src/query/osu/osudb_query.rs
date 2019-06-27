@@ -23,7 +23,7 @@ pub struct OsuDbQuery {
     pub unknown_int: bool
 }
 
-impl QueryStruct for OsuDbQuery;
+impl QueryStruct for OsuDbQuery {}
 
 impl OsuDbQuery {
     fn from_arg(values: Vec<&str>) -> IoResult<Self> {
