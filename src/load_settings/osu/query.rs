@@ -1,31 +1,24 @@
 use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidInput};
 
 use clap::{Arg, App, SubCommand, AppSettings, ArgGroup};
+use chrono::NaiveDate;
 
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::QueryError};
-use crate::query::{
-    AskCompareIgnore,
+use crate::load_settings::{
+    LoadSetting,
     Comparison,
-    osu::beatmap_query::BeatmapQuery,
-    query::QueryStruct
+    SpecialArgType,
+    parse_from_arg_str,
+    parse_from_arg_special,
+    osu::{osudb_load_settings::OsuDbLoadSettings, beatmap_load_settings::BeatmapLoadSettings}
 };
-use crate::masks::osu_mask::OsuDbMask;
+use crate::databases::osu::primitives::{RankedStatus, ByteSingle, GameplayMode};
 
-pub struct OsuDbQuery {
-    pub version: bool,
-    pub folder_count: bool,
-    pub account_unlocked: bool,
-    pub account_unlock_date: bool,
-    pub player_name: bool,
-    pub number_of_beatmaps: bool,
-    pub beatmap_query: Option<BeatmapQuery>,
-    pub unknown_int: bool
-}
-
-impl QueryStruct for OsuDbQuery {}
-
-impl OsuDbQuery {
-    pub fn from_args(args: Vec<&str>) -> IoResult<Self> {
+impl OsuDbLoadSettings {
+    pub fn query_args(mut self, args: Vec<&str>) -> IoResult<Self> {
+        if args.len() == 0 {
+            return Ok(self);
+        }
         let matches = App::new("osu!.db query parser")
             .arg(Arg::with_name("Version")
                 .long("VERSION")
@@ -502,69 +495,243 @@ impl OsuDbQuery {
                 .takes_value(false)
                 .multiple(false))
             .get_matches_from(args.into_iter());
-        let [mut version, mut folder_count, mut account_unlocked, mut account_unlock_date,
-            mut player_name, mut number_of_beatmaps, mut unknown_int] = [false; 7];
-        let version = matches.is_present("Version");
-        let folder_count = matches.is_present("Folder count");
-        let account_unlocked = matches.is_present("Account unlocked");
-        let account_unlock_date = matches.is_present("Account unlock date");
-        let player_name = matches.is_present("Player name");
-        let number_of_beatmaps = matches.is_present("Number of beatmaps");
+        if !self.version.is_ignore() {
+            self.version = parse_from_arg_str::<i32>(&matches, "Version")?;
+        }
+        if !self.folder_count.is_ignore() {
+            self.folder_count = parse_from_arg_str::<i32>(&matches, "Folder count")?;
+        }
+        if !self.account_unlocked.is_ignore() {
+            self.account_unlocked = parse_from_arg_special::<bool>(&matches, "Account unlocked",
+                SpecialArgType::bool)?;
+        }
+        if !self.account_unlock_date.is_ignore() {
+            self.account_unlock_date = read_from_arg::<NaiveDate>(&matches, "Account unlock date",
+                ArgType::NaiveDate)?;
+        }
+        if !self.player_name.is_ignore() {
+            self.player_name = read_from_arg::<Option<String>>(&matches, "Player name",
+                ArgType::OptionString)?;
+        }
+        if !self.number_of_beatmaps.is_ignore() {
+            self.number_of_beatmaps = read_from_arg::<i32>(&matches, "Number of beatmaps",
+                ArgType::i32)?;
+        }
+        if let Some(subcommand_matches) = matches.subcommand_matches("Beatmap query/filter") {
+            if !self.beatmap_load_settings.entry_size.is_ignore() {
+                self.entry_size = read_from_arg::<i32>(&subcommand_matches, "Entry size",
+                    ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.artist_name.is_ignore() {
+                self.artist_name = read_from_arg::<Option<String>>(&subcommand_matches,
+                    "Artist name", ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.artist_name_unicode.is_ignore() {
+                self.artist_name_unicode = read_from_arg::<Option<String>>(&subcommand_matches,
+                    "Artist name unicode", ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.song_title.is_ignore() {
+                self.song_title = read_from_arg::<Option<String>>(&subcommand_matches, "Song title",
+                    ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.song_title_unicode.is_ignore() {
+                self.song_title_unicode = read_from_arg::<Option<String>>(&subcommand_matches,
+                    "Song title unicode", ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.creator_name.is_ignore() {
+                self.creator_name = read_from_arg::<Option<String>>(&subcommand_matches,
+                    "Creator name", ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.difficulty.is_ignore() {
+                self.difficulty = read_from_arg::<Option<String>>(&subcommand_matches, "Difficulty",
+                    ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.audio_file_name.is_ignore() {
+                self.audio_file_name = read_from_arg::<Option<String>>(&subcommand_matches,
+                    "Audio file name", ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.md5_beatmap_hash.is_ignore() {
+                self.md5_beatmap_hash = read_from_arg::<String>(&subcommand_matches,
+                    "MD5 beatmap hash", ArgType::String)?;
+            }
+            if !self.beatmap_load_settings.dotosu_file_name.is_ignore() {
+                self.dotosu_file_name = read_from_arg::<Option<String>>(&subcommand_matches,
+                    ".osu file name", ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.ranked_status.is_ignore() {
+                self.ranked_status = read_from_arg::<RankedStatus>(&subcommand_matches,
+                    "Ranked status", ArgType::RankedStatus)?;
+            }
+            if !self.beatmap_load_settings.number_of_hitcircles.is_ignore() {
+                self.number_of_hitcircles = read_from_arg::<i16>(&subcommand_matches,
+                    "Number of hitcircles", ArgType::i16)?;
+            }
+            if !self.beatmap_load_settings.number_of_sliders.is_ignore() {
+                self.number_of_sliders = read_from_arg::<i16>(&subcommand_matches,
+                    "Number of sliders", ArgType::i16)?;
+            }
+            if !self.beatmap_load_settings.number_of_spinners.is_ignore() {
+                self.number_of_spinners = read_from_arg::<i16>(&subcommand_matches,
+                    "Number of spinners", ArgType::i16)?;
+            }
+            if !self.beatmap_load_settings.last_modification_time.is_ignore() {
+                self.last_modification_time = read_from_arg::<NaiveDate>(&subcommand_matches,
+                    "Last modification time", ArgType::NaiveDate)?;
+            }
+            if !self.beatmap_load_settings.approach_rate.is_ignore() {
+                self.approach_rate = read_from_arg::<ByteSingle>(&subcommand_matches,
+                    "Approach rate", ArgType::ByteSingle)?;
+            }
+            if !self.beatmap_load_settings.circle_size.is_ignore() {
+                self.circle_size = read_from_arg::<ByteSingle>(&subcommand_matches, "Circle size",
+                    ArgType::ByteSingle)?;
+            }
+            if !self.beatmap_load_settings.hp_drain.is_ignore() {
+                self.hp_drain = read_from_arg::<ByteSingle>(&subcommand_matches, "HP drain",
+                    ArgType::ByteSingle)?;
+            }
+            if !self.beatmap_load_settings.overall_difficulty.is_ignore() {
+                self.overall_difficulty = read_from_arg::<ByteSingle>(&subcommand_matches,
+                    "Overall difficulty", ArgType::ByteSingle)?;
+            }
+            if !self.beatmap_load_settings.slider_velocity.is_ignore() {
+                self.slider_velocity = read_from_arg::<f64>(&subcommand_matches,
+                    "Slider velocity", ArgType::f64)?;
+            }
+            if !self.beatmap_load_settings.num_mod_combo_star_ratings_standard.is_ignore() {
+                self.num_mod_combo_star_ratings_standard = read_from_arg::<i32>(&subcommand_matches,
+                    "Number of precalculated mod combo star ratings (standard)", ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.num_mod_combo_star_ratings_taiko.is_ignore() {
+                self.num_mod_combo_star_ratings_taiko = read_from_arg::<i32>(&subcommand_matches,
+                    "Number of precalculated mod combo star ratings (taiko)", ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.num_mod_combo_star_ratings_ctb.is_ignore() {
+                self.num_mod_combo_star_ratings_ctb = read_from_arg::<i32>(&subcommand_matches,
+                    "Number of precalculated mod combo star ratings (CTB)", ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.num_mod_combo_star_ratings_mania.is_ignore() {
+                self.num_mod_combo_star_ratings_mania = read_from_arg::<i32>(&subcommand_matches,
+                    "Number of precalculated mod combo star ratings (mania)", ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.drain_time.is_ignore() {
+                self.drain_time = read_from_arg::<i32>(&subcommand_matches, "Drain time",
+                    ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.total_time.is_ignore() {
+                self.total_time = read_from_arg::<i32>(&subcommand_matches, "Total time",
+                    ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.preview_offset_from_start_ms.is_ignore() {
+                self.preview_offset_from_start_ms = read_from_arg::<i32>(&subcommand_matches,
+                    "Preview offset from start (ms)", ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.num_timing_points.is_ignore() {
+                self.num_timing_points = read_from_arg::<i32>(&subcommand_matches,
+                    "Number of timing points", ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.beatmap_id.is_ignore() {
+                self.beatmap_id = read_from_arg::<i32>(&subcommand_matches, "Beatmap ID",
+                    ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.beatmap_set_id.is_ignore() {
+                self.beatmap_set_id = read_from_arg::<i32>(&subcommand_matches, "Beatmap set ID",
+                    ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.thread_id.is_ignore() {
+                self.thread_id = read_from_arg::<i32>(&subcommand_matches, "Thread ID",
+                    ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.standard_grade.is_ignore() {
+                self.standard_grade = read_from_arg::<u8>(&subcommand_matches, "Standard grade",
+                    ArgType::u8)?;
+            }
+            if !self.beatmap_load_settings.taiko_grade.is_ignore() {
+                self.taiko_grade = read_from_arg::<u8>(&subcommand_matches, "Taiko grade",
+                    ArgType::u8)?;
+            }
+            if !self.beatmap_load_settings.ctb_grade.is_ignore() {
+                self.ctb_grade = read_from_arg::<u8>(&subcommand_matches, "CTB grade",
+                    ArgType::u8)?;
+            }
+            if !self.beatmap_load_settings.mania_grade.is_ignore() {
+                self.mania_grade = read_from_arg::<u8>(&subcommand_matches, "Mania grade",
+                    ArgType::u8)?;
+            }
+            if !self.beatmap_load_settings.local_offset.is_ignore() {
+                self.local_offset = read_from_arg::<i16>(&subcommand_matches, "Local offset",
+                    ArgType::i16)?;
+            }
+            if !self.beatmap_load_settings.stack_leniency.is_ignore() {
+                self.stack_leniency = read_from_arg::<f32>(&subcommand_matches, "Stack leniency",
+                    ArgType::f32)?;
+            }
+            if !self.beatmap_load_settings.gameplay_mode.is_ignore() {
+                self.gameplay_mode = read_from_arg::<GameplayMode>(&subcommand_matches, "Gameplay mode", ArgType::GameplayMode)?;
+            }
+            if !self.beatmap_load_settings.song_source.is_ignore() {
+                self.song_source = read_from_arg::<Option<String>>(&subcommand_matches,
+                    "Song source", ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.song_tags.is_ignore() {
+                self.song_tags = read_from_arg::<Option<String>>(&subcommand_matches, "Song tags",
+                    ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.online_offset.is_ignore() {
+                self.online_offset = read_from_arg::<i16>(&subcommand_matches, "", ArgType::i16)?;
+            }
+            if !self.beatmap_load_settings.font_used_for_song_title.is_ignore() {
+                self.font_used_for_song_title = read_from_arg::<Option<String>>(&subcommand_matches, "", ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.unplayed.is_ignore() {
+                self.unplayed = read_from_arg::<bool>(&subcommand_matches, "", ArgType::bool)?;
+            }
+            if !self.beatmap_load_settings.last_played.is_ignore() {
+                self.last_played = read_from_arg::<NaiveDate>(&subcommand_matches, "", ArgType::NaiveDate)?;
+            }
+            if !self.beatmap_load_settings.is_osz2.is_ignore() {
+                self.is_osz2 = read_from_arg::<bool>(&subcommand_matches, "", ArgType::bool)?;
+            }
+            if !self.beatmap_load_settings.beatmap_folder_name.is_ignore() {
+                self.beatmap_folder_name = read_from_arg::<Option<String>>(&subcommand_matches, "", ArgType::OptionString)?;
+            }
+            if !self.beatmap_load_settings.last_checked_against_repo.is_ignore() {
+                self.last_checked_against_repo = read_from_arg::<NaiveDate>(&subcommand_matches, "", ArgType::NaiveDate)?;
+            }
+            if !self.beatmap_load_settings.ignore_beatmap_sound.is_ignore() {
+                self.ignore_beatmap_sound = read_from_arg::<bool>(&subcommand_matches, "", ArgType::bool)?;
+            }
+            if !self.beatmap_load_settings.ignore_beatmap_skin.is_ignore() {
+                self.ignore_beatmap_skin = read_from_arg::<bool>(&subcommand_matches, "", ArgType::bool)?;
+            }
+            if !self.beatmap_load_settings.disable_storyboard.is_ignore() {
+                self.disable_storyboard = read_from_arg::<bool>(&subcommand_matches, "", ArgType::bool)?;
+            }
+            if !self.beatmap_load_settings.disable_video.is_ignore() {
+                self.disable_video = read_from_arg::<bool>(&subcommand_matches, "", ArgType::bool)?;
+            }
+            if !self.beatmap_load_settings.visual_override.is_ignore() {
+                self.visual_override = read_from_arg::<bool>(&subcommand_matches, "", ArgType::bool)?;
+            }
+            if !self.beatmap_load_settings.offset_from_song_start_in_editor_ms.is_ignore() {
+                self.offset_from_song_start_in_editor_ms = read_from_arg::<i32>(&subcommand_matches,
+                    "", ArgType::i32)?;
+            }
+            if !self.beatmap_load_settings.mania_scroll_speed.is_ignore() {
+                self.mania_scroll_speed = read_from_arg::<u8>(&subcommand_matches, "", ArgType::u8)?;
+            }
+        }
         let beatmap_query = if let Some(subcommand_matches) = matches.subcommand_matches("Beatmap query/filter") {
             get_parse_and_assign!(subcommand_matches {
-                "Entry size", entry_size => i32;
-                "Ranked status", ranked_status => RankedStatus;
-                "Number of hitcircles", number_of_hitcircles => i16;
-                "Number of sliders", number_of_sliders => i16;
-                "Number of spinners", number_of_spinners => i16;
-                "Approach rate", approach_rate => ByteSingle;
-                "Circle size", circle_size => ByteSingle;
-                "HP drain", hp_drain => ByteSingle;
-                "Overall difficulty", overall_difficulty => ByteSingle;
-                "Slider velocity", slider_velocity => f64;
-                "Number of precalculated mod combo star ratings (standard)";
-                    num_mod_combo_star_ratings_standard => i32;
-                "Number of precalculated mod combo star ratings (taiko)";
-                    num_mod_combo_star_ratings_taiko => i32;
-                "Number of precalculated mod combo star ratings (CTB)";
-                    num_mod_combo_star_ratings_ctb => i32;
-                "Number of precalculated mod combo star ratings (mania)";
-                    num_mod_combo_star_ratings_mania => i32;
-                "Drain time", drain_time => i32;
-                "Total time", total_time => i32;
-                "Preview offset from start (ms)", preview_offset_from_start_ms => i32;
-                "Number of timing points", num_timing_points, i32;
-                "Beatmap ID", beatmap_id => i32;
-                "Beatmap set ID", beatmap_set_id => i32;
-                "Thread ID", thread_id => i32;
-                "Standard grade", standard_grade => u8;
-                "Taiko grade", taiko_grade => u8;
-                "CTB grade", ctb_grade => u8;
-                "Mania grade", mania_grade => u8;
-                "Local offset", local_offset => i16;
-                "Stack leniency", stack_leniency => f32;
-                "Gameplay mode", gameplay_mode => GameplayMode;
                 "Online offset", online_offset => i16;
                 "Offset from song start in editor (ms)", offset_from_song_start_in_editor_ms => i32;
                 "Mania scroll speed", mania_scroll_speed => u8;
             });
             get_and_assign_string!(subcommand_matches {
-                "Artist name", artist_name;
-                "Artist name unicode", artist_name_unicode;
-                "Song title", song_title;
-                "Song title unicode", song_title_unicode;
-                "Creator name", creator_name;
-                "Difficulty", difficulty;
-                "Audio file name", audio_file_name;
-                "MD5 beatmap hash", md5_beatmap_hash;
-                ".osu file name", dotosu_file_name;
                 "Beatmap folder name", beatmap_folder_name;
-                "Song source", song_source => String;
-                "Song tags", song_tags => String;
                 "Font used for song title", font_used_for_song_title => String;
             });
             get_and_assign_datetime!(subcommand_matches {
-                "Last modification time", last_modification_time;
                 "Last played", last_played;
                 "Last checked against repo", last_checked_against_repo;
             });
@@ -577,7 +744,7 @@ impl OsuDbQuery {
                 "Disable video", disable_video;
                 "Visual override", visual_override;
             });
-            Some(BeatmapQuery {
+            Some(BeatmapLoadSettings {
                 entry_size,
                 artist_name,
                 artist_name_unicode,
@@ -639,15 +806,6 @@ impl OsuDbQuery {
         if matches.is_present("Unknown int") {
             unknown_int = true;
         }
-        Ok(OsuDbQuery {
-            version,
-            folder_count,
-            account_unlocked,
-            account_unlock_date,
-            player_name,
-            number_of_beatmaps,
-            beatmap_query,
-            unknown_int
-        })
+        Ok(self)
     }
 }

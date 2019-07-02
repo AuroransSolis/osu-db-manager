@@ -4,7 +4,7 @@ extern crate chrono;
 mod databases;
 mod deserialize_primitives;
 mod interactive;
-mod query;
+mod load_settings;
 mod serialize_primitives;
 mod argument;
 mod read_error;
