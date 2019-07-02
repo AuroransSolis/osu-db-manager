@@ -4,9 +4,9 @@ use crate::masks::{
     scores_mask::ScoresDbMask
 };
 
-pub trait Mask: Default {
+pub trait Mask {
     fn is_complete(&self) -> bool;
-    fn from_show_and_query(show: Self, query: Self) -> Self;
+    fn from_show_args(show_args: Vec<&str>) -> Self;
 }
 
 pub enum DbMask {

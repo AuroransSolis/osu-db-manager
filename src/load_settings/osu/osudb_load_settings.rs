@@ -14,4 +14,17 @@ pub struct OsuDbLoadSettings {
     pub unknown_int: LoadSetting<i32>
 }
 
-impl QueryStruct for OsuDbLoadSettings {}
+impl Default for OsuDbLoadSettings {
+    fn default() -> Self {
+        OsuDbLoadSettings {
+            version: LoadSetting::Ignore,
+            folder_count: LoadSetting::Ignore,
+            account_unlocked: LoadSetting::Ignore,
+            account_unlock_date: LoadSetting::Ignore,
+            player_name: LoadSetting::Ignore,
+            number_of_beatmaps: LoadSetting::Ignore,
+            beatmap_load_settings: BeatmapLoadSettings::default(),
+            unknown_int: LoadSetting::Ignore
+        }
+    }
+}

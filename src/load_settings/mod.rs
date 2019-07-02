@@ -1,4 +1,3 @@
-#[macro_use] mod macros;
 pub mod osu;
 pub mod collection;
 pub mod scores;
@@ -166,13 +165,13 @@ fn date_from_str(s: &str) -> IoResult<NaiveDate> {
     })
 }
 
-fn parse_from_arg_special<'a, T: IsArgType>(matches: &ArgMatches<'a>, field: &str,
+fn parse_from_arg_special<'a, T: IsSpecialArgType>(matches: &ArgMatches<'a>, field: &str,
     t: SpecialArgType) -> IoResult<LoadSetting<T>> {
     match t {
         SpecialArgType::bool => {
             match m.to_lowercase().as_str() {
-                "t" | "true" | "y" | "yes" => Ok(LoadSetting::Filter(Comparison::Eq(true))),
-                "f" | "false" | "n" | "no" => Ok(LoadSetting::Filter(Comparison::Eq(false))),
+                "t" | "true" | "y" | "yes" | "1" => Ok(LoadSetting::Filter(Comparison::Eq(true))),
+                "f" | "false" | "n" | "no" | "0" => Ok(LoadSetting::Filter(Comparison::Eq(false))),
                 _ => {
                     let msg = format!("Could not parse {} as a boolean. Valid inputs are:\n \
                          - t/true/y/yes\n \
@@ -246,7 +245,7 @@ fn parse_from_arg_special<'a, T: IsArgType>(matches: &ArgMatches<'a>, field: &st
     }
 }
 
-fn parse_from_arg_str<'a, T: IsArgType + FromStr>(matches: &ArgMatches<'a>, field: &str)
+fn parse_from_arg<'a, T: IsArgType + FromStr>(matches: &ArgMatches<'a>, field: &str)
     -> IoResult<LoadSetting<T>> {
     if let Some(m) = matches.value_of(field) {
         if (m.starts_with('(') || m.starts_with('['))
