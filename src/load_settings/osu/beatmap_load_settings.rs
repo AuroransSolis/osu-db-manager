@@ -8,14 +8,13 @@ use crate::load_settings::{
     SpecialArgType,
     parse_from_arg,
     parse_from_arg_special,
-    osu::{osudb_load_settings::OsuDbLoadSettings, beatmap_load_settings::BeatmapLoadSettings},
     query::QueryStruct
 };
 use crate::databases::osu::primitives::{RankedStatus, ByteSingle, GameplayMode};
 use crate::masks::osu_mask::BeatmapMask;
 
 pub struct BeatmapLoadSettings {
-    pub entry_size: LoadSetting<i32>,
+    pub entry_size: LoadSetting<Option<i32>>,
     pub artist_name: LoadSetting<Option<String>>,
     pub artist_name_unicode: LoadSetting<Option<String>>,
     pub song_title: LoadSetting<Option<String>>,
@@ -36,13 +35,18 @@ pub struct BeatmapLoadSettings {
     pub overall_difficulty: LoadSetting<ByteSingle>,
     pub slider_velocity: LoadSetting<f64>,
     pub num_mod_combo_star_ratings_standard: LoadSetting<i32>,
+    pub mod_combo_star_ratings_standard: LoadSetting<()>,
     pub num_mod_combo_star_ratings_taiko: LoadSetting<i32>,
+    pub mod_combo_star_ratings_taiko: LoadSetting<()>,
     pub num_mod_combo_star_ratings_ctb: LoadSetting<i32>,
+    pub mod_combo_star_ratings_ctb: LoadSetting<()>,
     pub num_mod_combo_star_ratings_mania: LoadSetting<i32>,
+    pub mod_combo_star_ratings_mania: LoadSetting<()>,
     pub drain_time: LoadSetting<i32>,
     pub total_time: LoadSetting<i32>,
     pub preview_offset_from_start_ms: LoadSetting<i32>,
     pub num_timing_points: LoadSetting<i32>,
+    pub timing_points: LoadSetting<()>,
     pub beatmap_id: LoadSetting<i32>,
     pub beatmap_set_id: LoadSetting<i32>,
     pub thread_id: LoadSetting<i32>,
@@ -67,6 +71,7 @@ pub struct BeatmapLoadSettings {
     pub disable_storyboard: LoadSetting<bool>,
     pub disable_video: LoadSetting<bool>,
     pub visual_override: LoadSetting<bool>,
+    pub unknown_short: LoadSetting<Option<i16>>,
     pub offset_from_song_start_in_editor_ms: LoadSetting<i32>,
     pub mania_scroll_speed: LoadSetting<u8>
 }
@@ -95,13 +100,18 @@ impl Default for BeatmapLoadSettings {
             overall_difficulty: LoadSetting::Ignore,
             slider_velocity: LoadSetting::Ignore,
             num_mod_combo_star_ratings_standard: LoadSetting::Ignore,
+            mod_combo_star_ratings_standard: LoadSetting::Ignore,
             num_mod_combo_star_ratings_taiko: LoadSetting::Ignore,
+            mod_combo_star_ratings_taiko: LoadSetting::Ignore,
             num_mod_combo_star_ratings_ctb: LoadSetting::Ignore,
+            mod_combo_star_ratings_ctb: LoadSetting::Ignore,
             num_mod_combo_star_ratings_mania: LoadSetting::Ignore,
+            mod_combo_star_ratings_mania: LoadSetting::Ignore,
             drain_time: LoadSetting::Ignore,
             total_time: LoadSetting::Ignore,
             preview_offset_from_start_ms: LoadSetting::Ignore,
             num_timing_points: LoadSetting::Ignore,
+            timing_points: LoadSetting::Ignore,
             beatmap_id: LoadSetting::Ignore,
             beatmap_set_id: LoadSetting::Ignore,
             thread_id: LoadSetting::Ignore,
@@ -126,14 +136,15 @@ impl Default for BeatmapLoadSettings {
             disable_storyboard: LoadSetting::Ignore,
             disable_video: LoadSetting::Ignore,
             visual_override: LoadSetting::Ignore,
+            unknown_short: LoadSetting::Ignore,
             offset_from_song_start_in_editor_ms: LoadSetting::Ignore,
             mania_scroll_speed: LoadSetting::Ignore
         }
     }
 }
 
-impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
-    fn load_all(&self) -> bool {
+impl BeatmapLoadSettings {
+    pub fn load_all(&self) -> bool {
         !(self.entry_size.is_ignore() || self.artist_name.is_ignore()
             || self.artist_name_unicode.is_ignore() || self.song_title.is_ignore()
             || self.song_title_unicode.is_ignore() || self.creator_name.is_ignore()
@@ -145,19 +156,23 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
             || self.circle_size.is_ignore() || self.hp_drain.is_ignore()
             || self.overall_difficulty.is_ignore() || self.slider_velocity.is_ignore()
             || self.num_mod_combo_star_ratings_standard.is_ignore()
+            || self.mod_combo_star_ratings_standard.is_ignore()
             || self.num_mod_combo_star_ratings_taiko.is_ignore()
+            || self.mod_combo_star_ratings_taiko.is_ignore()
             || self.num_mod_combo_star_ratings_ctb.is_ignore()
-            || self.num_mod_combo_star_ratings_mania.is_ignore() || self.drain_time.is_ignore()
+            || self.mod_combo_star_ratings_ctb.is_ignore()
+            || self.num_mod_combo_star_ratings_mania.is_ignore()
+            || self.mod_combo_star_ratings_mania.is_ignore() || self.drain_time.is_ignore()
             || self.total_time.is_ignore() || self.preview_offset_from_start_ms.is_ignore()
-            || self.num_timing_points.is_ignore() || self.beatmap_id.is_ignore()
-            || self.beatmap_set_id.is_ignore() || self.thread_id.is_ignore()
-            || self.standard_grade.is_ignore() || self.taiko_grade.is_ignore()
-            || self.ctb_grade.is_ignore() || self.mania_grade.is_ignore()
-            || self.local_offset.is_ignore() || self.stack_leniency.is_ignore()
-            || self.gameplay_mode.is_ignore() || self.song_source.is_ignore()
-            || self.song_tags.is_ignore() || self.online_offset.is_ignore()
-            || self.font_used_for_song_title.is_ignore() || self.unplayed.is_ignore()
-            || self.last_played.is_ignore() || self.is_osz2.is_ignore()
+            || self.num_timing_points.is_ignore() || self.timing_points.is_ignore()
+            || self.beatmap_id.is_ignore() || self.beatmap_set_id.is_ignore()
+            || self.thread_id.is_ignore() || self.standard_grade.is_ignore()
+            || self.taiko_grade.is_ignore() || self.ctb_grade.is_ignore()
+            || self.mania_grade.is_ignore() || self.local_offset.is_ignore()
+            || self.stack_leniency.is_ignore() || self.gameplay_mode.is_ignore()
+            || self.song_source.is_ignore() || self.song_tags.is_ignore()
+            || self.online_offset.is_ignore() || self.font_used_for_song_title.is_ignore()
+            || self.unplayed.is_ignore() || self.last_played.is_ignore() || self.is_osz2.is_ignore()
             || self.beatmap_folder_name.is_ignore() || self.last_checked_against_repo.is_ignore()
             || self.ignore_beatmap_sound.is_ignore() || self.ignore_beatmap_skin.is_ignore()
             || self.disable_storyboard.is_ignore() || self.disable_video.is_ignore()
@@ -166,7 +181,7 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
             || self.mania_scroll_speed.is_ignore())
     }
 
-    fn set_from_query(&mut self, query_args: Vec<&str>) -> IoResult<()> {
+    pub fn set_from_query(&mut self, query_args: Vec<&str>) -> IoResult<()> {
         if query_args.len() == 0 {
             return Ok(());
         }
@@ -694,23 +709,21 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
         self.mania_scroll_speed = parse_from_arg::<u8>(&matches, "Mania scroll speed")?;
         Ok(())
     }
-    
-    fn set_from_mask(&mut self, mask: &BeatmapMask) {
+
+    pub fn set_from_mask(&mut self, mask: &BeatmapMask) {
         if self.entry_size.is_ignore() && mask.entry_size {
             self.entry_size = LoadSetting::Load;
         }
         if self.artist_name.is_ignore() && mask.artist_name {
             self.artist_name = LoadSetting::Load;
         }
-        if self.artist_name_unicode.is_ignore()
-            && mask.artist_name_unicode {
+        if self.artist_name_unicode.is_ignore() && mask.artist_name_unicode {
             self.artist_name_unicode = LoadSetting::Load;
         }
         if self.song_title.is_ignore() && mask.song_title {
             self.song_title = LoadSetting::Load;
         }
-        if self.song_title_unicode.is_ignore()
-            && mask.song_title_unicode {
+        if self.song_title_unicode.is_ignore() && mask.song_title_unicode {
             self.song_title_unicode = LoadSetting::Load;
         }
         if self.creator_name.is_ignore() && mask.creator_name {
@@ -719,36 +732,28 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
         if self.difficulty.is_ignore() && mask.difficulty {
             self.difficulty = LoadSetting::Load;
         }
-        if self.audio_file_name.is_ignore()
-            && mask.audio_file_name {
+        if self.audio_file_name.is_ignore() && mask.audio_file_name {
             self.audio_file_name = LoadSetting::Load;
         }
-        if self.md5_beatmap_hash.is_ignore()
-            && mask.md5_beatmap_hash {
+        if self.md5_beatmap_hash.is_ignore() && mask.md5_beatmap_hash {
             self.md5_beatmap_hash = LoadSetting::Load;
         }
-        if self.dotosu_file_name.is_ignore()
-            && mask.dotosu_file_name {
+        if self.dotosu_file_name.is_ignore() && mask.dotosu_file_name {
             self.dotosu_file_name = LoadSetting::Load;
         }
-        if self.ranked_status.is_ignore()
-            && mask.ranked_status {
+        if self.ranked_status.is_ignore() && mask.ranked_status {
             self.ranked_status = LoadSetting::Load;
         }
-        if self.number_of_hitcircles.is_ignore()
-            && mask.number_of_hitcircles {
+        if self.number_of_hitcircles.is_ignore() && mask.number_of_hitcircles {
             self.number_of_hitcircles = LoadSetting::Load;
         }
-        if self.number_of_sliders.is_ignore()
-            && mask.number_of_sliders {
+        if self.number_of_sliders.is_ignore() && mask.number_of_sliders {
             self.number_of_sliders = LoadSetting::Load;
         }
-        if self.number_of_spinners.is_ignore()
-            && mask.number_of_spinners {
+        if self.number_of_spinners.is_ignore() && mask.number_of_spinners {
             self.number_of_spinners = LoadSetting::Load;
         }
-        if self.last_modification_time.is_ignore()
-            && mask.last_modification_time {
+        if self.last_modification_time.is_ignore() && mask.last_modification_time {
             self.last_modification_time = LoadSetting::Load;
         }
         if self.approach_rate.is_ignore() && mask.approach_rate {
@@ -760,12 +765,10 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
         if self.hp_drain.is_ignore() && mask.hp_drain {
             self.hp_drain = LoadSetting::Load;
         }
-        if self.overall_difficulty.is_ignore()
-            && mask.overall_difficulty {
+        if self.overall_difficulty.is_ignore() && mask.overall_difficulty {
             self.overall_difficulty = LoadSetting::Load;
         }
-        if self.slider_velocity.is_ignore()
-            && mask.slider_velocity {
+        if self.slider_velocity.is_ignore() && mask.slider_velocity {
             self.slider_velocity = LoadSetting::Load;
         }
         if self.num_mod_combo_star_ratings_standard.is_ignore()
@@ -780,24 +783,20 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
             && mask.num_mod_combo_star_ratings_taiko {
             self.num_mod_combo_star_ratings_taiko = LoadSetting::Load;
         }
-        if self.mod_combo_star_ratings_taiko.is_ignore()
-            && mask.mod_combo_star_ratings_taiko {
+        if self.mod_combo_star_ratings_taiko.is_ignore() && mask.mod_combo_star_ratings_taiko {
             self.mod_combo_star_ratings_taiko = LoadSetting::Load;
         }
-        if self.num_mod_combo_star_ratings_ctb.is_ignore()
-            && mask.num_mod_combo_star_ratings_ctb {
+        if self.num_mod_combo_star_ratings_ctb.is_ignore() && mask.num_mod_combo_star_ratings_ctb {
             self.num_mod_combo_star_ratings_ctb = LoadSetting::Load;
         }
-        if self.mod_combo_star_ratings_ctb.is_ignore()
-            && mask.mod_combo_star_ratings_ctb {
+        if self.mod_combo_star_ratings_ctb.is_ignore() && mask.mod_combo_star_ratings_ctb {
             self.mod_combo_star_ratings_ctb = LoadSetting::Load;
         }
         if self.num_mod_combo_star_ratings_mania.is_ignore()
             && mask.num_mod_combo_star_ratings_mania {
             self.num_mod_combo_star_ratings_mania = LoadSetting::Load;
         }
-        if self.mod_combo_star_ratings_mania.is_ignore()
-            && mask.mod_combo_star_ratings_mania {
+        if self.mod_combo_star_ratings_mania.is_ignore() && mask.mod_combo_star_ratings_mania {
             self.mod_combo_star_ratings_mania = LoadSetting::Load;
         }
         if self.drain_time.is_ignore() && mask.drain_time {
@@ -806,12 +805,10 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
         if self.total_time.is_ignore() && mask.total_time {
             self.total_time = LoadSetting::Load;
         }
-        if self.preview_offset_from_start_ms.is_ignore()
-            && mask.preview_offset_from_start_ms {
+        if self.preview_offset_from_start_ms.is_ignore() && mask.preview_offset_from_start_ms {
             self.preview_offset_from_start_ms = LoadSetting::Load;
         }
-        if self.num_timing_points.is_ignore()
-            && mask.num_timing_points {
+        if self.num_timing_points.is_ignore() && mask.num_timing_points {
             self.num_timing_points = LoadSetting::Load;
         }
         if self.timing_points.is_ignore() && mask.timing_points {
@@ -820,15 +817,13 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
         if self.beatmap_id.is_ignore() && mask.beatmap_id {
             self.beatmap_id = LoadSetting::Load;
         }
-        if self.beatmap_set_id.is_ignore()
-            && mask.beatmap_set_id {
+        if self.beatmap_set_id.is_ignore() && mask.beatmap_set_id {
             self.beatmap_set_id = LoadSetting::Load;
         }
         if self.thread_id.is_ignore() && mask.thread_id {
             self.thread_id = LoadSetting::Load;
         }
-        if self.standard_grade.is_ignore()
-            && mask.standard_grade {
+        if self.standard_grade.is_ignore() && mask.standard_grade {
             self.standard_grade = LoadSetting::Load;
         }
         if self.taiko_grade.is_ignore() && mask.taiko_grade {
@@ -843,8 +838,7 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
         if self.local_offset.is_ignore() && mask.local_offset {
             self.local_offset = LoadSetting::Load;
         }
-        if self.stack_leniency.is_ignore()
-            && mask.stack_leniency {
+        if self.stack_leniency.is_ignore() && mask.stack_leniency {
             self.stack_leniency = LoadSetting::Load;
         }
         if self.gameplay_mode.is_ignore() && mask.gameplay_mode {
@@ -859,8 +853,7 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
         if self.online_offset.is_ignore() && mask.online_offset {
             self.online_offset = LoadSetting::Load;
         }
-        if self.font_used_for_song_title.is_ignore()
-            && mask.font_used_for_song_title {
+        if self.font_used_for_song_title.is_ignore() && mask.font_used_for_song_title {
             self.font_used_for_song_title = LoadSetting::Load;
         }
         if self.unplayed.is_ignore() && mask.unplayed {
@@ -872,32 +865,25 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
         if self.is_osz2.is_ignore() && mask.is_osz2 {
             self.is_osz2 = LoadSetting::Load;
         }
-        if self.beatmap_folder_name.is_ignore()
-            && mask.beatmap_folder_name {
+        if self.beatmap_folder_name.is_ignore() && mask.beatmap_folder_name {
             self.beatmap_folder_name = LoadSetting::Load;
         }
-        if self.last_checked_against_repo.is_ignore()
-            && mask.last_checked_against_repo {
+        if self.last_checked_against_repo.is_ignore() && mask.last_checked_against_repo {
             self.last_checked_against_repo = LoadSetting::Load;
         }
-        if self.ignore_beatmap_sound.is_ignore()
-            && mask.ignore_beatmap_sound {
+        if self.ignore_beatmap_sound.is_ignore() && mask.ignore_beatmap_sound {
             self.ignore_beatmap_sound = LoadSetting::Load;
         }
-        if self.ignore_beatmap_skin.is_ignore()
-            && mask.ignore_beatmap_skin {
+        if self.ignore_beatmap_skin.is_ignore() && mask.ignore_beatmap_skin {
             self.ignore_beatmap_skin = LoadSetting::Load;
         }
-        if self.disable_storyboard.is_ignore()
-            && mask.disable_storyboard {
+        if self.disable_storyboard.is_ignore() && mask.disable_storyboard {
             self.disable_storyboard = LoadSetting::Load;
         }
-        if self.disable_video.is_ignore()
-            && mask.disable_video {
+        if self.disable_video.is_ignore() && mask.disable_video {
             self.disable_video = LoadSetting::Load;
         }
-        if self.visual_override.is_ignore()
-            && mask.visual_override {
+        if self.visual_override.is_ignore() && mask.visual_override {
             self.visual_override = LoadSetting::Load;
         }
         if self.unknown_short.is_ignore() && mask.unknown_short {
@@ -907,8 +893,7 @@ impl QueryStruct<BeatmapMask> for BeatmapLoadSettings {
             && mask.offset_from_song_start_in_editor_ms {
             self.offset_from_song_start_in_editor_ms = LoadSetting::Load;
         }
-        if self.mania_scroll_speed.is_ignore()
-            && mask.mania_scroll_speed {
+        if self.mania_scroll_speed.is_ignore() && mask.mania_scroll_speed {
             self.mania_scroll_speed = LoadSetting::Load;
         }
     }

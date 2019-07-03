@@ -1,71 +1,38 @@
-use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidInput};
+use std::io::Result as IoResult;
 
-use clap::{Arg, App, SubCommand, AppSettings, ArgGroup};
+use chrono::NaiveDate;
 
-use crate::query::collection::collection_query::CollectionQuery;
+use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::QueryError};
+use crate::load_settings::{
+    collection::collection_load_settings::CollectionLoadSettings, query::QueryStruct, LoadSetting
+};
+use crate::masks::collection_mask::CollectionDbMask;
 
-pub struct CollectionDbQuery {
-    pub version: bool,
-    pub number_of_collections: bool,
-    pub collections_query: Option<CollectionQuery>
+pub struct CollectionDbLoadSettings {
+    pub version: LoadSetting<i32>,
+    pub number_of_collections: LoadSetting<i32>,
+    pub collections_query: CollectionLoadSettings
 }
 
-impl CollectionDbQuery {
-    pub fn from_args(args: Vec<&str>) -> IoResult<Self> {
-        let matches = App::new("collection.db query parser")
-            .arg(Arg::with_name("Version")
-                .long("VERSION")
-                .required(false)
-                .multiple(false)
-                .takes_value(false))
-            .arg(Arg::with_name("Number of collections")
-                .long("NUMBER-OF-COLLECTIONS")
-                .required(false))
-            .subcommand(SubCommand::with_name("query")
-                .arg(Arg::with_name("Collection name")
-                    .long("COLLECTION-NAME")
-                    .required(false)
-                    .multiple(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NAME"))
-                .arg(Arg::with_name("Number of beatmaps")
-                    .long("NUMBER-OF-BEATMAPS")
-                    .required(false)
-                    .multiple(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"))
-                .arg(Arg::with_name("MD5 beatmap hash")
-                    .long("MD5-BEATMAP-HASH")
-                    .required(false)
-                    .multiple(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("HASH"))).get_matches_from(args.into_iter());
-        let version = matches.is_present("Version");
-        let number_of_collections = matches.is_present("Number of collections");
-        let collections_query = if let Some(subcommand_matches)
-            = matches.subcommand_matches("query") {
-            get_and_assign_string!(subcommand_matches {
-                "Collection name" => collection_name;
-                "MD5 beatmap hash" => md5_beatmap_hash;
-            });
-            get_parse_and_assign!(subcommand_matches {
-                "Number of beatmaps", number_of_beatmaps => i32;
-            });
-            Some(CollectionQuery {
-                collection_name,
-                number_of_beatmaps,
-                md5_beatmap_hash
-            })
-        } else {
-            None
-        };
-        Ok(CollectionDbQuery {
-            version,
-            number_of_collections,
-            collections_query
-        })
+impl QueryStruct<CollectionDbMask> for CollectionDbLoadSettings {
+    fn load_all(&self) -> bool {
+        self.collections_query.load_all()
+            && !(self.version.is_ignore() || self.number_of_collections.is_ignore())
+    }
+
+    fn set_from_query(&mut self, args: Vec<&str>) -> IoResult<()> {
+        self.collections_query.set_from_query(args)
+    }
+
+    fn set_from_mask(&mut self, mask: CollectionDbMask) {
+        if self.version.is_ignore() && mask.version {
+            self.version = LoadSetting::Load;
+        }
+        if self.number_of_collections.is_ignore() && mask.number_of_collections {
+            self.number_of_collections = LoadSetting::Load;
+        }
+        if let Some(m) = mask.collections_mask {
+            self.collections_query.set_from_mask(m);
+        }
     }
 }
