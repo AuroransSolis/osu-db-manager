@@ -1,3 +1,5 @@
+use clap::{Arg, App, SubCommand, AppSettings, ArgGroup, ArgMatches};
+
 use crate::masks::mask::Mask;
 
 #[derive(Copy, Clone, Debug)]
@@ -17,26 +19,29 @@ impl CollectionMask {
     }
 }
 
-impl Mask for CollectionMask {
-    fn is_complete(&self) -> bool {
-        self.collection_name && self.number_of_beatmaps && self.md5_beatmap_hashes
-    }
-
-    fn from_show_and_query(show: Self, query: Self) -> Self {
-        CollectionMask {
-            collection_name: show.collection_name || query.collection_name,
-            number_of_beatmaps: show.number_of_beatmaps || query.number_of_beatmaps,
-            md5_beatmap_hashes: show.md5_beatmap_hashes || query.md5_beatmap_hashes
-        }
-    }
-}
-
 impl Default for CollectionMask {
     fn default() -> Self {
         CollectionMask {
             collection_name: true,
             number_of_beatmaps: true,
             md5_beatmap_hashes: true
+        }
+    }
+}
+
+impl CollectionMask {
+    fn is_complete(&self) -> bool {
+        self.collection_name && self.number_of_beatmaps && self.md5_beatmap_hashes
+    }
+
+    fn from_show_matches(matches: &ArgMatches) -> Self {
+        let collection_name = matches.is_present("Collection name");
+        let number_of_beatmaps = matches.is_present("Number of beatmaps");
+        let md5_beatmap_hashes = matches.is_present("MD5 beatmap hashes");
+        CollectionMask {
+            collection_name,
+            number_of_beatmaps,
+            md5_beatmap_hashes
         }
     }
 }
@@ -68,30 +73,46 @@ impl Mask for CollectionDbMask {
         }
     }
 
-    fn from_show_and_query(show: Self, query: Self) -> Self {
+    fn from_show_args(show_args: Vec<&str>) -> Self {
+        let matches = App::new("collection.db show options parser")
+            .arg(Arg::with_name("Version")
+                .long("VERSION")
+                .required(false)
+                .takes_value(false)
+                .multiple(false))
+            .arg(Arg::with_name("Number of collections")
+                .long("NUMBER-OF-COLLECTIONS")
+                .required(false)
+                .takes_value(false)
+                .multiple(false))
+            .subcommand(SubCommand::with_name("COLLECTION-OPTIONS")
+                .arg(Arg::with_name("Collection name")
+                    .long("COLLECTION-NAME")
+                    .required(false)
+                    .takes_value(false)
+                    .multiple(false))
+                .arg(Arg::with_name("Number of beatmaps")
+                    .long("NUMBER-OF-BEATMAPS")
+                    .required(false)
+                    .takes_value(false)
+                    .multiple(false))
+                .arg(Arg::with_name("MD5 beatmap hashes")
+                    .long("MD5-BEATMAP-HASHES")
+                    .required(false)
+                    .takes_value(false)
+                    .multiple(false)))
+            .get_matches_from(show_args.into_iter());
+        let version = matches.is_present("Version");
+        let number_of_collections = matches.is_present("Number of collections");
+        let collections_mask = if let Some(m) = matches.subcommand_matches("COLLECTION-OPTIONS") {
+            Some(CollectionMask::from_show_matches(m))
+        } else {
+            None
+        };
         CollectionDbMask {
-            version: show.version || query.version,
-            number_of_collections: show.number_of_collections || query.number_of_collections,
-            collections_mask: {
-                match (show.collections_mask, query.collections_mask) {
-                    (Some(show_mask), Some(query_mask)) => {
-                        Some(CollectionMask::from_show_and_query(show_mask, query_mask))
-                    },
-                    (Some(show_mask), None) => Some(show_mask),
-                    (None, Some(query_mask)) => Some(query_mask),
-                    (None, None) => None
-                }
-            }
-        }
-    }
-}
-
-impl Default for CollectionDbMask {
-    fn default() -> Self {
-        CollectionDbMask {
-            version: true,
-            number_of_collections: true,
-            collections_mask: Some(CollectionMask::default())
+            version,
+            number_of_collections,
+            collections_mask
         }
     }
 }
