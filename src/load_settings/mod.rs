@@ -32,7 +32,7 @@ use crate::masks::mask::DbMask::CollectionMask;
 
 impl<T: Clone + PartialEq + PartialOrd + FromStr> Comparison<T> {
     fn from_str(s: &str) -> IoResult<Self> {
-        // If it's just "=4" or "=9.2" or something. Not a range.
+        // If it's just "4" or "9.2" or something. Not a range.
         if is_number(s) {
             Eq(s.parse::<T>().map_err(|e| {
                 let msg = format!("Invalid number: {}\nParse error: {}", s, e);
@@ -145,18 +145,22 @@ impl<T> LoadSetting<T> {
 }
 
 pub(crate) enum SpecialArgType {
+    Optioni32,
     bool,
     NaiveDate,
     String,
-    OptionString
+    OptionString,
+    Optioni16
 }
 
 trait IsSpecialArgType {}
 
+impl IsSpecialArgType for Option<i32>{}
 impl IsSpecialArgType for bool {}
 impl IsSpecialArgType for NaiveDate {}
 impl IsSpecialArgType for String {}
 impl IsSpecialArgType for Option<String> {}
+impl IsSpecialArgType for Option<i16> {}
 
 fn date_from_str(s: &str) -> IoResult<NaiveDate> {
     NaiveDate::parse_from_str(s, "%F").map_err(|e| {
@@ -168,6 +172,7 @@ fn date_from_str(s: &str) -> IoResult<NaiveDate> {
 fn parse_from_arg_special<'a, T: IsSpecialArgType>(matches: &ArgMatches<'a>, field: &str,
     t: SpecialArgType) -> IoResult<LoadSetting<T>> {
     match t {
+        SpecialArgType::Optioni32 => Ok(Some(parse_from_arg::<i32>(matches, field)?))z,
         SpecialArgType::bool => {
             match m.to_lowercase().as_str() {
                 "t" | "true" | "y" | "yes" | "1" => Ok(LoadSetting::Filter(Comparison::Eq(true))),
@@ -241,7 +246,7 @@ fn parse_from_arg_special<'a, T: IsSpecialArgType>(matches: &ArgMatches<'a>, fie
                 Ok(LoadSetting::Ignore)
             }
         },
-        _ => Err(IoError::new(InvalidInput, ""))
+        SpecialArgType::Optioni16 => Ok(Some(parse_from_arg::<i16>(matches, field)?))
     }
 }
 
