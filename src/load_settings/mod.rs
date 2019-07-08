@@ -9,11 +9,78 @@ use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidInput};
 use std::str::FromStr;
 
 use clap::ArgMatches;
+use chrono::NaiveDate;
 
 use crate::databases::osu::primitives::{RankedStatus, ByteSingle, GameplayMode};
 
+trait Compare<T> {
+    fn compare(&self, other: T) -> bool;
+}
+
 #[derive(Clone)]
-pub enum Comparison<T: Clone + PartialEq + PartialOrd> {
+pub enum LoadSetting<C: Compare> {
+    Load,
+    Filter(C),
+    Ignore
+}
+
+impl<T> LoadSetting<T> {
+    pub(crate) fn is_ignore(&self) -> bool {
+        match self {
+            LoadSetting::Ignore => true,
+            _ => false
+        }
+    }
+}
+
+struct Empty {}
+
+impl Compare<Empty> for Empty {
+    fn compare(&self, other: Empty) -> bool {
+        false
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct EqualCopy<T: Copy + Clone + PartialEq> {
+    value: T
+}
+
+impl<T: Copy + Clone + PartialEq> Compare<T> for EqualCopy<T> {
+    fn compare(&self, other: T) -> bool {
+        *self.value == other
+    }
+}
+
+impl<T: Copy + Clone + PartialEq> EqualCopy<T> {
+    pub fn new(value: T) -> Self {
+        EqualCopy {
+            value
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct EqualClone<T: Clone + PartialEq> {
+    value: T
+}
+
+impl<T: Clone + PartialEq> Compare<T> for EqualClone<T> {
+    fn compare(&self, other: T) -> bool {
+        self.value.clone() == other
+    }
+}
+
+impl<T: Clone + PartialEq> EqualClone<T> {
+    fn new(value: T) -> Self {
+        EqualClone {
+            value
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum Relational<T: Copy + Clone + PartialEq + PartialOrd> {
     Eq(T),
     Lt(T),
     Gt(T),
@@ -25,12 +92,25 @@ pub enum Comparison<T: Clone + PartialEq + PartialOrd> {
     IrII(Range<T>) // in range [a, b]
 }
 
-use self::Comparison::*;
-use chrono::NaiveDate;
-use crate::load_settings::LoadSetting::Load;
-use crate::masks::mask::DbMask::CollectionMask;
+impl<T: Copy + Clone + PartialEq + PartialOrd> Compare<T> for Relational<T> {
+    fn compare(&self, other: T) -> bool {
+        match *self {
+            Relational::Eq(eq) => other == eq,
+            Relational::Lt(lt) => other < lt,
+            Relational::Gt(gt) => other > gt,
+            Relational::LtE(lte) => other <= lte,
+            Relational::GtE(gte) => other >= gte,
+            Relational::IrEE(Range { start, end }) => other > range.start && other < range.end,
+            Relational::IrEI(Range { start, end }) => other > range.start && other <= range.end,
+            Relational::IrIE(Range { start, end }) => other >= range.start && other < range.end,
+            Relational::IrII(Range { start, end }) => other >= range.start && other <= range.end
+        }
+    }
+}
 
-impl<T: Clone + PartialEq + PartialOrd + FromStr> Comparison<T> {
+use self::Relational::*;
+
+impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
     fn from_str(s: &str) -> IoResult<Self> {
         // If it's just "4" or "9.2" or something. Not a range.
         if is_number(s) {
@@ -128,24 +208,7 @@ pub(crate) fn is_valid_range(s: &str) -> bool {
     }
 }
 
-#[derive(Clone)]
-pub enum LoadSetting<T: Clone + PartialEq + PartialOrd> {
-    Load,
-    Filter(Comparison<T>),
-    Ignore
-}
-
-impl<T> LoadSetting<T> {
-    pub(crate) fn is_ignore(&self) -> bool {
-        match self {
-            LoadSetting::Ignore => true,
-            _ => false
-        }
-    }
-}
-
 pub(crate) enum SpecialArgType {
-    Optioni32,
     bool,
     NaiveDate,
     String,
@@ -155,7 +218,6 @@ pub(crate) enum SpecialArgType {
 
 trait IsSpecialArgType {}
 
-impl IsSpecialArgType for Option<i32>{}
 impl IsSpecialArgType for bool {}
 impl IsSpecialArgType for NaiveDate {}
 impl IsSpecialArgType for String {}
@@ -172,17 +234,25 @@ fn date_from_str(s: &str) -> IoResult<NaiveDate> {
 fn parse_from_arg_special<'a, T: IsSpecialArgType>(matches: &ArgMatches<'a>, field: &str,
     t: SpecialArgType) -> IoResult<LoadSetting<T>> {
     match t {
-        SpecialArgType::Optioni32 => Ok(Some(parse_from_arg::<i32>(matches, field)?))z,
+        SpecialArgType::Optioni32 => Ok(Some(parse_from_arg::<i32>(matches, field)?)),
         SpecialArgType::bool => {
-            match m.to_lowercase().as_str() {
-                "t" | "true" | "y" | "yes" | "1" => Ok(LoadSetting::Filter(Comparison::Eq(true))),
-                "f" | "false" | "n" | "no" | "0" => Ok(LoadSetting::Filter(Comparison::Eq(false))),
-                _ => {
-                    let msg = format!("Could not parse {} as a boolean. Valid inputs are:\n \
-                         - t/true/y/yes\n \
-                         - f/false/n/no");
-                    Err(IoError::new(InvalidInput, msg.as_str()))
+            if let Some(m) = matches.value_of(field) {
+                match m.to_lowercase().as_str() {
+                    "t" | "true" | "y" | "yes" | "1" => {
+                        Ok(LoadSetting::Filter(Comparison::Eq(true)))
+                    },
+                    "f" | "false" | "n" | "no" | "0" => {
+                        Ok(LoadSetting::Filter(Comparison::Eq(false)))
+                    },
+                    _ => {
+                        let msg = format!("Could not parse {} as a boolean. Valid inputs are:\n \
+                         - t/true/y/yes/1\n \
+                         - f/false/n/no/0");
+                        Err(IoError::new(InvalidInput, msg.as_str()))
+                    }
                 }
+            } else {
+                Ok(LoadSetting::Ignore)
             }
         },
         SpecialArgType::String => {
