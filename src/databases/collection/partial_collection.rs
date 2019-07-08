@@ -1,6 +1,6 @@
 use crate::read_error::{ParseFileResult, ParseErrorKind::PrimitiveError, DbFileParseError};
 use crate::deserialize_primitives::*;
-use crate::masks::collection_mask::CollectionMask;
+use crate::load_settings::collection::CollectionLoadSettings;
 
 #[derive(Debug, Clone)]
 pub struct PartialCollection {
@@ -10,7 +10,7 @@ pub struct PartialCollection {
 }
 
 impl PartialCollection {
-    pub fn read_from_bytes(mask: CollectionMask, bytes: &[u8], i: &mut usize)
+    pub fn read_from_bytes(settings: CollectionLoadSettings, bytes: &[u8], i: &mut usize)
         -> ParseFileResult<Self> {
         let collection_name = if mask.collection_name {
             read_string_utf8(bytes, i, "collection name")?
