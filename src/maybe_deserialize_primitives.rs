@@ -39,23 +39,24 @@ macro_rules! primitive {
 }
 
 #[inline]
-pub fn maybe_read_byte(s: LoadSetting<Relational<u8>>, b: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<FilterResult<u8>> {
+pub fn maybe_read_byte(s: LoadSetting<Relational<u8>>, skip: &mut bool, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<Option<u8>> {
     if *i < bytes.len() {
-        if s.is_ignore() || b {
+        if s.is_ignore() || *skip {
             *i += 1;
-            Ok(FilterResult::Meets(None))
+            Ok(None)
         } else {
             let tmp = bytes[*i];
             *i += 1;
             if let LoadSetting::Filter(filter) = s {
                 if filter.compare(tmp) {
-                    Ok(FilterResult::Meets(Some(tmp)))
+                    Ok(Some(tmp))
                 } else {
-                    Ok(FilterResult::Fails)
+                    *skip = true;
+                    Ok(None)
                 }
             } else {
-                Ok(FilterResult::Meets(Some(tmp)))
+                Ok(Some(tmp))
             }
         }
     } else {
@@ -64,12 +65,12 @@ pub fn maybe_read_byte(s: LoadSetting<Relational<u8>>, b: bool, bytes: &[u8], i:
 }
 
 #[inline]
-pub fn maybe_read_short(s: LoadSetting<Relational<i16>>, b: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<FilterResult<i16>> {
+pub fn maybe_read_short(s: LoadSetting<Relational<i16>>, skip: &mut bool, bytes: &[u8],
+    i: &mut usize) -> ParseFileResult<Option<i16>> {
     if *i + 1 < bytes.len() {
-        if s.is_ignore() || b {
+        if s.is_ignore() || *skip {
             *i += 2;
-            Ok(FilterResult::Meets(None))
+            Ok(None)
         } else {
             let mut buf = [0; 2];
             buf.copy_from_slice(&bytes[*i..*i + 2]);
@@ -77,12 +78,13 @@ pub fn maybe_read_short(s: LoadSetting<Relational<i16>>, b: bool, bytes: &[u8], 
             *i += 2;
             if let LoadSetting::Filter(filter) = s {
                 if filter.compare(tmp) {
-                    Ok(FilterResult::Meets(Some(tmp)))
+                    Ok(Some(tmp))
                 } else {
-                    Ok(FilterResult::Fails)
+                    *skip = true;
+                    Ok(None)
                 }
             } else {
-                Ok(FilterResult::Meets(Some(tmp)))
+                Ok(Some(tmp))
             }
         }
     } else {
@@ -91,12 +93,12 @@ pub fn maybe_read_short(s: LoadSetting<Relational<i16>>, b: bool, bytes: &[u8], 
 }
 
 #[inline]
-pub fn maybe_read_int(s: LoadSetting<Relational<i32>>, b: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<FilterResult<i32>> {
+pub fn maybe_read_int(s: LoadSetting<Relational<i32>>, skip: &mut bool, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<Option<i32>> {
     if *i + 3 < bytes.len() {
-        if s.is_ignore() || b {
+        if s.is_ignore() || *skip {
             *i += 4;
-            Ok(FilterResult::Meets(None))
+            Ok(None)
         } else {
             let mut buf = [0; 4];
             buf.copy_from_slice(&bytes[*i..*i + 4]);
@@ -104,12 +106,13 @@ pub fn maybe_read_int(s: LoadSetting<Relational<i32>>, b: bool, bytes: &[u8], i:
             *i += 4;
             if let LoadSetting::Filter(filter) = s {
                 if filter.compare(tmp) {
-                    Ok(FilterResult::Meets(Some(tmp)))
+                    Ok(Some(tmp))
                 } else {
-                    Ok(FilterResult::Fails)
+                    *skip = true;
+                    Ok(None)
                 }
             } else {
-                Ok(FilterResult::Meets(Some(tmp)))
+                Ok(Some(tmp))
             }
         }
     } else {
@@ -118,12 +121,12 @@ pub fn maybe_read_int(s: LoadSetting<Relational<i32>>, b: bool, bytes: &[u8], i:
 }
 
 #[inline]
-pub fn maybe_read_long(s: LoadSetting<Relational<i64>>, b: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<FilterResult<i64>> {
+pub fn maybe_read_long(s: LoadSetting<Relational<i64>>, skip: &mut bool, bytes: &[u8],
+    i: &mut usize) -> ParseFileResult<Option<i64>> {
     if *i + 7 < bytes.len() {
-        if s.is_ignore() || b {
+        if s.is_ignore() || *skip {
             *i += 8;
-            Ok(FilterResult::Meets(None))
+            Ok(None)
         } else {
             let mut buf = [0; 8];
             buf.copy_from_slice(&bytes[*i..*i + 8]);
@@ -131,12 +134,13 @@ pub fn maybe_read_long(s: LoadSetting<Relational<i64>>, b: bool, bytes: &[u8], i
             *i += 8;
             if let LoadSetting::Filter(filter) = s {
                 if filter.compare(tmp) {
-                    Ok(FilterResult::Meets(Some(tmp)))
+                    Ok(Some(tmp))
                 } else {
-                    Ok(FilterResult::Fails)
+                    *skip = true;
+                    Ok(None)
                 }
             } else {
-                Ok(FilterResult::Meets(Some(tmp)))
+                Ok(Some(tmp))
             }
         }
     } else {
@@ -145,12 +149,12 @@ pub fn maybe_read_long(s: LoadSetting<Relational<i64>>, b: bool, bytes: &[u8], i
 }
 
 #[inline]
-pub fn maybe_read_single(s: LoadSetting<Relational<f32>>, b: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<FilterResult<f32>> {
+pub fn maybe_read_single(s: LoadSetting<Relational<f32>>, skip: &mut bool, bytes: &[u8],
+    i: &mut usize) -> ParseFileResult<Option<f32>> {
     if *i + 4 < bytes.len() {
-        if s.is_ignore() || b {
+        if s.is_ignore() || *skip {
             *i += 4;
-            Ok(FilterResult::Meets(None))
+            Ok(None)
         } else {
             let mut buf = [0; 4];
             buf.copy_from_slice(&bytes[*i..*i + 4]);
@@ -159,12 +163,13 @@ pub fn maybe_read_single(s: LoadSetting<Relational<f32>>, b: bool, bytes: &[u8],
             *i += 4;
             if let LoadSetting::Filter(filter) = s {
                 if filter.compare(tmp) {
-                    Ok(FilterResult::Meets(Some(tmp)))
+                    Ok(Some(tmp))
                 } else {
-                    Ok(FilterResult::Fails)
+                    *skip = true;
+                    Ok(None)
                 }
             } else {
-                Ok(FilterResult::Meets(Some(tmp)))
+                Ok(Some(tmp))
             }
         }
     } else {
@@ -173,12 +178,12 @@ pub fn maybe_read_single(s: LoadSetting<Relational<f32>>, b: bool, bytes: &[u8],
 }
 
 #[inline]
-pub fn maybe_read_double(s: LoadSetting<Relational<f64>>, b: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<FilterResult<f64>> {
+pub fn maybe_read_double(s: LoadSetting<Relational<f64>>, skip: &mut bool, bytes: &[u8],
+    i: &mut usize) -> ParseFileResult<Option<f64>> {
     if *i + 8 < bytes.len() {
-        if s.is_ignore() || b {
+        if s.is_ignore() || *skip {
             *i += 8;
-            Ok(FilterResult::Meets(None))
+            Ok(None)
         } else {
             let mut buf = [0; 8];
             buf.copy_from_slice(&bytes[*i..*i + 8]);
@@ -187,12 +192,13 @@ pub fn maybe_read_double(s: LoadSetting<Relational<f64>>, b: bool, bytes: &[u8],
             *i += 8;
             if let LoadSetting::Filter(filter) = s {
                 if filter.compare(tmp) {
-                    Ok(FilterResult::Meets(Some(tmp)))
+                    Ok(Some(tmp))
                 } else {
-                    Ok(FilterResult::Fails)
+                    *skip = true;
+                    Ok(None)
                 }
             } else {
-                Ok(FilterResult::Meets(Some(tmp)))
+                Ok(Some(tmp))
             }
         }
     } else {
@@ -201,17 +207,17 @@ pub fn maybe_read_double(s: LoadSetting<Relational<f64>>, b: bool, bytes: &[u8],
 }
 
 #[inline]
-pub fn maybe_read_string_utf8(s: LoadSetting<EqualClone<String>>, b: bool, bytes: &[u8],
-    i: &mut usize, field: &str) -> ParseFileResult<FilterResult<String>> {
+pub fn maybe_read_string_utf8(s: LoadSetting<EqualClone<String>>, skip: &mut bool, bytes: &[u8],
+    i: &mut usize, field: &str) -> ParseFileResult<Option<String>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         *i += 1;
         if indicator == 0x0b {
             let length = read_uleb128(bytes, i)?;
             if *i + length <= bytes.len() {
-                if s.is_ignore() || b {
+                if s.is_ignore() || *skip {
                     *i += length;
-                    Ok(FilterResult::Meets(None))
+                    Ok(None)
                 } else {
                     let tmp = String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
                         let err_msg = format!("Error reading string for {} ({})", field, e);
@@ -220,19 +226,20 @@ pub fn maybe_read_string_utf8(s: LoadSetting<EqualClone<String>>, b: bool, bytes
                     *i += length;
                     if let LoadSetting::Filter(filter) = s {
                         if filter.compare(tmp.clone()) {
-                            Ok(FilterResult::Meets(Some(tmp)))
+                            Ok(Some(tmp))
                         } else {
-                            Ok(FilterResult::Fails)
+                            *skip = true;
+                            Ok(None)
                         }
                     } else {
-                        Ok(FilterResult::Meets(Some(tmp)))
+                        Ok(Some(tmp))
                     }
                 }
             } else {
                 Err(DbFileParseError::new(PrimitiveError, "String length goes past end of file."))
             }
         } else if indicator == 0 {
-            Ok(FilterResult::Meets(None))
+            Ok(None)
         } else {
             let err_msg = format!("Read invalid string indicator ({}, index: {}).", indicator, i);
             Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
@@ -243,23 +250,24 @@ pub fn maybe_read_string_utf8(s: LoadSetting<EqualClone<String>>, b: bool, bytes
 }
 
 #[inline]
-pub fn maybe_read_boolean(s: LoadSetting<EqualCopy<bool>>, b: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<FilterResult<bool>> {
+pub fn maybe_read_boolean(s: LoadSetting<EqualCopy<bool>>, skip: &mut bool, bytes: &[u8],
+    i: &mut usize) -> ParseFileResult<Option<bool>> {
     if *i < bytes.len() {
-        if s.is_ignore() || b {
+        if s.is_ignore() || *skip {
             *i += 1;
-            Ok(FilterResult::Meets(None))
+            Ok(None)
         } else {
             let tmp = bytes[*i] != 0;
             *i += 1;
             if let LoadSetting::Filter(filter) = s {
                 if filter.compare(tmp) {
-                    Ok(FilterResult::Meets(Some(tmp)))
+                    Ok(Some(tmp))
                 } else {
-                    Ok(FilterResult::Fails)
+                    *skip = true;
+                    Ok(None)
                 }
             } else {
-                Ok(FilterResult::Meets(Some(tmp)))
+                Ok(Some(tmp))
             }
         }
     } else {
@@ -268,12 +276,12 @@ pub fn maybe_read_boolean(s: LoadSetting<EqualCopy<bool>>, b: bool, bytes: &[u8]
 }
 
 #[inline]
-pub fn maybe_read_datetime(s: LoadSetting<Relational<NaiveDate>>, b: bool, bytes: &[u8],
-    i: &mut usize) -> ParseFileResult<FilterResult<NaiveDate>> {
+pub fn maybe_read_datetime(s: LoadSetting<Relational<NaiveDate>>, skip: &mut bool, bytes: &[u8],
+    i: &mut usize) -> ParseFileResult<Option<NaiveDate>> {
     if *i + 7 < bytes.len() {
-        if s.is_ignore() || b {
+        if s.is_ignore() || *skip {
             *i += 8;
-            Ok(FilterResult::Meets(None))
+            Ok(None)
         } else {
             let mut buf = [0; 8];
             buf.copy_from_slice(&bytes[*i..*i + 8]);
@@ -287,9 +295,10 @@ pub fn maybe_read_datetime(s: LoadSetting<Relational<NaiveDate>>, b: bool, bytes
             let naive_date = NaiveDate::from_ymd(1970, 0, 0) + chrono_duration;
             if let LoadSetting::Filter(filter) = s {
                 if filter.compare(naive_date) {
-                    Ok(FilterResult::Meets(Some(naive_date)))
+                    Ok(Some(naive_date))
                 } else {
-                    Ok(FilterResult::Fails)
+                    *skip = true;
+                    Ok(None)
                 }
             } else {
                 Ok(Some(NaiveDate))
@@ -301,17 +310,17 @@ pub fn maybe_read_datetime(s: LoadSetting<Relational<NaiveDate>>, b: bool, bytes
 }
 
 #[inline]
-pub fn maybe_read_md5_hash(s: LoadSetting<EqualClone<String>>, b: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<FilterResult<String>> {
+pub fn maybe_read_md5_hash(s: LoadSetting<EqualClone<String>>, skip: &mut bool, bytes: &[u8],
+    i: &mut usize) -> ParseFileResult<Option<String>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         if indicator == 0 {
             Err(DbFileParseError::new(PrimitiveError, "Missing hash! Indicator was 0."))
         } else if indicator == 0x0b {
             if *i + 32 < bytes.len() {
-                if s.is_ignore() || b {
+                if s.is_ignore() || *skip {
                     *i += 33;
-                    Ok(FilterResult::Meets(None))
+                    Ok(None)
                 } else {
                     // first byte will be 32 every time if indicator == 0x0b
                     let tmp = String::from_utf8(bytes[*i + 1..*i + 33].to_vec()).map_err(|e| {
@@ -319,12 +328,13 @@ pub fn maybe_read_md5_hash(s: LoadSetting<EqualClone<String>>, b: bool, bytes: &
                     })?;
                     if let LoadSetting::Filter(filter) = s {
                         if filter.compare(tmp.clone()) {
-                            Ok(FilterResult::Meets(Some(tmp)))
+                            Ok(Some(tmp))
                         } else {
-                            Ok(FilterResult::Fails)
+                            *skip = true;
+                            Ok(None)
                         }
                     } else {
-                        Ok(FilterResult::Meets(Some(tmp)))
+                        Ok(Some(tmp))
                     }
                 }
             } else {
@@ -340,16 +350,16 @@ pub fn maybe_read_md5_hash(s: LoadSetting<EqualClone<String>>, b: bool, bytes: &
 }
 
 #[inline]
-pub fn maybe_read_player_name(s: LoadSetting<EqualClone<String>>, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<FilterResult<String>> {
+pub fn maybe_read_player_name(s: LoadSetting<EqualClone<String>>, skip: &mut bool, bytes: &[u8],
+    i: &mut usize) -> ParseFileResult<Option<String>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         *i += 1;
         if indicator == 0 {
-            Ok(FilterResult::Meets(None))
+            Ok(None)
         } else if indicator == 0x0b {
             if s.is_ignore() {
-                Ok(FilterResult::Meets(None))
+                Ok(None)
             } else {
                 if *i < bytes.len() {
                     // Usernames are ASCII (1 byte in Unicode too), and so should never need more
@@ -370,12 +380,13 @@ pub fn maybe_read_player_name(s: LoadSetting<EqualClone<String>>, bytes: &[u8], 
                         })?;
                         if let LoadSetting::Filter(filter) = s {
                             if filter.compare(tmp.clone()) {
-                                Ok(FilterResult::Meets(Some(tmp)))
+                                Ok(Some(tmp))
                             } else {
-                                Ok(FilterResult::Fails)
+                                *skip = true;
+                                Ok(None)
                             }
                         } else {
-                            Ok(FilterResult::Meets(Some(tmp)))
+                            Ok(Some(tmp))
                         }
                     } else {
                         Err(DbFileParseError::new(PrimitiveError,
