@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+
 use crate::deserialize_primitives::*;
 use crate::databases::{load::Load, collection::collection::Collection};
 use crate::read_error::{ParseFileResult};
