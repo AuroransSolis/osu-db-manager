@@ -5,6 +5,8 @@ use chrono::{naive::NaiveDate, Duration as ChronoDuration};
 
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 use crate::deserialize_primitives::*;
+use crate::load_settings::{LoadSetting, EqualCopy, EqualClone, Relational, Compare, FilterResult};
+
 // Primitive types we need to read from databases:
 // Byte
 // Short
@@ -37,174 +39,200 @@ macro_rules! primitive {
 }
 
 #[inline]
-pub fn maybe_read_byte(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<u8>> {
-    if c {
-        if *i < bytes.len() {
+pub fn maybe_read_byte(s: LoadSetting<Relational<u8>>, b: bool, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<FilterResult<u8>> {
+    if *i < bytes.len() {
+        if s.is_ignore() || b {
+            *i += 1;
+            Ok(FilterResult::Meets(None))
+        } else {
             let tmp = bytes[*i];
             *i += 1;
-            Ok(Some(tmp))
-        } else {
-            Err(primitive!(BYTE_ERR))
+            if let LoadSetting::Filter(filter) = s {
+                if filter.compare(tmp) {
+                    Ok(FilterResult::Meets(Some(tmp)))
+                } else {
+                    Ok(FilterResult::Fails)
+                }
+            } else {
+                Ok(FilterResult::Meets(Some(tmp)))
+            }
         }
     } else {
-        *i += 1;
-        Ok(None)
+        Err(primitive!(BYTE_ERR))
     }
 }
 
 #[inline]
-pub fn maybe_read_short(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<i16>> {
-    if c {
-        if *i + 1 < bytes.len() {
+pub fn maybe_read_short(s: LoadSetting<Relational<i16>>, b: bool, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<FilterResult<i16>> {
+    if *i + 1 < bytes.len() {
+        if s.is_ignore() || b {
+            *i += 2;
+            Ok(FilterResult::Meets(None))
+        } else {
             let mut buf = [0; 2];
             buf.copy_from_slice(&bytes[*i..*i + 2]);
             let tmp = i16::from_le_bytes(buf);
             *i += 2;
-            Ok(Some(tmp))
-        } else {
-            Err(primitive!(SHORT_ERR))
+            if let LoadSetting::Filter(filter) = s {
+                if filter.compare(tmp) {
+                    Ok(FilterResult::Meets(Some(tmp)))
+                } else {
+                    Ok(FilterResult::Fails)
+                }
+            } else {
+                Ok(FilterResult::Meets(Some(tmp)))
+            }
         }
     } else {
-        *i += 2;
-        Ok(None)
+        Err(primitive!(SHORT_ERR))
     }
 }
 
 #[inline]
-pub fn maybe_read_int(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<i32>> {
-    if c {
-        if *i + 3 < bytes.len() {
+pub fn maybe_read_int(s: LoadSetting<Relational<i32>>, b: bool, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<FilterResult<i32>> {
+    if *i + 3 < bytes.len() {
+        if s.is_ignore() || b {
+            *i += 4;
+            Ok(FilterResult::Meets(None))
+        } else {
             let mut buf = [0; 4];
             buf.copy_from_slice(&bytes[*i..*i + 4]);
             let tmp = i32::from_le_bytes(buf);
             *i += 4;
-            Ok(Some(tmp))
-        } else {
-            Err(primitive!(INT_ERR))
+            if let LoadSetting::Filter(filter) = s {
+                if filter.compare(tmp) {
+                    Ok(FilterResult::Meets(Some(tmp)))
+                } else {
+                    Ok(FilterResult::Fails)
+                }
+            } else {
+                Ok(FilterResult::Meets(Some(tmp)))
+            }
         }
     } else {
-        *i += 4;
-        Ok(None)
+        Err(primitive!(INT_ERR))
     }
 }
 
 #[inline]
-pub fn maybe_read_long(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<i64>> {
-    if c {
-        if *i + 7 < bytes.len() {
+pub fn maybe_read_long(s: LoadSetting<Relational<i64>>, b: bool, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<FilterResult<i64>> {
+    if *i + 7 < bytes.len() {
+        if s.is_ignore() || b {
+            *i += 8;
+            Ok(FilterResult::Meets(None))
+        } else {
             let mut buf = [0; 8];
             buf.copy_from_slice(&bytes[*i..*i + 8]);
             let tmp = i64::from_le_bytes(buf);
             *i += 8;
-            Ok(Some(tmp))
-        } else {
-            Err(primitive!(LONG_ERR))
-        }
-    } else {
-        *i += 8;
-        Ok(None)
-    }
-}
-
-#[inline]
-pub fn maybe_read_uleb128(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<usize>> {
-    if c {
-        let mut out = 0;
-        let mut found_end = false;
-        let mut shift = 0;
-        while shift < size_of::<usize>() * 8 {
-            let b = *bytes.get(*i).ok_or_else(|| primitive!(ULEB128_ERR))?;
-            *i += 1;
-            // Handle case when there's less than eight bits left in the usize
-            if shift + 8 >= size_of::<usize>() * 8 {
-                // If the last byte has a value that fits within the remaining number of bits, add it
-                // to our total and break the loop
-                if 0b11111111 >> (size_of::<usize>() * 8 - shift) | b
-                    < (0b10000000 >> size_of::<usize>() * 8 - shift - 1) {
-                    out += (b as usize) << shift;
-                    found_end = true;
-                    break;
+            if let LoadSetting::Filter(filter) = s {
+                if filter.compare(tmp) {
+                    Ok(FilterResult::Meets(Some(tmp)))
                 } else {
-                    let err_msg = format!("While the ULEB128 integer format supports integers \
-                    of arbitrary lengths, this program will only handle ULEB128 integers \
-                    representing integers up to and including {} bits in length.",
-                        size_of::<usize>() * 8);
-                    return Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()));
+                    Ok(FilterResult::Fails)
                 }
+            } else {
+                Ok(FilterResult::Meets(Some(tmp)))
             }
-            out += (b as usize & 0b01111111) << shift;
-            if b & 0b10000000 == 0 {
-                found_end = true;
-                break;
-            }
-            shift += 7;
         }
-        if found_end {
-            Ok(Some(out))
+    } else {
+        Err(primitive!(LONG_ERR))
+    }
+}
+
+#[inline]
+pub fn maybe_read_single(s: LoadSetting<Relational<f32>>, b: bool, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<FilterResult<f32>> {
+    if *i + 4 < bytes.len() {
+        if s.is_ignore() || b {
+            *i += 4;
+            Ok(FilterResult::Meets(None))
         } else {
-            let err_msg = format!("While the ULEB128 integer format supports integers \
-            of arbitrary lengths, this program will only handle ULEB128 integers representing \
-            integers up to and including {} bits in length.", size_of::<usize>() * 8);
-            Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
-        }
-    } else {
-        loop {
-            let b = *bytes.get(*i).ok_or_else(|| DbFileParseError::new(PrimitiveError, "Consumed \
-                to end of buffer looking for end of ULEB128 integer."))?;
-            *i += 1;
-            if b & 0b10000000 == 0 {
-                break;
+            let mut buf = [0; 4];
+            buf.copy_from_slice(&bytes[*i..*i + 4]);
+            let tmp = u32::from_le_bytes(buf);
+            let tmp = f32::from_bits(tmp);
+            *i += 4;
+            if let LoadSetting::Filter(filter) = s {
+                if filter.compare(tmp) {
+                    Ok(FilterResult::Meets(Some(tmp)))
+                } else {
+                    Ok(FilterResult::Fails)
+                }
+            } else {
+                Ok(FilterResult::Meets(Some(tmp)))
             }
         }
-        Ok(None)
-    }
-}
-
-#[inline]
-pub fn maybe_read_single(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<f32>> {
-    if c {
-        Ok(Some(f32::from_bits(read_int(bytes, i).map_err(|_| primitive!(SINGLE_ERR))? as u32)))
     } else {
-        Ok(None)
+        Err(primitive!(SINGLE_ERR))
     }
 }
 
 #[inline]
-pub fn maybe_read_double(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<f64>> {
-    if c {
-        Ok(Some(f64::from_bits(read_long(bytes, i).map_err(|_| primitive!(DOUBLE_ERR))? as u64)))
+pub fn maybe_read_double(s: LoadSetting<Relational<f64>>, b: bool, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<FilterResult<f64>> {
+    if *i + 8 < bytes.len() {
+        if s.is_ignore() || b {
+            *i += 8;
+            Ok(FilterResult::Meets(None))
+        } else {
+            let mut buf = [0; 8];
+            buf.copy_from_slice(&bytes[*i..*i + 8]);
+            let tmp = u64::from_le_bytes(buf);
+            let tmp = f64::from_bits(tmp);
+            *i += 8;
+            if let LoadSetting::Filter(filter) = s {
+                if filter.compare(tmp) {
+                    Ok(FilterResult::Meets(Some(tmp)))
+                } else {
+                    Ok(FilterResult::Fails)
+                }
+            } else {
+                Ok(FilterResult::Meets(Some(tmp)))
+            }
+        }
     } else {
-        Ok(None)
+        Err(primitive!(SINGLE_ERR))
     }
 }
 
 #[inline]
-pub fn maybe_read_string_utf8(c: bool, bytes: &[u8], i: &mut usize, field: &str)
-    -> ParseFileResult<Option<String>> {
+pub fn maybe_read_string_utf8(s: LoadSetting<EqualClone<String>>, b: bool, bytes: &[u8],
+    i: &mut usize, field: &str) -> ParseFileResult<FilterResult<String>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         *i += 1;
         if indicator == 0x0b {
             let length = read_uleb128(bytes, i)?;
-            if c {
-                if *i + length <= bytes.len() {
-                    let tmp = Ok(
-                        Some(String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
-                            let err_msg = format!("Error reading string for {} ({})", field, e);
-                            DbFileParseError::new(PrimitiveError, err_msg.as_str())
-                        })?)
-                    );
+            if *i + length <= bytes.len() {
+                if s.is_ignore() || b {
                     *i += length;
-                    tmp
+                    Ok(FilterResult::Meets(None))
                 } else {
-                    Err(DbFileParseError::new(PrimitiveError, "String length goes past end of file."))
+                    let tmp = String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                        let err_msg = format!("Error reading string for {} ({})", field, e);
+                        DbFileParseError::new(PrimitiveError, err_msg.as_str())
+                    })?;
+                    *i += length;
+                    if let LoadSetting::Filter(filter) = s {
+                        if filter.compare(tmp.clone()) {
+                            Ok(FilterResult::Meets(Some(tmp)))
+                        } else {
+                            Ok(FilterResult::Fails)
+                        }
+                    } else {
+                        Ok(FilterResult::Meets(Some(tmp)))
+                    }
                 }
             } else {
-                *i += length;
-                Ok(None)
+                Err(DbFileParseError::new(PrimitiveError, "String length goes past end of file."))
             }
         } else if indicator == 0 {
-            Ok(None)
+            Ok(FilterResult::Meets(None))
         } else {
             let err_msg = format!("Read invalid string indicator ({}, index: {}).", indicator, i);
             Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
@@ -215,134 +243,155 @@ pub fn maybe_read_string_utf8(c: bool, bytes: &[u8], i: &mut usize, field: &str)
 }
 
 #[inline]
-pub fn maybe_read_boolean(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<bool>> {
-    if c {
-        Ok(Some(read_byte(bytes, i).map_err(|_| primitive!(BOOLEAN_ERR))? != 0))
+pub fn maybe_read_boolean(s: LoadSetting<EqualCopy<bool>>, b: bool, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<FilterResult<bool>> {
+    if *i < bytes.len() {
+        if s.is_ignore() || b {
+            *i += 1;
+            Ok(FilterResult::Meets(None))
+        } else {
+            let tmp = bytes[*i] != 0;
+            *i += 1;
+            if let LoadSetting::Filter(filter) = s {
+                if filter.compare(tmp) {
+                    Ok(FilterResult::Meets(Some(tmp)))
+                } else {
+                    Ok(FilterResult::Fails)
+                }
+            } else {
+                Ok(FilterResult::Meets(Some(tmp)))
+            }
+        }
     } else {
-        *i += 1;
-        Ok(None)
+        Err(primitive!(BOOLEAN_ERR))
     }
 }
 
 #[inline]
-pub fn maybe_read_datetime(c: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<Option<NaiveDate>> {
-    if c {
-        let ticks = read_long(bytes, i).map_err(|_| primitive!(DATETIME_ERR))?;
-        let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
-        let chrono_duration = ChronoDuration::from_std(duration_since_epoch).map_err(|e| {
-            let msg = format!("Failed to convert std::time::Duration to chrono::Duration\n\
-                {}", e);
-            DbFileParseError(PrimitiveError, msg)
-        })?;
-        Ok(Some(NaiveDate::from_ymd(1970, 0, 0) + chrono_duration))
+pub fn maybe_read_datetime(s: LoadSetting<Relational<NaiveDate>>, b: bool, bytes: &[u8],
+    i: &mut usize) -> ParseFileResult<FilterResult<NaiveDate>> {
+    if *i + 7 < bytes.len() {
+        if s.is_ignore() || b {
+            *i += 8;
+            Ok(FilterResult::Meets(None))
+        } else {
+            let mut buf = [0; 8];
+            buf.copy_from_slice(&bytes[*i..*i + 8]);
+            let ticks = u64::from_le_bytes(buf);
+            let duration_since_epoch = Duration::from_micros(ticks / 10);
+            let chrono_duration = ChronoDuration::from_std(duration_since_epoch).map_err(|e| {
+                let msg = format!("Failed to convert std::time::Duration to chrono::Duration\n\
+                    {}", e);
+                DbFileParseError::new(PrimitiveError, msg)
+            })?;
+            let naive_date = NaiveDate::from_ymd(1970, 0, 0) + chrono_duration;
+            if let LoadSetting::Filter(filter) = s {
+                if filter.compare(naive_date) {
+                    Ok(FilterResult::Meets(Some(naive_date)))
+                } else {
+                    Ok(FilterResult::Fails)
+                }
+            } else {
+                Ok(Some(NaiveDate))
+            }
+        }
     } else {
-        *i += 8;
-        Ok(None)
+        Err(primitive!(DATETIME_ERR))
     }
 }
 
 #[inline]
-pub fn maybe_read_md5_hash(c: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<Option<String>> {
-    let indicator = read_byte(bytes, i)?;
-    if indicator == 0 {
-        Err(DbFileParseError::new(PrimitiveError, "Missing hash! Indicator was 0."))
-    } else if indicator == 0x0b {
-        if c {
+pub fn maybe_read_md5_hash(s: LoadSetting<EqualClone<String>>, b: bool, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<FilterResult<String>> {
+    if *i < bytes.len() {
+        let indicator = bytes[*i];
+        if indicator == 0 {
+            Err(DbFileParseError::new(PrimitiveError, "Missing hash! Indicator was 0."))
+        } else if indicator == 0x0b {
             if *i + 32 < bytes.len() {
-                // first byte will be 32 every time
-                let hash_bytes = (bytes[*i + 1..*i + 33]).to_vec();
-                *i += 33;
-                Ok(Some(String::from_utf8(hash_bytes)
-                    .map_err(|_| DbFileParseError::new(PrimitiveError, "Error reading MD5 \
-                        hash."))?))
+                if s.is_ignore() || b {
+                    *i += 33;
+                    Ok(FilterResult::Meets(None))
+                } else {
+                    // first byte will be 32 every time if indicator == 0x0b
+                    let tmp = String::from_utf8(bytes[*i + 1..*i + 33].to_vec()).map_err(|e| {
+                        DbFileParseError::new(PrimitiveError, "Error reading MD5 hash.")
+                    })?;
+                    if let LoadSetting::Filter(filter) = s {
+                        if filter.compare(tmp.clone()) {
+                            Ok(FilterResult::Meets(Some(tmp)))
+                        } else {
+                            Ok(FilterResult::Fails)
+                        }
+                    } else {
+                        Ok(FilterResult::Meets(Some(tmp)))
+                    }
+                }
             } else {
-                Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left to read MD5 hash."))
+                Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left to read MD5 \
+                        hash."))
             }
         } else {
-            *i += 33;
-            Ok(None)
+            Err(DbFileParseError::new(PrimitiveError, format!("{}: {}", HASH_ERR, indicator)))
         }
     } else {
-        let msg = format!("{}: {}", HASH_ERR, indicator);
-        Err(DbFileParseError::new(PrimitiveError, msg.as_str()))
+        Err(DbFileParseError::new(PrimitiveError, "Could not read hash indicator byte."))
     }
 }
 
 #[inline]
-pub fn maybe_read_player_name(c: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<Option<String>> {
-    let indicator = read_byte(bytes, i)?;
-    if indicator == 0 {
-        Ok(None)
-    } else if indicator == 0x0b {
-        // Usernames are ASCII (1 byte in Unicode too), and so should never need more than a byte
-        // for the player name string length. Additionally, from talking with a Tillerino
-        // maintainer, I have found that the longest usernames that Tillerino has read are about 20
-        // characters.
-        let player_name_len = read_byte(bytes, i).map_err(|_| DbFileParseError::new(PrimitiveError,
-            "Failed to read player name length."))?;
-        if player_name_len & 0b10000000 == 0b10000000 {
-            return Err(DbFileParseError::new(PrimitiveError, "Read invalid player name length."));
-        }
-        if c {
-            if *i + player_name_len as usize <= bytes.len() {
-                let tmp = Ok(Some(
-                    String::from_utf8(bytes[*i..*i + player_name_len as usize].to_vec())
-                        .map_err(|_| DbFileParseError::new(PrimitiveError, "Bytes made invalid UTF-8 \
-                        string!"))?
-                ));
-                *i += player_name_len as usize;
-                tmp
+pub fn maybe_read_player_name(s: LoadSetting<EqualClone<String>>, bytes: &[u8], i: &mut usize)
+    -> ParseFileResult<FilterResult<String>> {
+    if *i < bytes.len() {
+        let indicator = bytes[*i];
+        *i += 1;
+        if indicator == 0 {
+            Ok(FilterResult::Meets(None))
+        } else if indicator == 0x0b {
+            if s.is_ignore() {
+                Ok(FilterResult::Meets(None))
             } else {
-                Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left in buffer for \
-                specified string length."))
+                if *i < bytes.len() {
+                    // Usernames are ASCII (1 byte in Unicode too), and so should never need more
+                    // than a byte for the player name string length. Additionally, from talking
+                    // with a Tillerino maintainer, I have found that the longest usernames that
+                    // Tillerino has read are about 20 characters. I also limit the username length
+                    // to 64 characters and return an error if it's longer.
+                    let length = bytes[*i] as usize;
+                    *i += 1;
+                    if i & 11000000 != 0 {
+                        Err(DbFileParseError::new(PrimitiveError,
+                            "Read invalid player name length"))
+                    }
+                    if *i + length < bytes.len() {
+                        let tmp = String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                            DbFileParseError::new(PrimitiveError,
+                                format!("Failed to parse bytes into string:\n{}", e))
+                        })?;
+                        if let LoadSetting::Filter(filter) = s {
+                            if filter.compare(tmp.clone()) {
+                                Ok(FilterResult::Meets(Some(tmp)))
+                            } else {
+                                Ok(FilterResult::Fails)
+                            }
+                        } else {
+                            Ok(FilterResult::Meets(Some(tmp)))
+                        }
+                    } else {
+                        Err(DbFileParseError::new(PrimitiveError,
+                            "Not enough bytes left to read player name."))
+                    }
+                } else {
+                    Err(DbFileParseError::new(PrimitiveError,
+                        "Could not read player name length byte."))
+                }
             }
         } else {
-            *i += player_name_len as usize;
-            Ok(None)
+            Err(DbFileParseError::new(PrimitiveError,
+                "Read invalid indicator for player name string."))
         }
     } else {
-        let msg = format!("{}: {}", USERNAME_ERR, indicator);
-        return Err(primitive!(msg));
+        Err(DbFileParseError::new(PrimitiveError,
+            "Could not read indicator for player name string."))
     }
 }
-
-/*#[inline]
-pub fn maybe_read_player_name_with_len(c: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<(usize, Option<String>)> {
-    let indicator = read_byte(bytes, i)?;
-    if indicator == 0 {
-        Ok((1, None))
-    } else if indicator == 0x0b {
-        // Usernames are ASCII (1 byte in Unicode too), and so should never need more than a byte
-        // for the player name string length. Additionally, from talking with a Tillerino
-        // maintainer, I have found that the longest usernames that Tillerino has read are about 20
-        // characters.
-        let player_name_len = read_byte(bytes, i).map_err(|_| DbFileParseError::new(PrimitiveError,
-            "Failed to read player name length."))?;
-        if player_name_len & 0b10000000 == 0b10000000 {
-            return Err(DbFileParseError::new(PrimitiveError, "Read invalid player name length."));
-        }
-        if *i + player_name_len as usize <= bytes.len() {
-            let tmp = Ok((
-                2 + player_name_len as usize,
-                Some(
-                    String::from_utf8(bytes[*i..*i + player_name_len as usize].to_vec())
-                        .map_err(|_| DbFileParseError::new(PrimitiveError, "Bytes made invalid \
-                            UTF-8 string!"))?
-                )
-            ));
-            *i += 2 + player_name_len as usize;
-            tmp
-        } else {
-            Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left in buffer for \
-                specified string length."))
-        }
-    } else {
-        let msg = format!("{}: {}", USERNAME_ERR, indicator);
-        return Err(primitive!(msg));
-    }
-}
-}*/
