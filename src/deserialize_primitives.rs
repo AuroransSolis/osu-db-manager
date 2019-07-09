@@ -291,13 +291,13 @@ pub fn read_player_name(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<S
         // Usernames are ASCII (1 byte in Unicode too), and so should never need more than a byte
         // for the player name string length. Additionally, from talking with a Tillerino
         // maintainer, I have found that the longest usernames that Tillerino has read are about 20
-        // characters.
+        // characters. I also limit the username length to 64 characters and return an error if it's
+        // longer.
         let player_name_len = read_byte(bytes, i).map_err(|_| DbFileParseError::new(PrimitiveError,
             "Failed to read player name length."))?;
-        if player_name_len & 0b10000000 == 0b10000000 {
+        if player_name_len & 0b11000000 != 0 {
             return Err(DbFileParseError::new(PrimitiveError, "Read invalid player name length."));
-        }
-        if *i + player_name_len as usize <= bytes.len() {
+        } else if *i + player_name_len as usize <= bytes.len() {
             let tmp = Ok(Some(
                 String::from_utf8(bytes[*i..*i + player_name_len as usize].to_vec())
                     .map_err(|_| DbFileParseError::new(PrimitiveError, "Bytes made invalid UTF-8 \
