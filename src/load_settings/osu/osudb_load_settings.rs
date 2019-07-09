@@ -4,19 +4,22 @@ use chrono::NaiveDate;
 
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::QueryError};
 use crate::load_settings::{
-    osu::beatmap_load_settings::BeatmapLoadSettings, query::QueryStruct, LoadSetting
+    Empty,
+    LoadSetting,
+    osu::beatmap_load_settings::BeatmapLoadSettings,
+    query::QueryStruct
 };
 use crate::masks::osu_mask::OsuDbMask;
 
 pub struct OsuDbLoadSettings {
-    pub version: LoadSetting<i32>,
-    pub folder_count: LoadSetting<i32>,
-    pub account_unlocked: LoadSetting<bool>,
-    pub account_unlock_date: LoadSetting<NaiveDate>,
-    pub player_name: LoadSetting<Option<String>>,
-    pub number_of_beatmaps: LoadSetting<i32>,
+    pub version: LoadSetting<Empty>,
+    pub folder_count: LoadSetting<Empty>,
+    pub account_unlocked: LoadSetting<Empty>,
+    pub account_unlock_date: LoadSetting<Empty>,
+    pub player_name: LoadSetting<Empty>,
+    pub number_of_beatmaps: LoadSetting<Empty>,
     pub beatmap_load_settings: BeatmapLoadSettings,
-    pub unknown_int: LoadSetting<i32>
+    pub unknown_int: LoadSetting<Empty>
 }
 
 impl Default for OsuDbLoadSettings {
@@ -36,10 +39,17 @@ impl Default for OsuDbLoadSettings {
 
 impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {
     fn load_all(&self) -> bool {
-        self.beatmap_load_settings.load_all() && !(self.version.is_ignore()
+        self.beatmap_load_settings.load_all() && self.version.is_load()
+            && self.folder_count.is_load() && self.account_unlocked.is_load()
+            && self.account_unlock_date.is_load() && self.player_name.is_load()
+            && self.unknown_int.is_load()
+    }
+    
+    fn is_partial(&self) -> bool {
+        self.beatmap_load_settings.is_partial() || self.version.is_ignore()
             || self.folder_count.is_ignore() || self.account_unlocked.is_ignore()
             || self.account_unlock_date.is_ignore() || self.player_name.is_ignore()
-            || self.unknown_int.is_ignore())
+            || self.unknown_int.is_ignore()
     }
 
     fn set_from_query(&mut self, args: Vec<&str>) -> IoResult<()> {

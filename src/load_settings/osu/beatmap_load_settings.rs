@@ -9,9 +9,6 @@ use crate::load_settings::{
     Relational,
     Empty,
     LoadSetting,
-    SpecialArgType,
-    parse_from_arg,
-    parse_from_arg_special,
     query::QueryStruct
 };
 use crate::databases::osu::primitives::{RankedStatus, ByteSingle, GameplayMode};
@@ -19,15 +16,15 @@ use crate::masks::osu_mask::BeatmapMask;
 
 pub struct BeatmapLoadSettings {
     pub entry_size: LoadSetting<Relational<i32>>,
-    pub artist_name: LoadSetting<EqualClone<EqualClone<Option<String>>>>,
-    pub artist_name_unicode: LoadSetting<EqualClone<Option<String>>>,
-    pub song_title: LoadSetting<EqualClone<Option<String>>>,
-    pub song_title_unicode: LoadSetting<EqualClone<Option<String>>>,
-    pub creator_name: LoadSetting<EqualClone<Option<String>>>,
-    pub difficulty: LoadSetting<EqualClone<Option<String>>>,
-    pub audio_file_name: LoadSetting<EqualClone<Option<String>>>,
+    pub artist_name: LoadSetting<EqualClone<String>>,
+    pub artist_name_unicode: LoadSetting<EqualClone<String>>,
+    pub song_title: LoadSetting<EqualClone<String>>,
+    pub song_title_unicode: LoadSetting<EqualClone<String>>,
+    pub creator_name: LoadSetting<EqualClone<String>>,
+    pub difficulty: LoadSetting<EqualClone<String>>,
+    pub audio_file_name: LoadSetting<EqualClone<String>>,
     pub md5_beatmap_hash: LoadSetting<EqualClone<String>>,
-    pub dotosu_file_name: LoadSetting<EqualClone<Option<String>>>,
+    pub dotosu_file_name: LoadSetting<EqualClone<String>>,
     pub ranked_status: LoadSetting<EqualCopy<RankedStatus>>,
     pub number_of_hitcircles: LoadSetting<Relational<i16>>,
     pub number_of_sliders: LoadSetting<Relational<i16>>,
@@ -61,14 +58,14 @@ pub struct BeatmapLoadSettings {
     pub local_offset: LoadSetting<Relational<i16>>,
     pub stack_leniency: LoadSetting<Relational<f32>>,
     pub gameplay_mode: LoadSetting<GameplayMode>,
-    pub song_source: LoadSetting<EqualClone<Option<String>>>,
-    pub song_tags: LoadSetting<EqualClone<Option<String>>>,
+    pub song_source: LoadSetting<EqualClone<String>>,
+    pub song_tags: LoadSetting<EqualClone<String>>,
     pub online_offset: LoadSetting<Relational<i16>>,
-    pub font_used_for_song_title: LoadSetting<EqualClone<Option<String>>>,
+    pub font_used_for_song_title: LoadSetting<EqualClone<String>>,
     pub unplayed: LoadSetting<EqualCopy<bool>>,
     pub last_played: LoadSetting<Relational<NaiveDate>>,
     pub is_osz2: LoadSetting<EqualCopy<bool>>,
-    pub beatmap_folder_name: LoadSetting<EqualClone<Option<String>>>,
+    pub beatmap_folder_name: LoadSetting<EqualClone<String>>,
     pub last_checked_against_repo: LoadSetting<Relational<NaiveDate>>,
     pub ignore_beatmap_sound: LoadSetting<EqualCopy<bool>>,
     pub ignore_beatmap_skin: LoadSetting<EqualCopy<bool>>,
@@ -149,7 +146,43 @@ impl Default for BeatmapLoadSettings {
 
 impl BeatmapLoadSettings {
     pub fn load_all(&self) -> bool {
-        !(self.entry_size.is_ignore() || self.artist_name.is_ignore()
+        self.entry_size.is_load() && self.artist_name.is_load()
+            && self.artist_name_unicode.is_load() && self.song_title.is_load()
+            && self.song_title_unicode.is_load() && self.creator_name.is_load()
+            && self.difficulty.is_load() && self.audio_file_name.is_load()
+            && self.md5_beatmap_hash.is_load() && self.dotosu_file_name.is_load()
+            && self.ranked_status.is_load() && self.number_of_hitcircles.is_load()
+            && self.number_of_sliders.is_load() && self.number_of_spinners.is_load()
+            && self.last_modification_time.is_load() && self.approach_rate.is_load()
+            && self.circle_size.is_load() && self.hp_drain.is_load()
+            && self.overall_difficulty.is_load() && self.slider_velocity.is_load()
+            && self.num_mod_combo_star_ratings_standard.is_load()
+            && self.mod_combo_star_ratings_standard.is_load()
+            && self.num_mod_combo_star_ratings_taiko.is_load()
+            && self.mod_combo_star_ratings_taiko.is_load()
+            && self.num_mod_combo_star_ratings_ctb.is_load()
+            && self.mod_combo_star_ratings_ctb.is_load()
+            && self.num_mod_combo_star_ratings_mania.is_load()
+            && self.mod_combo_star_ratings_mania.is_load() && self.drain_time.is_load()
+            && self.total_time.is_load() && self.preview_offset_from_start_ms.is_load()
+            && self.num_timing_points.is_load() && self.timing_points.is_load()
+            && self.beatmap_id.is_load() && self.beatmap_set_id.is_load()
+            && self.thread_id.is_load() && self.standard_grade.is_load()
+            && self.taiko_grade.is_load() && self.ctb_grade.is_load() && self.mania_grade.is_load()
+            && self.local_offset.is_load() && self.stack_leniency.is_load()
+            && self.gameplay_mode.is_load() && self.song_source.is_load()
+            && self.song_tags.is_load() && self.online_offset.is_load()
+            && self.font_used_for_song_title.is_load() && self.unplayed.is_load()
+            && self.last_played.is_load() && self.is_osz2.is_load()
+            && self.beatmap_folder_name.is_load() && self.last_checked_against_repo.is_load()
+            && self.ignore_beatmap_sound.is_load() && self.ignore_beatmap_skin.is_load()
+            && self.disable_storyboard.is_load() && self.disable_video.is_load()
+            && self.visual_override.is_load() && self.offset_from_song_start_in_editor_ms.is_load()
+            && self.mania_scroll_speed.is_load()
+    }
+    
+    pub fn is_partial(&self) -> bool {
+        self.entry_size.is_ignore() || self.artist_name.is_ignore()
             || self.artist_name_unicode.is_ignore() || self.song_title.is_ignore()
             || self.song_title_unicode.is_ignore() || self.creator_name.is_ignore()
             || self.difficulty.is_ignore() || self.audio_file_name.is_ignore()
@@ -182,11 +215,11 @@ impl BeatmapLoadSettings {
             || self.disable_storyboard.is_ignore() || self.disable_video.is_ignore()
             || self.visual_override.is_ignore()
             || self.offset_from_song_start_in_editor_ms.is_ignore()
-            || self.mania_scroll_speed.is_ignore())
+            || self.mania_scroll_speed.is_ignore()
     }
 
-    pub fn set_from_query(&mut self, query_args: Vec<&str>) -> IoResult<()> {
-        if query_args.len() == 0 {
+    pub fn set_from_query(&mut self, args: Vec<&str>) -> IoResult<()> {
+        if args.len() == 0 {
             return Ok(());
         }
         let matches = App::new("osu!.db query parser")
@@ -628,89 +661,76 @@ impl BeatmapLoadSettings {
                 .number_of_values(1)
                 .value_name("NUMBER/RANGE")
                 .takes_value(false))
-            .get_matches_from(query_args.into_iter());
-        self.entry_size = parse_from_arg::<i32>(&matches, "Entry size")?;
-        self.artist_name = parse_from_arg_special::<Option<String>>(&matches, "Artist name",
-            SpecialArgType::OptionString)?;
-        self.artist_name_unicode = parse_from_arg_special::<Option<String>>(&matches,
-            "Artist name unicode", SpecialArgType::OptionString)?;
-        self.song_title = parse_from_arg_special::<Option<String>>(&matches, "Song title",
-            SpecialArgType::OptionString)?;
-        self.song_title_unicode = parse_from_arg_special::<Option<String>>(&matches,
-            "Song title unicode", SpecialArgType::OptionString)?;
-        self.creator_name = parse_from_arg_special::<Option<String>>(&matches, "Creator name",
-            SpecialArgType::OptionString)?;
-        self.difficulty = parse_from_arg_special::<Option<String>>(&matches, "Difficulty",
-            SpecialArgType::OptionString)?;
-        self.audio_file_name = parse_from_arg_special::<Option<String>>(&matches, "Audio file name",
-            SpecialArgType::OptionString)?;
-        self.md5_beatmap_hash = parse_from_arg_special::<String>(&matches, "MD5 beatmap hash",
-            SpecialArgType::String)?;
-        self.dotosu_file_name = parse_from_arg_special::<Option<String>>(&matches, ".osu file name",
-            SpecialArgType::OptionString)?;
-        self.ranked_status = parse_from_arg::<RankedStatus>(&matches, "Ranked status")?;
-        self.number_of_hitcircles = parse_from_arg::<i16>(&matches, "Number of hitcircles")?;
-        self.number_of_sliders = parse_from_arg::<i16>(&matches, "Number of sliders")?;
-        self.number_of_spinners = parse_from_arg::<i16>(&matches, "Number of spinners")?;
-        self.last_modification_time = parse_from_arg_special::<NaiveDate>(&matches,
-            "Last modification time", SpecialArgType::NaiveDate)?;
-        self.approach_rate = parse_from_arg::<ByteSingle>(&matches,"Approach rate")?;
-        self.circle_size = parse_from_arg::<ByteSingle>(&matches,"Circle size")?;
-        self.hp_drain = parse_from_arg::<ByteSingle>(&matches, "HP drain")?;
-        self.overall_difficulty = parse_from_arg::<ByteSingle>(&matches,"Overall difficulty")?;
-        self.slider_velocity = parse_from_arg::<f64>(&matches,"Slider velocity")?;
-        self.num_mod_combo_star_ratings_standard = parse_from_arg::<i32>(&matches,
-            "Number of precalculated mod combo star ratings (standard)")?;
-        self.num_mod_combo_star_ratings_taiko = parse_from_arg::<i32>(&matches,
-            "Number of precalculated mod combo star ratings (taiko)")?;
-        self.num_mod_combo_star_ratings_ctb = parse_from_arg::<i32>(&matches,
-            "Number of precalculated mod combo star ratings (CTB)")?;
-        self.num_mod_combo_star_ratings_mania = parse_from_arg::<i32>(&matches,
-            "Number of precalculated mod combo star ratings (mania)")?;
-        self.drain_time = parse_from_arg::<i32>(&matches, "Drain time")?;
-        self.total_time = parse_from_arg::<i32>(&matches, "Total time")?;
-        self.preview_offset_from_start_ms = parse_from_arg::<i32>(&matches,
-            "Preview offset from start (ms)")?;
-        self.num_timing_points = parse_from_arg::<i32>(&matches,
-            "Number of timing points")?;
-        self.beatmap_id = parse_from_arg::<i32>(&matches, "Beatmap ID")?;
-        self.beatmap_set_id = parse_from_arg::<i32>(&matches, "Beatmap set ID")?;
-        self.thread_id = parse_from_arg::<i32>(&matches, "Thread ID")?;
-        self.standard_grade = parse_from_arg::<u8>(&matches, "Standard grade")?;
-        self.taiko_grade = parse_from_arg::<u8>(&matches, "Taiko grade")?;
-        self.ctb_grade = parse_from_arg::<u8>(&matches, "CTB grade")?;
-        self.mania_grade = parse_from_arg::<u8>(&matches, "Mania grade")?;
-        self.local_offset = parse_from_arg::<i16>(&matches, "Local offset")?;
-        self.stack_leniency = parse_from_arg::<f32>(&matches, "Stack leniency")?;
-        self.gameplay_mode = parse_from_arg::<GameplayMode>(&matches, "Gameplay mode")?;
-        self.song_source = parse_from_arg_special::<Option<String>>(&matches, "Song source",
-            SpecialArgType::OptionString)?;
-        self.song_tags = parse_from_arg_special::<Option<String>>(&matches, "Song tags",
-            SpecialArgType::OptionString)?;
-        self.online_offset = parse_from_arg::<i16>(&matches, "Online offset")?;
-        self.font_used_for_song_title = parse_from_arg_special::<Option<String>>(&matches,
-            "Font used for song title", SpecialArgType::OptionString)?;
-        self.unplayed = parse_from_arg_special::<bool>(&matches, "Unplayed", SpecialArgType::bool)?;
-        self.last_played = parse_from_arg_special::<NaiveDate>(&matches, "Last played",
-            SpecialArgType::NaiveDate)?;
-        self.is_osz2 = parse_from_arg_special::<bool>(&matches, "Is OSZ2", SpecialArgType::bool)?;
-        self.beatmap_folder_name = parse_from_arg_special::<Option<String>>(&matches,
-            "Beatmap folder name", SpecialArgType::OptionString)?;
-        self.last_checked_against_repo = parse_from_arg_special::<NaiveDate>(&matches,
-            "Last checked against repo", SpecialArgType::NaiveDate)?;
-        self.ignore_beatmap_sound = parse_from_arg_special::<bool>(&matches, "Ignore beatmap sound",
-            SpecialArgType::bool)?;
-        self.ignore_beatmap_skin = parse_from_arg_special::<bool>(&matches, "Ignore beatmap skin",
-            SpecialArgType::bool)?;
-        self.disable_storyboard = parse_from_arg_special::<bool>(&matches, "Disable storyboard",
-            SpecialArgType::bool)?;
-        self.disable_video = parse_from_arg_special::<bool>(&matches, "Disable video",
-            SpecialArgType::bool)?;
-        self.visual_override = parse_from_arg_special::<bool>(&matches, "Visual override",
-            SpecialArgType::bool)?;
-        self.offset_from_song_start_in_editor_ms = parse_from_arg::<i32>(&matches,
-            "Offset from song start in editor (ms)")?;
-        self.mania_scroll_speed = parse_from_arg::<u8>(&matches, "Mania scroll speed")?;
+            .get_matches_from(args.into_iter());
+        self.entry_size = EqualCopy::from_matches(&matches, "Entry size")?.into();
+        self.artist_name = EqualClone::from_matches(&matches, "Artist name").into();
+        self.artist_name_unicode = EqualClone::from_matches(&matches, "Artist name unicode").into();
+        self.song_title = EqualClone::from_matches(&matches, "Song title").into();
+        self.song_title_unicode = EqualClone::from_matches(&matches, "Song title unicode").into();
+        self.creator_name = EqualClone::from_matches(&matches, "Creator name").into();
+        self.difficulty = EqualClone::from_matches(&matches, "Difficulty").into();
+        self.audio_file_name = EqualClone::from_matches(&matches, "Audio file name").into();
+        self.md5_beatmap_hash = EqualClone::from_matches(&matches, "MD5 beatmap hash").into();
+        self.dotosu_file_name = EqualClone::from_matches(&matches, ".osu file name").into();
+        self.ranked_status = EqualCopy::from_matches(&matches, "Ranked status")?.into();
+        self.number_of_hitcircles = Relational::from_matches(&matches, "Number of hitcircles")?
+            .into();
+        self.number_of_sliders = Relational::from_matches(&matches, "Number of sliders")?.into();
+        self.number_of_spinners = Relational::from_matches(&matches, "Number of spinners")?.into();
+        self.last_modification_time = Relational::date_from_matches(&matches,
+            "Last modification time")?.into();
+        self.approach_rate = Relational::from_matches(&matches, "Approach rate")?.into();
+        self.circle_size = Relational::from_matches(&matches, "Circle size")?;
+        self.hp_drain = Relational::from_matches(&matches, "HP drain")?;
+        self.overall_difficulty = Relational::from_matches(&matches, "Overall difficulty")?;
+        self.slider_velocity = Relational::from_matches(&matches, "Slider velocity")?.into();
+        self.num_mod_combo_star_ratings_standard = Relational::from_matches(&matches,
+            "Number of precalculated mod combo star ratings (standard)")?.into();
+        self.num_mod_combo_star_ratings_taiko = Relational::from_matches(&matches,
+            "Number of precalculated mod combo star ratings (taiko)")?.into();
+        self.num_mod_combo_star_ratings_ctb = Relational::from_matches(&matches,
+            "Number of precalculated mod combo star ratings (CTB)")?.into();
+        self.num_mod_combo_star_ratings_mania = Relational::from_matches(&matches,
+            "Number of precalculated mod combo star ratings (mania)")?.into();
+        self.drain_time = Relational::from_matches(&matches, "Drain time")?.into();
+        self.total_time = Relational::from_matches(&matches, "Total time")?.into();
+        self.preview_offset_from_start_ms = Relational::from_matches(&matches,
+            "Preview offset from start (ms)")?.into();
+        self.num_timing_points = Relational::from_matches(&matches,
+            "Number of timing points")?.into();
+        self.beatmap_id = Relational::from_matches(&matches, "Beatmap ID")?.into();
+        self.beatmap_set_id = Relational::from_matches(&matches, "Beatmap set ID")?.into();
+        self.thread_id = Relational::from_matches(&matches, "Thread ID")?.into();
+        self.standard_grade = Relational::from_matches(&matches, "Standard grade")?.into();
+        self.taiko_grade = Relational::from_matches(&matches, "Taiko grade")?.into();
+        self.ctb_grade = Relational::from_matches(&matches, "CTB grade")?.into();
+        self.mania_grade = Relational::from_matches(&matches, "Mania grade")?.into();
+        self.local_offset = Relational::from_matches(&matches, "Local offset")?.into();
+        self.stack_leniency = Relational::from_matches(&matches, "Stack leniency")?.into();
+        self.gameplay_mode = EqualCopy::from_matches(&matches, "Gameplay mode")?.into();
+        self.song_source = EqualClone::from_matches(&matches, "Song source")?.into();
+        self.song_tags = EqualClone::from_matches(&matches, "Song tags")?.into();
+        self.online_offset = Relational::from_matches(&matches, "Online offset")?.into();
+        self.font_used_for_song_title = EqualClone::from_matches(&matches,
+            "Font used for song title")?.into();
+        self.unplayed = EqualCopy::bool_from_matches(&matches, "Unplayed")?.into();
+        self.last_played = Relational::date_from_matches(&matches, "Last played")?.into();
+        self.is_osz2 = EqualCopy::bool_from_matches(&matches, "Is OSZ2")?.into();
+        self.beatmap_folder_name = EqualClone::from_matches(&matches, "Beatmap folder name")?
+            .into();
+        self.last_checked_against_repo = Relational::date_from_matches(&matches,
+            "Last checked against repo")?.into();
+        self.ignore_beatmap_sound = EqualCopy::bool_from_matches(&matches, "Ignore beatmap sound")?
+            .into();
+        self.ignore_beatmap_skin = EqualCopy::bool_from_matches(&matches, "Ignore beatmap skin")?
+            .into();
+        self.disable_storyboard = EqualCopy::bool_from_matches(&matches, "Disable storyboard")?
+            .into();
+        self.disable_video = EqualCopy::bool_from_matches(&matches, "Disable video")?.into();
+        self.visual_override = EqualCopy::bool_from_matches(&matches, "Visual override")?.into();
+        self.offset_from_song_start_in_editor_ms = Relational::from_matches(&matches,
+            "Offset from song start in editor (ms)")?.into();
+        self.mania_scroll_speed = Relational::from_matches(&matches, "Mania scroll speed")?.into();
         Ok(())
     }
 

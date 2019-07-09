@@ -13,7 +13,12 @@ use chrono::NaiveDate;
 
 use crate::databases::osu::primitives::{RankedStatus, ByteSingle, GameplayMode};
 
-trait Compare<T> {
+pub enum FilterResult<T> {
+    Meets(Option<T>),
+    Fails
+}
+
+pub trait Compare<T> {
     fn compare(&self, other: T) -> bool;
 }
 
@@ -29,6 +34,23 @@ impl<T> LoadSetting<T> {
         match self {
             LoadSetting::Ignore => true,
             _ => false
+        }
+    }
+
+    pub(crate) fn is_load(&self) -> bool {
+        match self {
+            LoadSetting::Load => true,
+            _ => false
+        }
+    }
+}
+
+impl<C: Compare> From<Option<C>> for LoadSetting<C> {
+    fn from(other: Option<C>) -> Self {
+        if let Some(c) = other {
+            LoadSetting::Filter(c)
+        } else {
+            LoadSetting::Ignore
         }
     }
 }
@@ -52,10 +74,39 @@ impl<T: Copy + Clone + PartialEq> Compare<T> for EqualCopy<T> {
     }
 }
 
-impl<T: Copy + Clone + PartialEq> EqualCopy<T> {
-    pub fn new(value: T) -> Self {
-        EqualCopy {
-            value
+impl<T: Copy + Clone + PartialEq + FromStr> EqualCopy<T> {
+    pub fn from_matches(matches: &ArgMatches, field: &str)
+        -> IoResult<Option<Self>> {
+        if let Some(m) = matches.value_of(field) {
+            Ok(Some(EqualCopy {
+                value: m.parse::<T>()
+                    .map_err(|e| IoError::new(InvalidInput, format!("Error parsing value: {}", e)))?
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl EqualCopy<bool> {
+    pub fn bool_from_matches(matches: &ArgMatches, field: &str) -> IoResult<Option<Self>> {
+        if let Some(m) = matches.value_of(field) {
+            match m.to_lowercase().as_str() {
+                "t" | "true" | "y" | "yes" | "1" => {
+                    Ok(Some(EqualCopy { value: true }))
+                },
+                "f" | "false" | "n" | "no" | "0" => {
+                    Ok(Some(EqualCopy { value: false }))
+                },
+                _ => {
+                    let msg = format!("Could not parse {} as a boolean. Valid inputs are:\n \
+                         - t/true/y/yes/1\n \
+                         - f/false/n/no/0");
+                    Err(IoError::new(InvalidInput, msg.as_str()))
+                }
+            }
+        } else {
+            Ok(None)
         }
     }
 }
@@ -71,10 +122,12 @@ impl<T: Clone + PartialEq> Compare<T> for EqualClone<T> {
     }
 }
 
-impl<T: Clone + PartialEq> EqualClone<T> {
-    fn new(value: T) -> Self {
-        EqualClone {
-            value
+impl<T: Clone + PartialEq + From<&str>> EqualClone<T> {
+    fn from_matches(matches: &ArgMatches, field: &str) -> IoResult<Option<Self>> {
+        if let Some(m) = matches.value_of(field) {
+            Some(EqualClone { value: m.into() })
+        } else {
+            None
         }
     }
 }
@@ -86,10 +139,10 @@ pub enum Relational<T: Copy + Clone + PartialEq + PartialOrd> {
     Gt(T),
     LtE(T),
     GtE(T),
-    IrEE(Range<T>), // in range (a, b)
-    IrEI(Range<T>), // in range (a, b]
-    IrIE(Range<T>), // in range [a, b)
-    IrII(Range<T>) // in range [a, b]
+    InEE(Range<T>), // in range (a, b)
+    InEI(Range<T>), // in range (a, b]
+    InIE(Range<T>), // in range [a, b)
+    InII(Range<T>) // in range [a, b]
 }
 
 impl<T: Copy + Clone + PartialEq + PartialOrd> Compare<T> for Relational<T> {
@@ -100,10 +153,10 @@ impl<T: Copy + Clone + PartialEq + PartialOrd> Compare<T> for Relational<T> {
             Relational::Gt(gt) => other > gt,
             Relational::LtE(lte) => other <= lte,
             Relational::GtE(gte) => other >= gte,
-            Relational::IrEE(Range { start, end }) => other > range.start && other < range.end,
-            Relational::IrEI(Range { start, end }) => other > range.start && other <= range.end,
-            Relational::IrIE(Range { start, end }) => other >= range.start && other < range.end,
-            Relational::IrII(Range { start, end }) => other >= range.start && other <= range.end
+            Relational::InEE(Range { start, end }) => other > range.start && other < range.end,
+            Relational::InEI(Range { start, end }) => other > range.start && other <= range.end,
+            Relational::InIE(Range { start, end }) => other >= range.start && other < range.end,
+            Relational::InII(Range { start, end }) => other >= range.start && other <= range.end
         }
     }
 }
@@ -111,57 +164,123 @@ impl<T: Copy + Clone + PartialEq + PartialOrd> Compare<T> for Relational<T> {
 use self::Relational::*;
 
 impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
-    fn from_str(s: &str) -> IoResult<Self> {
-        // If it's just "4" or "9.2" or something. Not a range.
-        if is_number(s) {
-            Eq(s.parse::<T>().map_err(|e| {
-                let msg = format!("Invalid number: {}\nParse error: {}", s, e);
-                Err(IoError::new(InvalidInput, msg.as_str()))
-            })?)
-        } else if is_valid_range(s) {
-            let (first, middle) = s.split_at(1);
-            let (middle, last) = middle.split_at(s.len() - 1);
-            let mut spliterator = middle.split("..");
-            let (start, end) = (spliterator.next().ok_or_else(|| {
-                IoError::new(InvalidInput, "Invalid range format.")
-            })?, spliterator.next().ok_or_else(|| {
-                IoError::new(InvalidInput, "Invalid range format.")
-            })?);
-            if start == "" && end == "" {
-                return Err(IoError::new(InvalidInput,
-                    "At least one of the range bounds must be defined."));
-            }
-            let start = start.parse::<T>().map_err(|e| {
-                let msg = format!("Failed to parse start of range.\n{}", e);
-                IoError::new(InvalidInput, msg.as_str())
-            })?;
-            let end = end.parse::<T>().map_err(|e| {
-                let msg = format!("Failed to parse end of range.\n{}", e);
-                IoError::new(InvalidInput, msg.as_str())
-            })?;
-            if start == "" {
-                Ok(match (first, last) {
-                    ("(", ")") | ("[", ")") => Lt(end),
-                    ("(", "]") | ("[", "]") => LtE(end),
-                    _ => unreachable!()
-                })
-            } else if end == "" {
-                Ok(match (first, last) {
-                    ("(", ")") | ("(", "]") => Gt(end),
-                    ("[", ")") | ("[", "]") => GtE(end),
-                    _ => unreachable!()
-                })
+    pub fn inner_to_option(self) -> Self {
+        match self {
+            Eq(eq) => Eq(Some(eq)),
+            Lt(lt) => Lt(Some(lt)),
+            Gt(gt) => Gt(Some(gt)),
+            LtE(lte) => LtE(Some(lte)),
+            GtE(gte) => GtE(Some(gte)),
+            InEE(Range { start, end }) => InEE(Some(start..end)),
+            InEI(Range { start, end }) => InEI(Some(start..end)),
+            InIE(Range { start, end }) => InIE(Some(start..end)),
+            InII(Range { start, end }) => InII(Some(start..end))
+        }
+    }
+    
+    pub fn from_matches(matches: &ArgMatches, field: &str) -> IoResult<Option<Self>> {
+        if let Some(m) = matches.value_of(field) {
+            // If it's just "4" or "9.2" or something. Not a range.
+            if is_number(m) {
+                Ok(Some(Eq(m.parse::<T>().map_err(|e| {
+                    let msg = format!("Invalid value: {}\nParse error: {}", m, e);
+                    Err(IoError::new(InvalidInput, msg.as_str()))
+                })?)))
+            } else if is_valid_range(m) {
+                let (first, middle) = m.split_at(1);
+                let (middle, last) = middle.split_at(middle.len() - 1);
+                let mut spliterator = middle.split("..");
+                let (start, end) = (spliterator.next().ok_or_else(|| {
+                    IoError::new(InvalidInput, "Invalid range format.")
+                })?, spliterator.next().ok_or_else(|| {
+                    IoError::new(InvalidInput, "Invalid range format.")
+                })?);
+                if start == "" && end == "" {
+                    return Err(IoError::new(InvalidInput,
+                        "At least one of the range bounds must be defined."));
+                }
+                let start = start.parse::<T>().map_err(|e| {
+                    let msg = format!("Failed to parse start of range.\n{}", e);
+                    IoError::new(InvalidInput, msg.as_str())
+                })?;
+                let end = end.parse::<T>().map_err(|e| {
+                    let msg = format!("Failed to parse end of range.\n{}", e);
+                    IoError::new(InvalidInput, msg.as_str())
+                })?;
+                Ok(Some(if start == "" {
+                    match (first, last) {
+                        ("(", ")") | ("[", ")") => Lt(end),
+                        ("(", "]") | ("[", "]") => LtE(end),
+                        _ => unreachable!()
+                    }
+                } else if end == "" {
+                    match (first, last) {
+                        ("(", ")") | ("(", "]") => Gt(end),
+                        ("[", ")") | ("[", "]") => GtE(end),
+                        _ => unreachable!()
+                    }
+                } else {
+                    match (first, last) {
+                        ("(", ")") => InEE(start..end),
+                        ("(", "]") => InEI(start..end),
+                        ("[", ")") => InIE(start..end),
+                        ("[", "]") => InII(start..end),
+                        _ => unreachable!()
+                    }
+                }))
             } else {
-                Ok(match (first, last) {
-                    ("(", ")") => IrEE(start..end),
-                    ("(", "]") => IrEI(start..end),
-                    ("[", ")") => IrIE(start..end),
-                    ("[", "]") => IrII(start..end),
-                    _ => unreachable!()
-                })
+                Err(IoError::new(InvalidInput, "Input not recognized as value or range."))
             }
         } else {
-            Err(IoError::new(InvalidInput, "Input not recognized as number or range."))
+            Ok(None)
+        }
+    }
+
+    fn date_from_matches(matches: &ArgMatches, field: &str) -> IoResult<Option<Self>> {
+        if let Some(m) = matches.value_of(field) {
+            if (m.starts_with('(') || m.starts_with('['))
+                && (m.ends_with(')') || m.ends_with(']')) {
+                let (first, middle) = m.split_at(1);
+                let (middle, last) = middle.split_at(middle.len() - 1);
+                let mut spliterator = middle.split("..");
+                let start = spliterator.next().ok_or_else(|| {
+                    IoError::new(InvalidInput, "Missing start of range.")
+                })?;
+                let end = spliterator.next().ok_or_else(|| {
+                    IoError::new(InvalidInput, "Missing end of range.")
+                })?;
+                if start == "" && end == "" {
+                    return Err(IoError::new(InvalidInput,
+                        "At least one of the range bounds must be defined."));
+                }
+                let start = date_from_str(start)?;
+                let end = date_from_str(end)?;
+                Ok(Some(if start == "" {
+                    match (first, last) {
+                        ("(", ")") | ("[", ")") => Lt(end),
+                        ("(", "]") | ("[", "]") => LtE(end),
+                        _ => unreachable!()
+                    }
+                } else if end == "" {
+                    match (first, last) {
+                        ("(", ")") | ("(", "]") => Gt(start),
+                        ("[", ")") | ("[", "]") => GtE(start),
+                        _ => unreachable!()
+                    }
+                } else {
+                    match (first, last) {
+                        ("(", ")") => InEE(start..end),
+                        ("(", "]") => InEI(start..end),
+                        ("[", ")") => InIE(start..end),
+                        ("[", "]") => InII(start..end),
+                        _ => unreachable!()
+                    }
+                }))
+            } else {
+                Ok(Some(Eq(date_from_str(m)?)))
+            }
+        } else {
+            Ok(None)
         }
     }
 }
@@ -208,172 +327,9 @@ pub(crate) fn is_valid_range(s: &str) -> bool {
     }
 }
 
-pub(crate) enum SpecialArgType {
-    bool,
-    NaiveDate,
-    String,
-    OptionString,
-    Optioni16
-}
-
-trait IsSpecialArgType {}
-
-impl IsSpecialArgType for bool {}
-impl IsSpecialArgType for NaiveDate {}
-impl IsSpecialArgType for String {}
-impl IsSpecialArgType for Option<String> {}
-impl IsSpecialArgType for Option<i16> {}
-
 fn date_from_str(s: &str) -> IoResult<NaiveDate> {
     NaiveDate::parse_from_str(s, "%F").map_err(|e| {
         let msg = format!("Failed to parse input ({}) as date (YYYY-MM-DD)", s);
         IoError::new(InvalidInput, msg.as_str())
     })
-}
-
-fn parse_from_arg_special<'a, T: IsSpecialArgType>(matches: &ArgMatches<'a>, field: &str,
-    t: SpecialArgType) -> IoResult<LoadSetting<T>> {
-    match t {
-        SpecialArgType::Optioni32 => Ok(Some(parse_from_arg::<i32>(matches, field)?)),
-        SpecialArgType::bool => {
-            if let Some(m) = matches.value_of(field) {
-                match m.to_lowercase().as_str() {
-                    "t" | "true" | "y" | "yes" | "1" => {
-                        Ok(LoadSetting::Filter(Comparison::Eq(true)))
-                    },
-                    "f" | "false" | "n" | "no" | "0" => {
-                        Ok(LoadSetting::Filter(Comparison::Eq(false)))
-                    },
-                    _ => {
-                        let msg = format!("Could not parse {} as a boolean. Valid inputs are:\n \
-                         - t/true/y/yes/1\n \
-                         - f/false/n/no/0");
-                        Err(IoError::new(InvalidInput, msg.as_str()))
-                    }
-                }
-            } else {
-                Ok(LoadSetting::Ignore)
-            }
-        },
-        SpecialArgType::String => {
-            Ok(if let Some(m) = matches.value_of(field) {
-                LoadSetting::Filter(Comparison::Eq(m.to_string()))
-            } else {
-                LoadSetting::Ignore
-            })
-        },
-        SpecialArgType::OptionString => {
-            Ok(if let Some(m) = matches.value_of(field) {
-                LoadSetting::Filter(Comparison::Eq(Some(m.to_string())))
-            } else {
-                LoadSetting::Ignore
-            })
-        },
-        SpecialArgType::NaiveDate => {
-            if let Some(m) = matches.value_of(field) {
-                if (m.starts_with('(') || m.starts_with('['))
-                    && (m.ends_with(')') || m.ends_with(']')) {
-                    let (first, middle) = m.split_at(1);
-                    let (middle, last) = middle.split_at(middle.len() - 1);
-                    let mut spliterator = middle.split("..");
-                    let start = spliterator.next().ok_or_else(|| {
-                        IoError::new(InvalidInput, "Missing start of range.")
-                    })?;
-                    let end = spliterator.next().ok_or_else(|| {
-                        IoError::new(InvalidInput, "Missing end of range.")
-                    })?;
-                    if start == "" && end == "" {
-                        return Err(IoError::new(InvalidInput,
-                            "At least one of the range bounds must be defined."));
-                    }
-                    let start = datetime_from_str(start)?;
-                    let end = datetime_from_str(end)?;
-                    Ok(LoadSetting::Filter(if start == "" {
-                        match (first, last) {
-                            ("(", ")") | ("[", ")") => Comparison::Lt(end),
-                            ("(", "]") | ("[", "]") => Comparison::LtE(end),
-                            _ => unreachable!()
-                        }
-                    } else if end == "" {
-                        match (first, last) {
-                            ("(", ")") | ("(", "]") => Comparison::Gt(start),
-                            ("[", ")") | ("[", "]") => Comparison::GtE(start),
-                            _ => unreachable!()
-                        }
-                    } else {
-                        match (first, last) {
-                            ("(", ")") => Comparison::IrEE(start..end),
-                            ("(", "]") => Comparison::IrEI(start..end),
-                            ("[", ")") => Comparison::IrIE(start..end),
-                            ("[", "]") => Comparison::IrII(start..end),
-                            _ => unreachable!()
-                        }
-                    }))
-                } else {
-                    Ok(LoadSetting::Filter(Comparison::Eq(datetime_from_str(m)?)))
-                }
-            } else {
-                Ok(LoadSetting::Ignore)
-            }
-        },
-        SpecialArgType::Optioni16 => Ok(Some(parse_from_arg::<i16>(matches, field)?))
-    }
-}
-
-fn parse_from_arg<'a, T: IsArgType + FromStr>(matches: &ArgMatches<'a>, field: &str)
-    -> IoResult<LoadSetting<T>> {
-    if let Some(m) = matches.value_of(field) {
-        if (m.starts_with('(') || m.starts_with('['))
-            && (m.ends_with(')') || m.ends_with(']')) {
-            let (first, middle) = m.split_at(1);
-            let (middle, last) = middle.split_at(middle.len() - 1);
-            let mut spliterator = middle.split("..");
-            let start = spliterator.next().ok_or_else(|| {
-                IoError::new(InvalidInput, "Missing start of range.")
-            })?;
-            let end = spliterator.next().ok_or_else(|| {
-                IoError::new(InvalidInput, "Missing end of range.")
-            })?;
-            let parse_start = |s| s.parse::<T>().map_err(|e| {
-                let msg = format!("Error parsing start of range.\n{}", e);
-                IoError::new(InvalidInput, msg.as_str())
-            });
-            let parse_end = |s| s.parse::<T>().map_err(|e| {
-                let msg = format!("Error parsing end of range.\n{}", e);
-                IoError::new(InvalidInput, msg.as_str())
-            });
-            Ok(LoadSetting::Filter(if start == "" {
-                let end = parse_end(end)?;
-                match (first, last) {
-                    ("(", ")") | ("[", ")") => Comparison::Lt(end),
-                    ("(", "]") | ("[", "]") => Comparison::LtE(end),
-                    _ => unreachable!()
-                }
-            } else if end == "" {
-                let start = parse_start(start)?;
-                match (first, last) {
-                    ("(", ")") | ("(", "]") => Comparison::Gt(start),
-                    ("[", ")") | ("[", "]") => Comparison::GtE(start),
-                    _ => unreachable!()
-                }
-            } else {
-                let start = parse_start(start)?;
-                let end = parse_end(end)?;
-                match (first, last) {
-                    ("(", ")") => Comparison::IrEE(start..end),
-                    ("(", "]") => Comparison::IrEI(start..end),
-                    ("[", ")") => Comparison::IrIE(start..end),
-                    ("[", "]") => Comparison::IrII(start..end),
-                    _ => unreachable!()
-                }
-            }))
-        } else {
-            Ok(LoadSetting::Filter(Comparison::Eq(m.parse::<T>().map_err(|e| {
-                let msg = format!("Error parsing value.\n{}", e);
-                IoError::new(InvalidInput, msg.as_str())
-            })?)))
-        }
-    } else {
-        Ok(LoadSetting::Ignore)
-    }
 }
