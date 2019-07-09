@@ -1,10 +1,15 @@
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+
 use crate::deserialize_primitives::*;
 use crate::maybe_deserialize_primitives::*;
 use crate::databases::{load::PartialLoad, collection::partial_collection::PartialCollection};
 use crate::read_error::ParseFileResult;
 use crate::masks::collection_mask::{CollectionDbMask, CollectionMask};
+use crate::load_settings::{
+    FilterResult,
+    collection::collectiondb_load_settings::CollectionDbLoadSettings
+};
 
 #[derive(Debug, Clone)]
 pub struct PartialCollectionDb {

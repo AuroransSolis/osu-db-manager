@@ -1,6 +1,10 @@
 use crate::read_error::{ParseFileResult, ParseErrorKind::PrimitiveError, DbFileParseError};
 use crate::deserialize_primitives::*;
-use crate::load_settings::collection::CollectionLoadSettings;
+use crate::maybe_deserialize_primitives::*;
+use crate::load_settings::{
+    FilterResult,
+    collection::collection_load_settings::CollectionLoadSettings
+};
 
 #[derive(Debug, Clone)]
 pub struct PartialCollection {
@@ -11,21 +15,17 @@ pub struct PartialCollection {
 
 impl PartialCollection {
     pub fn read_from_bytes(settings: CollectionLoadSettings, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Self> {
-        let collection_name = if mask.collection_name {
-            read_string_utf8(bytes, i, "collection name")?
+        -> ParseFileResult<Option<Self>> {
+        let mut return_none = false;
+        let collection_name = if let FilterResult::Meets(tmp) = maybe_read_string_utf8(settings.collection_name, bytes, i,
+            "collection name")? {
+            tmp
         } else {
-            let ind = read_byte(bytes, i)?;
-            if ind == 0x0b {
-                let len = read_uleb128(bytes, i)?;
-                *i += len;
-            } else if ind != 0 {
-                return Err(DbFileParseError::new(PrimitiveError, "Read invalid string indicator!"));
-            }
+            return_none = true;
             None
         };
         let number_of_beatmaps = read_int(bytes, i)?;
-        let md5_beatmap_hashes = if mask.md5_beatmap_hashes {
+        let md5_beatmap_hashes = if settings.md5_beatmap_hashes.is_load() && !return_none {
             if number_of_beatmaps == 0 {
                 None
             } else {
@@ -44,10 +44,14 @@ impl PartialCollection {
         } else {
             None
         };
-        Ok(PartialCollection {
-            collection_name,
-            number_of_beatmaps,
-            md5_beatmap_hashes
-        })
+        if return_none {
+            Ok(None)
+        } else {
+            Ok(Some(PartialCollection {
+                collection_name,
+                number_of_beatmaps,
+                md5_beatmap_hashes
+            }))
+        }
     }
 }
