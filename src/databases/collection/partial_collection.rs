@@ -17,21 +17,19 @@ impl PartialCollection {
     pub fn read_from_bytes(settings: CollectionLoadSettings, bytes: &[u8], i: &mut usize)
         -> ParseFileResult<Option<Self>> {
         let mut return_none = false;
-        let collection_name = if let FilterResult::Meets(tmp) = maybe_read_string_utf8(settings.collection_name, bytes, i,
-            "collection name")? {
-            tmp
-        } else {
-            return_none = true;
-            None
-        };
+        let collection_name = maybe_read_string_utf8(settings.collection_name, &mut return_none, bytes,
+            i, "collection name")?;
         let number_of_beatmaps = read_int(bytes, i)?;
-        let md5_beatmap_hashes = if settings.md5_beatmap_hashes.is_load() && !return_none {
+        let md5_beatmap_hashes = if !settings.md5_beatmap_hash.is_ignore() && !return_none {
             if number_of_beatmaps == 0 {
                 None
             } else {
                 let mut tmp = Vec::with_capacity(number_of_beatmaps as usize);
                 for _ in 0..number_of_beatmaps {
-                    tmp.push(read_md5_hash(bytes, i)?);
+                    if let Some(hash) = maybe_read_md5_hash(settings.md5_beatmap_hash.clone(),
+                        &mut false, bytes, i)? {
+                        tmp.push(hash)
+                    }
                 }
                 Some(tmp)
             }

@@ -19,24 +19,13 @@ pub struct PartialCollectionDb {
 }
 
 impl PartialLoad<CollectionDbMask> for PartialCollectionDb {
-    fn read_single_thread(mask: CollectionDbMask, bytes: Vec<u8>) -> ParseFileResult<Self> {
+    fn read_single_thread(settings: CollectionDbLoadSettings, bytes: Vec<u8>)
+        -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
-        let version = maybe_read_int(mask.version, &bytes, i)?;
+        let version = maybe_read_int(settings.version, &mut false, &bytes, i)?;
         let number_of_collections = read_int(&bytes, i)?;
-        let collections = if let Some(collections_mask) = mask.collections_mask {
-            if number_of_collections == 0 {
-                None
-            } else {
-                let mut tmp = Vec::with_capacity(number_of_collections as usize);
-                for _ in 0..number_of_collections {
-                    tmp.push(PartialCollection::read_from_bytes(collections_mask, &bytes, i)?);
-                }
-                Some(tmp)
-            }
-        } else {
-            None
-        };
+        let collections = if settings.collections_query.
         let number_of_collections = if mask.number_of_collections {
             Some(number_of_collections)
         } else {
