@@ -44,6 +44,13 @@ impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {
             && self.account_unlock_date.is_load() && self.player_name.is_load()
             && self.unknown_int.is_load()
     }
+
+    fn ignore_all(&self) ->  bool {
+        self.beatmap_load_settings.ignore_all() && self.version.is_ignore()
+            && self.folder_count.is_ignore() && self.account_unlocked.is_ignore()
+            && self.account_unlock_date.is_ignore() && self.player_name.is_ignore()
+            && self.unknown_int.is_ignore()
+    }
     
     fn is_partial(&self) -> bool {
         self.beatmap_load_settings.is_partial() || self.version.is_ignore()

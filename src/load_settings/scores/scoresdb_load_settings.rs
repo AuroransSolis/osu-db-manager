@@ -20,6 +20,11 @@ impl QueryStruct<ScoresDbMask> for ScoresDbLoadSettings {
             && self.number_of_beatmaps.is_load()
     }
 
+    fn ignore_all(&self) -> bool {
+        self.beatmap_load_settings.ignore_all() && self.version.is_ignore()
+            && self.number_of_beatmaps.is_ignore()
+    }
+
     fn is_partial(&self) -> bool {
         self.beatmap_load_settings.is_partial() || self.version.is_ignore()
             || self.number_of_beatmaps.is_ignore()

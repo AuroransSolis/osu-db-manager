@@ -5,7 +5,7 @@ use chrono::NaiveDate;
 use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::QueryError};
 use crate::load_settings::{
     Empty,
-    LoadSetting
+    LoadSetting,
     collection::collection_load_settings::CollectionLoadSettings,
     query::QueryStruct
 };
@@ -23,9 +23,14 @@ impl QueryStruct<CollectionDbMask> for CollectionDbLoadSettings {
             && self.number_of_collections.is_load()
     }
 
+    fn ignore_all(&self) -> bool {
+        self.collections_query.ignore_all() && self.version.is_ignore()
+            && self.number_of_collections.is_ignore()
+    }
+
     fn is_partial(&self) -> bool {
-        self.collections_query.is_partial() || self.version.is_ignore()
-            || self.number_of_collections.is_ignore()
+        self.version.is_ignore() || self.number_of_collections.is_ignore()
+            || self.collections_query.is_partial()
     }
 
     fn set_from_query(&mut self, args: Vec<&str>) -> IoResult<()> {

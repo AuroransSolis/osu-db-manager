@@ -5,14 +5,14 @@ use clap::{Arg, App, SubCommand, AppSettings};
 use crate::load_settings::{
     EqualClone,
     EqualCopy,
-    Relational
+    Relational,
     LoadSetting,
     query::QueryStruct
 };
 use crate::masks::collection_mask::CollectionMask;
 
 pub struct CollectionLoadSettings {
-    pub collection_name: LoadSetting<EqualClone<String>>,
+    pub collection_name: LoadSetting<EqualClone<Option<String>>>,
     pub number_of_beatmaps: LoadSetting<Relational<i32>>,
     pub md5_beatmap_hash: LoadSetting<EqualClone<String>>
 }
@@ -21,6 +21,11 @@ impl CollectionLoadSettings {
     pub fn load_all(&self) -> bool {
         self.collection_name.is_load() && self.number_of_beatmaps.is_load()
             && self.md5_beatmap_hash.is_load()
+    }
+
+    pub fn ignore_all(&self) -> bool {
+        self.collection_name.is_ignore() && self.number_of_beatmaps.is_ignore()
+            && self.md5_beatmap_hash.is_ignore()
     }
     
     pub fn is_partial(&self) -> bool {

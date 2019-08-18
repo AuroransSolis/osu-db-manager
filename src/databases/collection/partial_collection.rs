@@ -16,11 +16,11 @@ pub struct PartialCollection {
 impl PartialCollection {
     pub fn read_from_bytes(settings: CollectionLoadSettings, bytes: &[u8], i: &mut usize)
         -> ParseFileResult<Option<Self>> {
-        let mut return_none = false;
-        let collection_name = maybe_read_string_utf8(settings.collection_name, &mut return_none, bytes,
+        let mut skip = false;
+        let collection_name = maybe_read_string_utf8(settings.collection_name, &mut skip, bytes,
             i, "collection name")?;
         let number_of_beatmaps = read_int(bytes, i)?;
-        let md5_beatmap_hashes = if !settings.md5_beatmap_hash.is_ignore() && !return_none {
+        let md5_beatmap_hashes = if !settings.md5_beatmap_hash.is_ignore() && !skip {
             if number_of_beatmaps == 0 {
                 None
             } else {
@@ -37,12 +37,12 @@ impl PartialCollection {
             *i += number_of_beatmaps as usize * 34;
             None
         };
-        let number_of_beatmaps = if mask.number_of_beatmaps {
+        let number_of_beatmaps = if settings.number_of_beatmaps.is_load() {
             Some(number_of_beatmaps)
         } else {
             None
         };
-        if return_none {
+        if skip {
             Ok(None)
         } else {
             Ok(Some(PartialCollection {

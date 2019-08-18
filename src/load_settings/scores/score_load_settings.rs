@@ -49,6 +49,19 @@ impl ScoreLoadSettings {
             && self.negative_one.is_load() && self.online_score_id.is_load()
     }
     
+    pub fn ignore_all(&self) -> bool {
+        self.gameplay_mode.is_ignore() && self.score_version.is_ignore()
+            && self.md5_beatmap_hash.is_ignore() && self.player_name.is_ignore()
+            && self.md5_replay_hash.is_ignore() && self.number_of_300s.is_ignore()
+            && self.number_of_100s.is_ignore() && self.number_of_50s.is_ignore()
+            && self.number_of_gekis.is_ignore() && self.number_of_katus.is_ignore()
+            && self.number_of_misses.is_ignore() && self.replay_score.is_ignore()
+            && self.max_combo.is_ignore() && self.perfect_combo.is_ignore()
+            && self.mods_used.is_ignore() && self.empty_string.is_ignore()
+            && self.replay_timestamp.is_ignore() && self.negative_one.is_ignore()
+            && self.online_score_id.is_ignore()
+    }
+    
     pub fn is_partial(&self) -> bool {
         self.gameplay_mode.is_ignore() || self.score_version.is_ignore()
             || self.md5_beatmap_hash.is_ignore() || self.player_name.is_ignore()

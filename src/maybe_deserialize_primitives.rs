@@ -40,7 +40,7 @@ macro_rules! primitive {
 
 #[inline]
 pub fn maybe_read_byte(s: LoadSetting<Relational<u8>>, skip: &mut bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<Option<u8>> {
+    -> ParseFileResult<Option<u8> {
     if *i < bytes.len() {
         if s.is_ignore() || *skip {
             *i += 1;

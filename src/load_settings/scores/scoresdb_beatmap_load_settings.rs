@@ -23,6 +23,11 @@ impl ScoresDbBeatmapLoadSettings {
             && self.number_of_scores.is_load()
     }
 
+    pub fn ignore_all(&self) -> bool {
+        self.score_load_settings.ignore_all() && self.md5_beatmap_hash.is_ignore()
+            && self.number_of_scores.is_ignore()
+    }
+
     pub fn is_partial(&self) -> bool {
         self.score_load_settings.is_partial() || self.md5_beatmap_hash.is_ignore()
             || self.number_of_scores.is_ignore()

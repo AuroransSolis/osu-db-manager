@@ -21,11 +21,27 @@ pub struct PartialCollectionDb {
 impl PartialLoad<CollectionDbMask> for PartialCollectionDb {
     fn read_single_thread(settings: CollectionDbLoadSettings, bytes: Vec<u8>)
         -> ParseFileResult<Self> {
+        let mut skip = false;
         let mut index = 0;
         let i = &mut index;
-        let version = maybe_read_int(settings.version, &mut false, &bytes, i)?;
+        let version = read_int(&bytes, i)?;
         let number_of_collections = read_int(&bytes, i)?;
-        let collections = if settings.collections_query.
+        let collections = if !settings.collections_query.ignore_all() {
+            let mut tmp = Vec::with_capacity(number_of_collections as usize);
+            for _ in 0..number_of_collections {
+                if let Some(collection) = PartialCollection::read_from_bytes(settings.collections_query, &bytes, i)? {
+                    tmp.push(collection);
+                }
+            }
+            Some(tmp)
+        } else {
+            None
+        };
+        let version = if settings.version.is_ignore() {
+            Some(version)
+        } else {
+            None
+        };
         let number_of_collections = if mask.number_of_collections {
             Some(number_of_collections)
         } else {
