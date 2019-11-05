@@ -1,4 +1,4 @@
 target/
 .idea/
 osu!.db
-./Cargo.lock
+Cargo.lock
