@@ -1,12 +1,12 @@
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::cmp::PartialEq;
+use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::io::{Error as IoError, ErrorKind::InvalidInput, Result as IoResult};
 use std::ops::Range;
 use std::str::FromStr;
-use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidInput};
 
-use crate::read_error::{DbFileParseError, ParseFileResult, ParseErrorKind::*};
 use crate::deserialize_primitives::*;
 use crate::query::is_number;
+use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
 // Deserializing osu!.db-specific data types
 const RANKED_STATUS_ERR: &str = "Failed to read byte for ranked status.";
@@ -26,8 +26,11 @@ pub fn read_int_double_pair(bytes: &[u8], i: &mut usize) -> ParseFileResult<(i32
     Ok((int, double))
 }
 
-pub fn maybe_read_int_double_pair(c: bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<Option<(i32, f64)>> {
+pub fn maybe_read_int_double_pair(
+    c: bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<(i32, f64)>> {
     if c {
         let int = read_int(&bytes[*i + 1..*i + 5], &mut 0)?;
         let double = read_double(&bytes[*i + 6..*i + 14], &mut 0)?;
@@ -43,7 +46,7 @@ pub fn maybe_read_int_double_pair(c: bool, bytes: &[u8], i: &mut usize)
 pub struct TimingPoint {
     bpm: f64,
     offset: f64,
-    inherited: bool
+    inherited: bool,
 }
 
 impl TimingPoint {
@@ -60,15 +63,21 @@ impl TimingPoint {
             Ok(TimingPoint {
                 bpm,
                 offset,
-                inherited
+                inherited,
             })
         } else {
-            Err(DbFileParseError::new(PrimitiveError, "Insufficient bytes to read timing point."))
+            Err(DbFileParseError::new(
+                PrimitiveError,
+                "Insufficient bytes to read timing point.",
+            ))
         }
     }
 
-    pub fn maybe_read_from_bytes(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Option<Self>> {
+    pub fn maybe_read_from_bytes(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<Self>> {
         if c {
             if *i + 17 < bytes.len() {
                 let mut double_buf = [0; 8];
@@ -81,10 +90,13 @@ impl TimingPoint {
                 Ok(Some(TimingPoint {
                     bpm,
                     offset,
-                    inherited
+                    inherited,
                 }))
             } else {
-                Err(DbFileParseError::new(PrimitiveError, "Insufficient bytes to read timing point."))
+                Err(DbFileParseError::new(
+                    PrimitiveError,
+                    "Insufficient bytes to read timing point.",
+                ))
             }
         } else {
             *i += 17;
@@ -102,23 +114,27 @@ pub enum RankedStatus {
     Ranked,
     Approved,
     Qualified,
-    Loved
+    Loved,
 }
 
 use self::RankedStatus::*;
 
 impl Display for RankedStatus {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        write!(f, "{}", match self {
-            Unknown => "Unknown",
-            Unsubmitted => "Unsubmitted",
-            PendingWIPGraveyard => "Pending/WIP/Graveyard",
-            Unused => "Unused",
-            Ranked => "Ranked",
-            Approved => "Approved",
-            Qualified => "Qualified",
-            Loved => "Loved"
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Unknown => "Unknown",
+                Unsubmitted => "Unsubmitted",
+                PendingWIPGraveyard => "Pending/WIP/Graveyard",
+                Unused => "Unused",
+                Ranked => "Ranked",
+                Approved => "Approved",
+                Qualified => "Qualified",
+                Loved => "Loved",
+            }
+        )
     }
 }
 
@@ -136,17 +152,20 @@ impl FromStr for RankedStatus {
             "qualified" => Ok(Qualified),
             "loved" => Ok(Loved),
             _ => {
-                let msg = format!("Invalid ranked status: {}\n\
-                Valid status types:\n \
-                 - Unknown\n \
-                 - Unsubmitted\n \
-                 - Pending\n \
-                 - WIP\n \
-                 - Graveyard\n \
-                 - Ranked\n \
-                 - Approved\n \
-                 - Qualified\n \
-                 - Loved", s);
+                let msg = format!(
+                    "Invalid ranked status: {}\n\
+                     Valid status types:\n \
+                     - Unknown\n \
+                     - Unsubmitted\n \
+                     - Pending\n \
+                     - WIP\n \
+                     - Graveyard\n \
+                     - Ranked\n \
+                     - Approved\n \
+                     - Qualified\n \
+                     - Loved",
+                    s
+                );
                 Err(IoError::new(InvalidInput, msg.as_str()))
             }
         }
@@ -171,10 +190,13 @@ impl RankedStatus {
             }
         }
     }
-    
+
     #[inline]
-    pub fn maybe_read_from_bytes(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Option<Self>> {
+    pub fn maybe_read_from_bytes(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<Self>> {
         if c {
             match read_byte(bytes, i).map_err(|_| primitive!(RANKED_STATUS_ERR))? {
                 0 => Ok(Some(Unknown)),
@@ -199,17 +221,21 @@ impl RankedStatus {
 #[derive(Copy, Clone, Debug)]
 pub enum ByteSingle {
     Byte(u8),
-    Single(f32)
+    Single(f32),
 }
 
 use self::ByteSingle::*;
 
 impl Display for ByteSingle {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        write!(f, "{}", match self {
-            Byte(b) => format!("{}", b),
-            Single(s) => format!("{}", s)
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Byte(b) => format!("{}", b),
+                Single(s) => format!("{}", s),
+            }
+        )
     }
 }
 
@@ -219,7 +245,7 @@ impl PartialEq for ByteSingle {
             (Byte(b0), Byte(b1)) => b0 == b1,
             (Byte(b), Single(s)) => s.floor() as u64 == b as u64 || s.ceil() as u64 == b as u64,
             (Single(s), Byte(b)) => s.floor() as u64 == b as u64 || s.ceil() as u64 == b as u64,
-            (Single(s0), Single(s1)) => s0 == s1
+            (Single(s0), Single(s1)) => s0 == s1,
         }
     }
 }
@@ -258,7 +284,7 @@ impl ByteSingle {
             (Single(n), Byte(s), Byte(e)) => n >= s as f32 && n < e as f32,
             (Single(n), Byte(s), Single(e)) => n >= s as f32 && n < e,
             (Single(n), Single(s), Byte(e)) => n >= s && n < e as f32,
-            (Single(n), Single(s), Single(e)) => n >= s && n < e
+            (Single(n), Single(s), Single(e)) => n >= s && n < e,
         }
     }
 
@@ -272,7 +298,7 @@ impl ByteSingle {
             (Single(n), Byte(s), Byte(e)) => n >= s as f32 && n <= e as f32,
             (Single(n), Byte(s), Single(e)) => n >= s as f32 && n <= e,
             (Single(n), Single(s), Byte(e)) => n >= s && n <= e as f32,
-            (Single(n), Single(s), Single(e)) => n >= s && n <= e
+            (Single(n), Single(s), Single(e)) => n >= s && n <= e,
         }
     }
 }
@@ -282,14 +308,14 @@ pub enum GameplayMode {
     Standard,
     Taiko,
     Ctb,
-    Mania
+    Mania,
 }
 
 use self::GameplayMode::*;
 
 impl FromStr for GameplayMode {
     type Err = IoError;
-    
+
     fn from_str(s: &str) -> IoResult<Self> {
         match s.to_lowercase().as_str() {
             "osu!" | "osu" | "osu!standard" | "standard" => Ok(Standard),
@@ -319,10 +345,13 @@ impl GameplayMode {
             }
         }
     }
-    
+
     #[inline]
-    pub fn maybe_read_from_bytes(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Option<Self>> {
+    pub fn maybe_read_from_bytes(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<Self>> {
         if c {
             let b = read_byte(bytes, i).map_err(|_| primitive!(GAMEPLAY_MODE_ERR))?;
             match b {
@@ -343,11 +372,15 @@ impl GameplayMode {
 
 impl Display for GameplayMode {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        write!(f, "{}", match self {
-            Standard => "osu!standard",
-            Taiko => "Taiko",
-            Ctb => "CTB",
-            Mania => "osu!mania"
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Standard => "osu!standard",
+                Taiko => "Taiko",
+                Ctb => "CTB",
+                Mania => "osu!mania",
+            }
+        )
     }
 }

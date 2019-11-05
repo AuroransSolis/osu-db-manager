@@ -1,11 +1,11 @@
-use crate::read_error::ParseFileResult;
 use crate::deserialize_primitives::*;
+use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
 pub struct Collection {
     pub collection_name: Option<String>,
     pub number_of_beatmaps: i32,
-    pub md5_beatmap_hashes: Vec<String>
+    pub md5_beatmap_hashes: Vec<String>,
 }
 
 impl Collection {
@@ -19,7 +19,7 @@ impl Collection {
         Ok(Collection {
             collection_name,
             number_of_beatmaps,
-            md5_beatmap_hashes
+            md5_beatmap_hashes,
         })
     }
 }

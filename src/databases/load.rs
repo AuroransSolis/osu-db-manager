@@ -1,6 +1,6 @@
-use crate::read_error::ParseFileResult;
-use crate::masks::mask::Mask;
 use crate::load_settings::query::QueryStruct;
+use crate::masks::mask::Mask;
+use crate::read_error::ParseFileResult;
 
 pub trait Load: Sized {
     fn read_from_bytes(jobs: usize, bytes: Vec<u8>) -> ParseFileResult<Self> {

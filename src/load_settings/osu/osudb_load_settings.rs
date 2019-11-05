@@ -2,14 +2,11 @@ use std::io::Result as IoResult;
 
 use chrono::NaiveDate;
 
-use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::QueryError};
 use crate::load_settings::{
-    Empty,
-    LoadSetting,
-    osu::beatmap_load_settings::BeatmapLoadSettings,
-    query::QueryStruct
+    osu::beatmap_load_settings::BeatmapLoadSettings, query::QueryStruct, Empty, LoadSetting,
 };
 use crate::masks::osu_mask::OsuDbMask;
+use crate::read_error::{DbFileParseError, ParseErrorKind::QueryError, ParseFileResult};
 
 pub struct OsuDbLoadSettings {
     pub version: LoadSetting<Empty>,
@@ -19,7 +16,7 @@ pub struct OsuDbLoadSettings {
     pub player_name: LoadSetting<Empty>,
     pub number_of_beatmaps: LoadSetting<Empty>,
     pub beatmap_load_settings: BeatmapLoadSettings,
-    pub unknown_int: LoadSetting<Empty>
+    pub unknown_int: LoadSetting<Empty>,
 }
 
 impl Default for OsuDbLoadSettings {
@@ -32,30 +29,39 @@ impl Default for OsuDbLoadSettings {
             player_name: LoadSetting::Ignore,
             number_of_beatmaps: LoadSetting::Ignore,
             beatmap_load_settings: BeatmapLoadSettings::default(),
-            unknown_int: LoadSetting::Ignore
+            unknown_int: LoadSetting::Ignore,
         }
     }
 }
 
 impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {
     fn load_all(&self) -> bool {
-        self.beatmap_load_settings.load_all() && self.version.is_load()
-            && self.folder_count.is_load() && self.account_unlocked.is_load()
-            && self.account_unlock_date.is_load() && self.player_name.is_load()
+        self.beatmap_load_settings.load_all()
+            && self.version.is_load()
+            && self.folder_count.is_load()
+            && self.account_unlocked.is_load()
+            && self.account_unlock_date.is_load()
+            && self.player_name.is_load()
             && self.unknown_int.is_load()
     }
 
-    fn ignore_all(&self) ->  bool {
-        self.beatmap_load_settings.ignore_all() && self.version.is_ignore()
-            && self.folder_count.is_ignore() && self.account_unlocked.is_ignore()
-            && self.account_unlock_date.is_ignore() && self.player_name.is_ignore()
+    fn ignore_all(&self) -> bool {
+        self.beatmap_load_settings.ignore_all()
+            && self.version.is_ignore()
+            && self.folder_count.is_ignore()
+            && self.account_unlocked.is_ignore()
+            && self.account_unlock_date.is_ignore()
+            && self.player_name.is_ignore()
             && self.unknown_int.is_ignore()
     }
-    
+
     fn is_partial(&self) -> bool {
-        self.beatmap_load_settings.is_partial() || self.version.is_ignore()
-            || self.folder_count.is_ignore() || self.account_unlocked.is_ignore()
-            || self.account_unlock_date.is_ignore() || self.player_name.is_ignore()
+        self.beatmap_load_settings.is_partial()
+            || self.version.is_ignore()
+            || self.folder_count.is_ignore()
+            || self.account_unlocked.is_ignore()
+            || self.account_unlock_date.is_ignore()
+            || self.player_name.is_ignore()
             || self.unknown_int.is_ignore()
     }
 

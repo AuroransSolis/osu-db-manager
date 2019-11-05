@@ -1,14 +1,17 @@
+use crate::databases::{
+    load::Load,
+    scores::{score::Score, scoresdb_beatmap::ScoreDbBeatmap},
+};
+use crate::deserialize_primitives::*;
+use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use crate::deserialize_primitives::*;
-use crate::databases::{load::Load, scores::{score::Score, scoresdb_beatmap::ScoreDbBeatmap}};
-use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 
 #[derive(Debug, Clone)]
 pub struct ScoresDb {
     pub version: i32,
     pub number_of_beatmaps: i32,
-    pub beatmaps: Vec<ScoreDbBeatmap>
+    pub beatmaps: Vec<ScoreDbBeatmap>,
 }
 
 impl Load for ScoresDb {
@@ -24,7 +27,7 @@ impl Load for ScoresDb {
         Ok(ScoresDb {
             version,
             number_of_beatmaps,
-            beatmaps
+            beatmaps,
         })
     }
 
@@ -35,28 +38,43 @@ impl Load for ScoresDb {
         };
         let counter = Arc::new(Mutex::new(0));
         let start_read = Arc::new(Mutex::new(8));
-        let threads = (0..jobs).map(|_| spawn_scoredbbeatmap_loader(number_of_beatmaps as usize,
-            counter.clone(), start_read.clone(), &bytes)).collect::<Vec<_>>();
-        let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
+        let threads = (0..jobs)
+            .map(|_| {
+                spawn_scoredbbeatmap_loader(
+                    number_of_beatmaps as usize,
+                    counter.clone(),
+                    start_read.clone(),
+                    &bytes,
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut results = threads
+            .into_iter()
+            .map(|joinhandle| joinhandle.join().unwrap())
             .collect::<Vec<_>>();
         let mut scoredbbeatmaps = results.pop().unwrap()?;
         for scoredbbeatmap_result in results {
             scoredbbeatmaps.append(&mut scoredbbeatmap_result?);
         }
         scoredbbeatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
-        let beatmaps = scoredbbeatmaps.into_iter().map(|(_, scoredbbeatmap)| scoredbbeatmap)
+        let beatmaps = scoredbbeatmaps
+            .into_iter()
+            .map(|(_, scoredbbeatmap)| scoredbbeatmap)
             .collect::<Vec<ScoreDbBeatmap>>();
         Ok(ScoresDb {
             version,
             number_of_beatmaps,
-            beatmaps
+            beatmaps,
         })
     }
 }
 
-fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mutex<usize>>,
-    start_read: Arc<Mutex<usize>>, bytes_pointer: *const Vec<u8>)
-    -> JoinHandle<ParseFileResult<Vec<(usize, ScoreDbBeatmap)>>> {
+fn spawn_scoredbbeatmap_loader(
+    number_of_scoredbbeatmaps: usize,
+    counter: Arc<Mutex<usize>>,
+    start_read: Arc<Mutex<usize>>,
+    bytes_pointer: *const Vec<u8>,
+) -> JoinHandle<ParseFileResult<Vec<(usize, ScoreDbBeatmap)>>> {
     let tmp = bytes_pointer as usize;
     thread::spawn(move || {
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
@@ -81,21 +99,35 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                     // 34 bytes for MD5 beatmap hash/1 byte if indicator is 0
                     *s += 39;
                     // Assuming 32 characters max length for username, +2 for indicator and ULEB128
-                    let indicator = *bytes.get(*s)
-                        .ok_or_else(|| DbFileParseError::new(PrimitiveError, "Failed to read \
-                            indicator for player name."))?;
+                    let indicator = *bytes.get(*s).ok_or_else(|| {
+                        DbFileParseError::new(
+                            PrimitiveError,
+                            "Failed to read \
+                             indicator for player name.",
+                        )
+                    })?;
                     let player_name_len = if indicator == 0x0b {
-                        *bytes.get(*s + 1).ok_or_else(|| DbFileParseError::new(PrimitiveError,
-                            "Failed to read player name length."))?
+                        *bytes.get(*s + 1).ok_or_else(|| {
+                            DbFileParseError::new(
+                                PrimitiveError,
+                                "Failed to read player name length.",
+                            )
+                        })?
                     } else if indicator == 0 {
                         0
                     } else {
-                        return Err(DbFileParseError::new(PrimitiveError, "Read invalid indicator for score \
-                            player name."));
+                        return Err(DbFileParseError::new(
+                            PrimitiveError,
+                            "Read invalid indicator for score \
+                             player name.",
+                        ));
                     };
                     if player_name_len & 0b10000000 == 0b10000000 {
-                        return Err(DbFileParseError::new(PrimitiveError, "Read invalid player name \
-                            length."));
+                        return Err(DbFileParseError::new(
+                            PrimitiveError,
+                            "Read invalid player name \
+                             length.",
+                        ));
                     }
                     if indicator == 0 {
                         *s += 1;
@@ -133,11 +165,14 @@ fn spawn_scoredbbeatmap_loader(number_of_scoredbbeatmaps: usize, counter: Arc<Mu
                 }
                 Some(scores)
             };
-            score_db_beatmaps.push((number, ScoreDbBeatmap {
-                md5_beatmap_hash,
-                number_of_scores,
-                scores
-            }));
+            score_db_beatmaps.push((
+                number,
+                ScoreDbBeatmap {
+                    md5_beatmap_hash,
+                    number_of_scores,
+                    scores,
+                },
+            ));
         }
     })
 }

@@ -1,20 +1,20 @@
-extern crate clap;
 extern crate chrono;
+extern crate clap;
 
+mod argument;
 mod databases;
 mod deserialize_primitives;
 mod interactive;
 mod load_settings;
-mod serialize_primitives;
-mod argument;
-mod read_error;
 mod masks;
 mod maybe_deserialize_primitives;
+mod read_error;
+mod serialize_primitives;
 
 use std::time::Instant;
 
-use databases::database::OsuDatabase;
 use argument::*;
+use databases::database::OsuDatabase;
 
 fn main() {
     let arguments = get_arguments().unwrap();

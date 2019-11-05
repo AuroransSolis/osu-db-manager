@@ -1,21 +1,21 @@
-pub mod osu;
 pub mod collection;
-pub mod scores;
+pub mod osu;
 pub mod query;
+pub mod scores;
 
-use std::ops::Range;
 use std::cmp::{PartialEq, PartialOrd};
-use std::io::{Result as IoResult, Error as IoError, ErrorKind::InvalidInput};
+use std::io::{Error as IoError, ErrorKind::InvalidInput, Result as IoResult};
+use std::ops::Range;
 use std::str::FromStr;
 
-use clap::ArgMatches;
 use chrono::NaiveDate;
+use clap::ArgMatches;
 
-use crate::databases::osu::primitives::{RankedStatus, ByteSingle, GameplayMode};
+use crate::databases::osu::primitives::{ByteSingle, GameplayMode, RankedStatus};
 
 pub enum FilterResult<T> {
     Meets(Option<T>),
-    Fails
+    Fails,
 }
 
 pub trait Compare<T> {
@@ -26,21 +26,21 @@ pub trait Compare<T> {
 pub enum LoadSetting<C: Compare> {
     Load,
     Filter(C),
-    Ignore
+    Ignore,
 }
 
 impl<T> LoadSetting<T> {
     pub(crate) fn is_ignore(&self) -> bool {
         match self {
             LoadSetting::Ignore => true,
-            _ => false
+            _ => false,
         }
     }
 
     pub(crate) fn is_load(&self) -> bool {
         match self {
             LoadSetting::Load => true,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -65,7 +65,7 @@ impl Compare<Empty> for Empty {
 
 #[derive(Copy, Clone)]
 pub struct EqualCopy<T: Copy + Clone + PartialEq> {
-    value: T
+    value: T,
 }
 
 impl<T: Copy + Clone + PartialEq> Compare<T> for EqualCopy<T> {
@@ -75,12 +75,12 @@ impl<T: Copy + Clone + PartialEq> Compare<T> for EqualCopy<T> {
 }
 
 impl<T: Copy + Clone + PartialEq + FromStr> EqualCopy<T> {
-    pub fn from_matches(matches: &ArgMatches, field: &str)
-        -> IoResult<Option<Self>> {
+    pub fn from_matches(matches: &ArgMatches, field: &str) -> IoResult<Option<Self>> {
         if let Some(m) = matches.value_of(field) {
             Ok(Some(EqualCopy {
-                value: m.parse::<T>()
-                    .map_err(|e| IoError::new(InvalidInput, format!("Error parsing value: {}", e)))?
+                value: m.parse::<T>().map_err(|e| {
+                    IoError::new(InvalidInput, format!("Error parsing value: {}", e))
+                })?,
             }))
         } else {
             Ok(None)
@@ -92,16 +92,14 @@ impl EqualCopy<bool> {
     pub fn bool_from_matches(matches: &ArgMatches, field: &str) -> IoResult<Option<Self>> {
         if let Some(m) = matches.value_of(field) {
             match m.to_lowercase().as_str() {
-                "t" | "true" | "y" | "yes" | "1" => {
-                    Ok(Some(EqualCopy { value: true }))
-                },
-                "f" | "false" | "n" | "no" | "0" => {
-                    Ok(Some(EqualCopy { value: false }))
-                },
+                "t" | "true" | "y" | "yes" | "1" => Ok(Some(EqualCopy { value: true })),
+                "f" | "false" | "n" | "no" | "0" => Ok(Some(EqualCopy { value: false })),
                 _ => {
-                    let msg = format!("Could not parse {} as a boolean. Valid inputs are:\n \
+                    let msg = format!(
+                        "Could not parse {} as a boolean. Valid inputs are:\n \
                          - t/true/y/yes/1\n \
-                         - f/false/n/no/0");
+                         - f/false/n/no/0"
+                    );
                     Err(IoError::new(InvalidInput, msg.as_str()))
                 }
             }
@@ -113,7 +111,7 @@ impl EqualCopy<bool> {
 
 #[derive(Clone)]
 pub struct EqualClone<T: Clone + PartialEq> {
-    value: T
+    value: T,
 }
 
 impl<T: Clone + PartialEq> Compare<T> for EqualClone<T> {
@@ -142,7 +140,7 @@ pub enum Relational<T: Copy + Clone + PartialEq + PartialOrd> {
     InEE(Range<T>), // in range (a, b)
     InEI(Range<T>), // in range (a, b]
     InIE(Range<T>), // in range [a, b)
-    InII(Range<T>) // in range [a, b]
+    InII(Range<T>), // in range [a, b]
 }
 
 impl<T: Copy + Clone + PartialEq + PartialOrd> Compare<T> for Relational<T> {
@@ -156,7 +154,7 @@ impl<T: Copy + Clone + PartialEq + PartialOrd> Compare<T> for Relational<T> {
             Relational::InEE(Range { start, end }) => other > range.start && other < range.end,
             Relational::InEI(Range { start, end }) => other > range.start && other <= range.end,
             Relational::InIE(Range { start, end }) => other >= range.start && other < range.end,
-            Relational::InII(Range { start, end }) => other >= range.start && other <= range.end
+            Relational::InII(Range { start, end }) => other >= range.start && other <= range.end,
         }
     }
 }
@@ -174,10 +172,10 @@ impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
             InEE(Range { start, end }) => InEE(Some(start..end)),
             InEI(Range { start, end }) => InEI(Some(start..end)),
             InIE(Range { start, end }) => InIE(Some(start..end)),
-            InII(Range { start, end }) => InII(Some(start..end))
+            InII(Range { start, end }) => InII(Some(start..end)),
         }
     }
-    
+
     pub fn from_matches(matches: &ArgMatches, field: &str) -> IoResult<Option<Self>> {
         if let Some(m) = matches.value_of(field) {
             // If it's just "4" or "9.2" or something. Not a range.
@@ -190,14 +188,19 @@ impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
                 let (first, middle) = m.split_at(1);
                 let (middle, last) = middle.split_at(middle.len() - 1);
                 let mut spliterator = middle.split("..");
-                let (start, end) = (spliterator.next().ok_or_else(|| {
-                    IoError::new(InvalidInput, "Invalid range format.")
-                })?, spliterator.next().ok_or_else(|| {
-                    IoError::new(InvalidInput, "Invalid range format.")
-                })?);
+                let (start, end) = (
+                    spliterator
+                        .next()
+                        .ok_or_else(|| IoError::new(InvalidInput, "Invalid range format."))?,
+                    spliterator
+                        .next()
+                        .ok_or_else(|| IoError::new(InvalidInput, "Invalid range format."))?,
+                );
                 if start == "" && end == "" {
-                    return Err(IoError::new(InvalidInput,
-                        "At least one of the range bounds must be defined."));
+                    return Err(IoError::new(
+                        InvalidInput,
+                        "At least one of the range bounds must be defined.",
+                    ));
                 }
                 let start = start.parse::<T>().map_err(|e| {
                     let msg = format!("Failed to parse start of range.\n{}", e);
@@ -211,13 +214,13 @@ impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
                     match (first, last) {
                         ("(", ")") | ("[", ")") => Lt(end),
                         ("(", "]") | ("[", "]") => LtE(end),
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 } else if end == "" {
                     match (first, last) {
                         ("(", ")") | ("(", "]") => Gt(end),
                         ("[", ")") | ("[", "]") => GtE(end),
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 } else {
                     match (first, last) {
@@ -225,11 +228,14 @@ impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
                         ("(", "]") => InEI(start..end),
                         ("[", ")") => InIE(start..end),
                         ("[", "]") => InII(start..end),
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 }))
             } else {
-                Err(IoError::new(InvalidInput, "Input not recognized as value or range."))
+                Err(IoError::new(
+                    InvalidInput,
+                    "Input not recognized as value or range.",
+                ))
             }
         } else {
             Ok(None)
@@ -238,20 +244,22 @@ impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
 
     fn date_from_matches(matches: &ArgMatches, field: &str) -> IoResult<Option<Self>> {
         if let Some(m) = matches.value_of(field) {
-            if (m.starts_with('(') || m.starts_with('['))
-                && (m.ends_with(')') || m.ends_with(']')) {
+            if (m.starts_with('(') || m.starts_with('[')) && (m.ends_with(')') || m.ends_with(']'))
+            {
                 let (first, middle) = m.split_at(1);
                 let (middle, last) = middle.split_at(middle.len() - 1);
                 let mut spliterator = middle.split("..");
-                let start = spliterator.next().ok_or_else(|| {
-                    IoError::new(InvalidInput, "Missing start of range.")
-                })?;
-                let end = spliterator.next().ok_or_else(|| {
-                    IoError::new(InvalidInput, "Missing end of range.")
-                })?;
+                let start = spliterator
+                    .next()
+                    .ok_or_else(|| IoError::new(InvalidInput, "Missing start of range."))?;
+                let end = spliterator
+                    .next()
+                    .ok_or_else(|| IoError::new(InvalidInput, "Missing end of range."))?;
                 if start == "" && end == "" {
-                    return Err(IoError::new(InvalidInput,
-                        "At least one of the range bounds must be defined."));
+                    return Err(IoError::new(
+                        InvalidInput,
+                        "At least one of the range bounds must be defined.",
+                    ));
                 }
                 let start = date_from_str(start)?;
                 let end = date_from_str(end)?;
@@ -259,13 +267,13 @@ impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
                     match (first, last) {
                         ("(", ")") | ("[", ")") => Lt(end),
                         ("(", "]") | ("[", "]") => LtE(end),
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 } else if end == "" {
                     match (first, last) {
                         ("(", ")") | ("(", "]") => Gt(start),
                         ("[", ")") | ("[", "]") => GtE(start),
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 } else {
                     match (first, last) {
@@ -273,7 +281,7 @@ impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
                         ("(", "]") => InEI(start..end),
                         ("[", ")") => InIE(start..end),
                         ("[", "]") => InII(start..end),
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 }))
             } else {
@@ -320,7 +328,7 @@ pub(crate) fn is_valid_range(s: &str) -> bool {
             (true, true) => false,
             (true, false) => is_number(start),
             (false, true) => is_number(end),
-            (false, false) => is_number(start) && is_number(end)
+            (false, false) => is_number(start) && is_number(end),
         }
     } else {
         false

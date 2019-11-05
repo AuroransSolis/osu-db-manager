@@ -1,9 +1,9 @@
 use chrono::NaiveDate;
 
-use crate::maybe_deserialize_primitives::*;
-use crate::read_error::ParseFileResult;
 use crate::databases::osu::primitives::GameplayMode;
 use crate::masks::scores_mask::ScoreMask;
+use crate::maybe_deserialize_primitives::*;
+use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
 pub struct PartialScore {
@@ -14,7 +14,7 @@ pub struct PartialScore {
     pub md5_replay_hash: Option<String>,
     pub number_of_300s: Option<i16>,
     pub number_of_100s: Option<i16>, // 150s in Taiko, 100s in CTB, 200s in Mania
-    pub number_of_50s: Option<i16>, // small fruit in CTB, 50s in Mania
+    pub number_of_50s: Option<i16>,  // small fruit in CTB, 50s in Mania
     pub number_of_gekis: Option<i16>, // max 300s in Mania
     pub number_of_katus: Option<i16>, // 100s in mania
     pub number_of_misses: Option<i16>,
@@ -25,7 +25,7 @@ pub struct PartialScore {
     pub empty_string: Option<String>,
     pub replay_timestamp: Option<NaiveDate>,
     pub negative_one: Option<i32>,
-    pub online_score_id: Option<i64>
+    pub online_score_id: Option<i64>,
 }
 
 impl PartialScore {
@@ -68,7 +68,7 @@ impl PartialScore {
             empty_string,
             replay_timestamp,
             negative_one,
-            online_score_id
+            online_score_id,
         })
     }
 }

@@ -1,17 +1,12 @@
 use std::io::Result as IoResult;
 
 use chrono::NaiveDate;
-use clap::{Arg, App, SubCommand, AppSettings, ArgMatches};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use crate::load_settings::{
-    LoadSetting,
-    EqualClone,
-    EqualCopy,
-    Relational,
-    Empty,
-    query::QueryStruct
-};
 use crate::databases::osu::primitives::GameplayMode;
+use crate::load_settings::{
+    query::QueryStruct, Empty, EqualClone, EqualCopy, LoadSetting, Relational,
+};
 use crate::masks::scores_mask::ScoreMask;
 
 pub struct ScoreLoadSettings {
@@ -33,45 +28,73 @@ pub struct ScoreLoadSettings {
     pub empty_string: LoadSetting<Empty>,
     pub replay_timestamp: LoadSetting<Relational<NaiveDate>>,
     pub negative_one: LoadSetting<Empty>,
-    pub online_score_id: LoadSetting<Relational<i32>>
+    pub online_score_id: LoadSetting<Relational<i32>>,
 }
 
 impl ScoreLoadSettings {
     pub fn load_all(&self) -> bool {
-        self.gameplay_mode.is_load() && self.score_version.is_load()
-            && self.md5_beatmap_hash.is_load() && self.player_name.is_load()
-            && self.md5_replay_hash.is_load() && self.number_of_300s.is_load()
-            && self.number_of_100s.is_load() && self.number_of_50s.is_load()
-            && self.number_of_gekis.is_load() && self.number_of_katus.is_load()
-            && self.number_of_misses.is_load() && self.replay_score.is_load()
-            && self.max_combo.is_load() && self.perfect_combo.is_load() && self.mods_used.is_load()
-            && self.empty_string.is_load() && self.replay_timestamp.is_load()
-            && self.negative_one.is_load() && self.online_score_id.is_load()
+        self.gameplay_mode.is_load()
+            && self.score_version.is_load()
+            && self.md5_beatmap_hash.is_load()
+            && self.player_name.is_load()
+            && self.md5_replay_hash.is_load()
+            && self.number_of_300s.is_load()
+            && self.number_of_100s.is_load()
+            && self.number_of_50s.is_load()
+            && self.number_of_gekis.is_load()
+            && self.number_of_katus.is_load()
+            && self.number_of_misses.is_load()
+            && self.replay_score.is_load()
+            && self.max_combo.is_load()
+            && self.perfect_combo.is_load()
+            && self.mods_used.is_load()
+            && self.empty_string.is_load()
+            && self.replay_timestamp.is_load()
+            && self.negative_one.is_load()
+            && self.online_score_id.is_load()
     }
-    
+
     pub fn ignore_all(&self) -> bool {
-        self.gameplay_mode.is_ignore() && self.score_version.is_ignore()
-            && self.md5_beatmap_hash.is_ignore() && self.player_name.is_ignore()
-            && self.md5_replay_hash.is_ignore() && self.number_of_300s.is_ignore()
-            && self.number_of_100s.is_ignore() && self.number_of_50s.is_ignore()
-            && self.number_of_gekis.is_ignore() && self.number_of_katus.is_ignore()
-            && self.number_of_misses.is_ignore() && self.replay_score.is_ignore()
-            && self.max_combo.is_ignore() && self.perfect_combo.is_ignore()
-            && self.mods_used.is_ignore() && self.empty_string.is_ignore()
-            && self.replay_timestamp.is_ignore() && self.negative_one.is_ignore()
+        self.gameplay_mode.is_ignore()
+            && self.score_version.is_ignore()
+            && self.md5_beatmap_hash.is_ignore()
+            && self.player_name.is_ignore()
+            && self.md5_replay_hash.is_ignore()
+            && self.number_of_300s.is_ignore()
+            && self.number_of_100s.is_ignore()
+            && self.number_of_50s.is_ignore()
+            && self.number_of_gekis.is_ignore()
+            && self.number_of_katus.is_ignore()
+            && self.number_of_misses.is_ignore()
+            && self.replay_score.is_ignore()
+            && self.max_combo.is_ignore()
+            && self.perfect_combo.is_ignore()
+            && self.mods_used.is_ignore()
+            && self.empty_string.is_ignore()
+            && self.replay_timestamp.is_ignore()
+            && self.negative_one.is_ignore()
             && self.online_score_id.is_ignore()
     }
-    
+
     pub fn is_partial(&self) -> bool {
-        self.gameplay_mode.is_ignore() || self.score_version.is_ignore()
-            || self.md5_beatmap_hash.is_ignore() || self.player_name.is_ignore()
-            || self.md5_replay_hash.is_ignore() || self.number_of_300s.is_ignore()
-            || self.number_of_100s.is_ignore() || self.number_of_50s.is_ignore()
-            || self.number_of_gekis.is_ignore() || self.number_of_katus.is_ignore()
-            || self.number_of_misses.is_ignore() || self.replay_score.is_ignore()
-            || self.max_combo.is_ignore() || self.perfect_combo.is_ignore()
-            || self.mods_used.is_ignore() || self.empty_string.is_ignore()
-            || self.replay_timestamp.is_ignore() || self.negative_one.is_ignore()
+        self.gameplay_mode.is_ignore()
+            || self.score_version.is_ignore()
+            || self.md5_beatmap_hash.is_ignore()
+            || self.player_name.is_ignore()
+            || self.md5_replay_hash.is_ignore()
+            || self.number_of_300s.is_ignore()
+            || self.number_of_100s.is_ignore()
+            || self.number_of_50s.is_ignore()
+            || self.number_of_gekis.is_ignore()
+            || self.number_of_katus.is_ignore()
+            || self.number_of_misses.is_ignore()
+            || self.replay_score.is_ignore()
+            || self.max_combo.is_ignore()
+            || self.perfect_combo.is_ignore()
+            || self.mods_used.is_ignore()
+            || self.empty_string.is_ignore()
+            || self.replay_timestamp.is_ignore()
+            || self.negative_one.is_ignore()
             || self.online_score_id.is_ignore()
     }
 
@@ -82,14 +105,18 @@ impl ScoreLoadSettings {
         self.player_name = EqualClone::from_matches(matches, "Player name")?.into();
         self.md5_replay_hash = EqualClone::from_matches(matches, "MD5 replay hash")?.into();
         self.number_of_300s = Relational::from_matches(matches, "Number of 300s")?;
-        self.number_of_100s = Relational::from_matches(matches,
-            "Number of 100s (standard/CTB)/150s (taiko)/200s (mania)")?.into();
-        self.number_of_50s = Relational::from_matches(matches,
-            "Number of 50s (standard/mania)/small fruit (CTB)")?.into();
-        self.number_of_gekis = Relational::from_matches(matches,
-            "Number of gekis/max 300s (mania)")?.into();
-        self.number_of_katus = Relational::from_matches(matches,
-            "Number of katus/100s (mania)")?.into();
+        self.number_of_100s = Relational::from_matches(
+            matches,
+            "Number of 100s (standard/CTB)/150s (taiko)/200s (mania)",
+        )?
+        .into();
+        self.number_of_50s =
+            Relational::from_matches(matches, "Number of 50s (standard/mania)/small fruit (CTB)")?
+                .into();
+        self.number_of_gekis =
+            Relational::from_matches(matches, "Number of gekis/max 300s (mania)")?.into();
+        self.number_of_katus =
+            Relational::from_matches(matches, "Number of katus/100s (mania)")?.into();
         self.number_of_misses = Relational::from_matches(matches, "Number of misses")?.into();
         self.replay_score = Relational::from_matches(matches, "Replay score")?.into();
         self.max_combo = Relational::from_matches(matches, "Max combo")?.into();
@@ -99,7 +126,7 @@ impl ScoreLoadSettings {
         self.online_score_id = Relational::from_matches(matches, "Online score ID")?.into();
         Ok(())
     }
-    
+
     pub fn set_from_mask(&mut self, mask: ScoreMask) {
         if self.gameplay_mode.is_ignore() && mask.gameplay_mode {
             self.gameplay_mode = LoadSetting::Load;

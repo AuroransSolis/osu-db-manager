@@ -3,14 +3,16 @@ use std::thread::{self, JoinHandle};
 
 use chrono::NaiveDate;
 
-use crate::deserialize_primitives::*;
-use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 use crate::databases::{
     load::Load,
-    osu::{primitives::*, beatmap::Beatmap,
-        versions::{Legacy, Modern, ModernWithEntrySize, ReadVersionSpecificData}
-    }
+    osu::{
+        beatmap::Beatmap,
+        primitives::*,
+        versions::{Legacy, Modern, ModernWithEntrySize, ReadVersionSpecificData},
+    },
 };
+use crate::deserialize_primitives::*;
+use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
 #[derive(Debug, Clone)]
 pub struct OsuDb {
@@ -21,7 +23,7 @@ pub struct OsuDb {
     pub player_name: Option<String>,
     pub number_of_beatmaps: i32,
     pub beatmaps: Vec<Beatmap>,
-    pub unknown_int: i32
+    pub unknown_int: i32,
 }
 
 impl Load for OsuDb {
@@ -49,11 +51,15 @@ impl Load for OsuDb {
             }
         } else if version >= 20160408 {
             for _ in 0..num_beatmaps {
-                beatmaps.push(Beatmap::read_from_bytes::<ModernWithEntrySize>(&bytes, &mut index)?);
+                beatmaps.push(Beatmap::read_from_bytes::<ModernWithEntrySize>(
+                    &bytes, &mut index,
+                )?);
             }
         } else {
-            let err_msg = format!("Read version with no associated beatmap loading method {}",
-                version);
+            let err_msg = format!(
+                "Read version with no associated beatmap loading method {}",
+                version
+            );
             return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
         }
         let unknown_int = read_int(&bytes, &mut index)?;
@@ -65,13 +71,19 @@ impl Load for OsuDb {
             player_name,
             number_of_beatmaps: num_beatmaps,
             beatmaps,
-            unknown_int
+            unknown_int,
         })
     }
 
     fn read_multi_thread(jobs: usize, bytes: Vec<u8>) -> ParseFileResult<Self> {
-        let (version, folder_count, account_unlocked, account_unlock_date, player_name,
-            mut bytes_used) = {
+        let (
+            version,
+            folder_count,
+            account_unlocked,
+            account_unlock_date,
+            player_name,
+            mut bytes_used,
+        ) = {
             let mut index = 0;
             let i = &mut index;
             let version = read_int(&bytes, i)?;
@@ -90,29 +102,54 @@ impl Load for OsuDb {
             // account_unlock_date: 8
             // player_name_string: player_name_len
             let bytes_used = 4 + 4 + 1 + 8 + player_name_len;
-            (version, folder_count, account_unlocked, account_unlock_date, player_name, bytes_used)
+            (
+                version,
+                folder_count,
+                account_unlocked,
+                account_unlock_date,
+                player_name,
+                bytes_used,
+            )
         };
         let num_beatmaps = read_int(&bytes, &mut bytes_used)?;
         let counter = Arc::new(Mutex::new(0));
         let start = Arc::new(Mutex::new(bytes_used));
         let beatmaps = if version >= 20160408 {
             let threads = (0..jobs)
-                .map(|_| spawn_beatmap_loader_thread(num_beatmaps as usize, counter.clone(),
-                    start.clone(), &bytes)).collect::<Vec<_>>();
-            let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
+                .map(|_| {
+                    spawn_beatmap_loader_thread(
+                        num_beatmaps as usize,
+                        counter.clone(),
+                        start.clone(),
+                        &bytes,
+                    )
+                })
+                .collect::<Vec<_>>();
+            let mut results = threads
+                .into_iter()
+                .map(|joinhandle| joinhandle.join().unwrap())
                 .collect::<Vec<_>>();
             let mut beatmaps = results.pop().unwrap()?;
             for beatmap_result in results {
                 beatmaps.append(&mut beatmap_result?);
             }
             beatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
-            beatmaps.into_iter().map(|(_, beatmap)| beatmap).collect::<Vec<_>>()
-        } else if version / 1000 <= 2016 && version / 1000 >= 2007 { // catch valid versions
-            return Err(DbFileParseError::new(OsuDbError, "osu!.db versions older than 20160408 do \
-                not support multithreaded loading."));
+            beatmaps
+                .into_iter()
+                .map(|(_, beatmap)| beatmap)
+                .collect::<Vec<_>>()
+        } else if version / 1000 <= 2016 && version / 1000 >= 2007 {
+            // catch valid versions
+            return Err(DbFileParseError::new(
+                OsuDbError,
+                "osu!.db versions older than 20160408 do \
+                 not support multithreaded loading.",
+            ));
         } else {
-            let err_msg = format!("Read version with no associated beatmap loading method: {}",
-                version);
+            let err_msg = format!(
+                "Read version with no associated beatmap loading method: {}",
+                version
+            );
             return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
         };
         let unknown_int = read_int(&bytes, &mut *start.lock().unwrap())?;
@@ -124,14 +161,18 @@ impl Load for OsuDb {
             player_name,
             number_of_beatmaps: num_beatmaps,
             beatmaps,
-            unknown_int
+            unknown_int,
         })
     }
 }
 
 #[inline]
-fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>, start: Arc<Mutex<usize>>,
-    bytes_pointer: *const Vec<u8>) -> JoinHandle<ParseFileResult<Vec<(usize, Beatmap)>>> {
+fn spawn_beatmap_loader_thread(
+    number: usize,
+    counter: Arc<Mutex<usize>>,
+    start: Arc<Mutex<usize>>,
+    bytes_pointer: *const Vec<u8>,
+) -> JoinHandle<ParseFileResult<Vec<(usize, Beatmap)>>> {
     let tmp = bytes_pointer as usize;
     thread::spawn(move || {
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
@@ -170,14 +211,14 @@ fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>, start:
             let hp_drain = ModernWithEntrySize::read_arcshpod(bytes, i)?;
             let overall_difficulty = ModernWithEntrySize::read_arcshpod(bytes, i)?;
             let slider_velocity = read_double(bytes, i)?;
-            let (num_mcsr_standard, mcsr_standard)
-                = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
-            let (num_mcsr_taiko, mcsr_taiko)
-                = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
-            let (num_mcsr_ctb, mcsr_ctb)
-                = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
-            let (num_mcsr_mania, mcsr_mania)
-                = ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
+            let (num_mcsr_standard, mcsr_standard) =
+                ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
+            let (num_mcsr_taiko, mcsr_taiko) =
+                ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
+            let (num_mcsr_ctb, mcsr_ctb) =
+                ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
+            let (num_mcsr_mania, mcsr_mania) =
+                ModernWithEntrySize::read_mod_combo_star_ratings(bytes, i)?;
             let drain_time = read_int(bytes, i)?;
             let total_time = read_int(bytes, i)?;
             let preview_offset_from_start_ms = read_int(bytes, i)?;
@@ -213,68 +254,71 @@ fn spawn_beatmap_loader_thread(number: usize, counter: Arc<Mutex<usize>>, start:
             let unknown_short = ModernWithEntrySize::read_unknown_short(bytes, i)?;
             let offset_from_song_start_in_editor_ms = read_int(bytes, i)?;
             let mania_scroll_speed = read_byte(bytes, i)?;
-            beatmaps.push((num, Beatmap {
-                entry_size: Some(entry_size),
-                artist_name,
-                artist_name_unicode,
-                song_title,
-                song_title_unicode,
-                creator_name,
-                difficulty,
-                audio_file_name,
-                md5_beatmap_hash,
-                dotosu_file_name,
-                ranked_status,
-                number_of_hitcircles,
-                number_of_sliders,
-                number_of_spinners,
-                last_modification_time,
-                approach_rate,
-                circle_size,
-                hp_drain,
-                overall_difficulty,
-                slider_velocity,
-                num_mod_combo_star_ratings_standard: num_mcsr_standard,
-                mod_combo_star_ratings_standard: mcsr_standard,
-                num_mod_combo_star_ratings_taiko: num_mcsr_taiko,
-                mod_combo_star_ratings_taiko: mcsr_taiko,
-                num_mod_combo_star_ratings_ctb: num_mcsr_ctb,
-                mod_combo_star_ratings_ctb: mcsr_ctb,
-                num_mod_combo_star_ratings_mania: num_mcsr_mania,
-                mod_combo_star_ratings_mania: mcsr_mania,
-                drain_time,
-                total_time,
-                preview_offset_from_start_ms,
-                num_timing_points,
-                timing_points,
-                beatmap_id,
-                beatmap_set_id,
-                thread_id,
-                standard_grade,
-                taiko_grade,
-                ctb_grade,
-                mania_grade,
-                local_offset,
-                stack_leniency,
-                gameplay_mode,
-                song_source,
-                song_tags,
-                online_offset,
-                font_used_for_song_title,
-                unplayed,
-                last_played,
-                is_osz2,
-                beatmap_folder_name,
-                last_checked_against_repo,
-                ignore_beatmap_sound,
-                ignore_beatmap_skin,
-                disable_storyboard,
-                disable_video,
-                visual_override,
-                unknown_short,
-                offset_from_song_start_in_editor_ms,
-                mania_scroll_speed
-            }));
+            beatmaps.push((
+                num,
+                Beatmap {
+                    entry_size: Some(entry_size),
+                    artist_name,
+                    artist_name_unicode,
+                    song_title,
+                    song_title_unicode,
+                    creator_name,
+                    difficulty,
+                    audio_file_name,
+                    md5_beatmap_hash,
+                    dotosu_file_name,
+                    ranked_status,
+                    number_of_hitcircles,
+                    number_of_sliders,
+                    number_of_spinners,
+                    last_modification_time,
+                    approach_rate,
+                    circle_size,
+                    hp_drain,
+                    overall_difficulty,
+                    slider_velocity,
+                    num_mod_combo_star_ratings_standard: num_mcsr_standard,
+                    mod_combo_star_ratings_standard: mcsr_standard,
+                    num_mod_combo_star_ratings_taiko: num_mcsr_taiko,
+                    mod_combo_star_ratings_taiko: mcsr_taiko,
+                    num_mod_combo_star_ratings_ctb: num_mcsr_ctb,
+                    mod_combo_star_ratings_ctb: mcsr_ctb,
+                    num_mod_combo_star_ratings_mania: num_mcsr_mania,
+                    mod_combo_star_ratings_mania: mcsr_mania,
+                    drain_time,
+                    total_time,
+                    preview_offset_from_start_ms,
+                    num_timing_points,
+                    timing_points,
+                    beatmap_id,
+                    beatmap_set_id,
+                    thread_id,
+                    standard_grade,
+                    taiko_grade,
+                    ctb_grade,
+                    mania_grade,
+                    local_offset,
+                    stack_leniency,
+                    gameplay_mode,
+                    song_source,
+                    song_tags,
+                    online_offset,
+                    font_used_for_song_title,
+                    unplayed,
+                    last_played,
+                    is_osz2,
+                    beatmap_folder_name,
+                    last_checked_against_repo,
+                    ignore_beatmap_sound,
+                    ignore_beatmap_skin,
+                    disable_storyboard,
+                    disable_video,
+                    visual_override,
+                    unknown_short,
+                    offset_from_song_start_in_editor_ms,
+                    mania_scroll_speed,
+                },
+            ));
         }
     })
 }

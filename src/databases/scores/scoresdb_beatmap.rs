@@ -1,12 +1,12 @@
-use crate::deserialize_primitives::*;
 use crate::databases::scores::score::Score;
+use crate::deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
 pub struct ScoreDbBeatmap {
     pub md5_beatmap_hash: String,
     pub number_of_scores: i32,
-    pub scores: Option<Vec<Score>>
+    pub scores: Option<Vec<Score>>,
 }
 
 impl ScoreDbBeatmap {
@@ -25,7 +25,7 @@ impl ScoreDbBeatmap {
         Ok(ScoreDbBeatmap {
             md5_beatmap_hash,
             number_of_scores,
-            scores
+            scores,
         })
     }
 }

@@ -1,8 +1,8 @@
 use chrono::NaiveDate;
 
-use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
-use crate::deserialize_primitives::*;
 use crate::databases::osu::{primitives::*, versions::ReadVersionSpecificData};
+use crate::deserialize_primitives::*;
+use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
 #[derive(Clone, Debug)]
 pub struct Beatmap {
@@ -65,12 +65,14 @@ pub struct Beatmap {
     pub visual_override: bool,
     pub unknown_short: Option<i16>,
     pub offset_from_song_start_in_editor_ms: i32,
-    pub mania_scroll_speed: u8
+    pub mania_scroll_speed: u8,
 }
 
 impl Beatmap {
-    pub fn read_from_bytes<T: ReadVersionSpecificData>(bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Self> {
+    pub fn read_from_bytes<T: ReadVersionSpecificData>(
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Self> {
         let entry_size = T::read_entry_size(bytes, i)?;
         let artist_name = read_string_utf8(bytes, i, "non-Unicode artist name")?;
         let artist_name_unicode = read_string_utf8(bytes, i, "Unicode artist name")?;
@@ -193,7 +195,7 @@ impl Beatmap {
             visual_override,
             unknown_short,
             offset_from_song_start_in_editor_ms,
-            mania_scroll_speed
+            mania_scroll_speed,
         })
     }
 }

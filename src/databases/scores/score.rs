@@ -1,8 +1,8 @@
 use chrono::NaiveDate;
 
+use crate::databases::osu::primitives::GameplayMode;
 use crate::deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
-use crate::databases::osu::primitives::GameplayMode;
 
 #[derive(Debug, Clone)]
 pub struct Score {
@@ -12,8 +12,8 @@ pub struct Score {
     pub player_name: Option<String>,
     pub md5_replay_hash: String,
     pub number_of_300s: i16,
-    pub number_of_100s: i16, // 150s in Taiko, 100s in CTB, 200s in Mania
-    pub number_of_50s: i16, // small fruit in CTB, 50s in Mania
+    pub number_of_100s: i16,  // 150s in Taiko, 100s in CTB, 200s in Mania
+    pub number_of_50s: i16,   // small fruit in CTB, 50s in Mania
     pub number_of_gekis: i16, // max 300s in Mania
     pub number_of_katus: i16, // 100s in mania
     pub number_of_misses: i16,
@@ -24,7 +24,7 @@ pub struct Score {
     pub empty_string: Option<String>,
     pub replay_timestamp: NaiveDate,
     pub negative_one: i32,
-    pub online_score_id: i64
+    pub online_score_id: i64,
 }
 
 impl Score {
@@ -67,7 +67,7 @@ impl Score {
             empty_string,
             replay_timestamp,
             negative_one,
-            online_score_id
+            online_score_id,
         })
     }
 }

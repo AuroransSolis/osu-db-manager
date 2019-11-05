@@ -1,18 +1,21 @@
-use crate::deserialize_primitives::*;
 use crate::databases::scores::partial_score::PartialScore;
-use crate::read_error::ParseFileResult;
+use crate::deserialize_primitives::*;
 use crate::masks::scores_mask::ScoresDbBeatmapMask;
+use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
 pub struct PartialScoresDbBeatmap {
     pub md5_beatmap_hash: Option<String>,
     pub number_of_scores: i32,
-    pub scores: Option<Vec<PartialScore>>
+    pub scores: Option<Vec<PartialScore>>,
 }
 
 impl PartialScoresDbBeatmap {
-    pub fn read_from_bytes(mask: ScoresDbBeatmapMask, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Self> {
+    pub fn read_from_bytes(
+        mask: ScoresDbBeatmapMask,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Self> {
         let md5_beatmap_hash = if mask.md5_beatmap_hash {
             Some(read_md5_hash(bytes, i)?)
         } else {
@@ -36,7 +39,7 @@ impl PartialScoresDbBeatmap {
         Ok(PartialScoresDbBeatmap {
             md5_beatmap_hash,
             number_of_scores,
-            scores
+            scores,
         })
     }
 }

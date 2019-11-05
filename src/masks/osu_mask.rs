@@ -1,12 +1,28 @@
-use clap::{Arg, App, SubCommand, AppSettings, ArgGroup, ArgMatches};
+use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 
 use crate::masks::mask::Mask;
 
-const BEATMAP_FIELDS: [&str; 60] = ["Entry size", "Artist name", "Artist name unicode",
-    "Song title", "Song title unicode", "Creator name", "Difficulty", "Audio file name",
-    "MD5 beatmap hash", ".osu file name", "Ranked status", "Number of hitcircles",
-    "Number of sliders", "Number of spinners", "Last modification time", "Approach rate",
-    "Circle size", "HP drain", "Overall difficulty", "Slider velocity",
+const BEATMAP_FIELDS: [&str; 60] = [
+    "Entry size",
+    "Artist name",
+    "Artist name unicode",
+    "Song title",
+    "Song title unicode",
+    "Creator name",
+    "Difficulty",
+    "Audio file name",
+    "MD5 beatmap hash",
+    ".osu file name",
+    "Ranked status",
+    "Number of hitcircles",
+    "Number of sliders",
+    "Number of spinners",
+    "Last modification time",
+    "Approach rate",
+    "Circle size",
+    "HP drain",
+    "Overall difficulty",
+    "Slider velocity",
     "Number of precalculated mod combo star ratings (standard)",
     "Precalculated mod combo star ratings (standard)",
     "Number of precalculated mod combo star ratings (taiko)",
@@ -14,14 +30,40 @@ const BEATMAP_FIELDS: [&str; 60] = ["Entry size", "Artist name", "Artist name un
     "Number of precalculated mod combo star ratings (CTB)",
     "precalculated mod combo star ratings (CTB)",
     "Number of precalculated mod combo star ratings (mania)",
-    "precalculated mod combo star ratings (mania)", "Drain time", "Total time",
-    "Preview offset from start (ms)", "Number of timing points", "Timing points", "Beatmap ID",
-    "Beatmap set ID", "Thread ID", "Standard grade", "Taiko grade", "CTB grade", "Mania grade",
-    "Local offset", "Stack leniency", "Gameplay mode", "Song source", "Song tags", "Online offset",
-    "Font used for song title", "Unplayed", "Last played", "Is OSZ2", "Beatmap folder name",
-    "Last checked against repo", "Ignore beatmap sound", "Ignore beatmap skin",
-    "Disable storyboard", "Disable video", "Visual override", "Unknown short",
-    "Offset from song start in editor (ms)", "Mania scroll speed"];
+    "precalculated mod combo star ratings (mania)",
+    "Drain time",
+    "Total time",
+    "Preview offset from start (ms)",
+    "Number of timing points",
+    "Timing points",
+    "Beatmap ID",
+    "Beatmap set ID",
+    "Thread ID",
+    "Standard grade",
+    "Taiko grade",
+    "CTB grade",
+    "Mania grade",
+    "Local offset",
+    "Stack leniency",
+    "Gameplay mode",
+    "Song source",
+    "Song tags",
+    "Online offset",
+    "Font used for song title",
+    "Unplayed",
+    "Last played",
+    "Is OSZ2",
+    "Beatmap folder name",
+    "Last checked against repo",
+    "Ignore beatmap sound",
+    "Ignore beatmap skin",
+    "Disable storyboard",
+    "Disable video",
+    "Visual override",
+    "Unknown short",
+    "Offset from song start in editor (ms)",
+    "Mania scroll speed",
+];
 
 #[derive(Copy, Clone, Debug)]
 pub struct BeatmapMask {
@@ -84,31 +126,71 @@ pub struct BeatmapMask {
     pub visual_override: bool,
     pub unknown_short: bool,
     pub offset_from_song_start_in_editor_ms: bool,
-    pub mania_scroll_speed: bool
+    pub mania_scroll_speed: bool,
 }
 
 impl BeatmapMask {
     fn is_complete(&self) -> bool {
-        self.entry_size && self.artist_name && self.artist_name_unicode && self.song_title
-            && self.song_title_unicode && self.creator_name && self.difficulty
-            && self.audio_file_name && self.md5_beatmap_hash && self.dotosu_file_name
-            && self.ranked_status && self.number_of_hitcircles && self.number_of_sliders
-            && self.number_of_spinners && self.last_modification_time && self.approach_rate
-            && self.circle_size && self.hp_drain && self.overall_difficulty && self.slider_velocity
-            && self.num_mod_combo_star_ratings_standard && self.mod_combo_star_ratings_standard
-            && self.num_mod_combo_star_ratings_taiko && self.mod_combo_star_ratings_taiko
-            && self.num_mod_combo_star_ratings_ctb && self.mod_combo_star_ratings_ctb
-            && self.num_mod_combo_star_ratings_mania && self.mod_combo_star_ratings_mania
-            && self.drain_time && self.total_time && self.preview_offset_from_start_ms
-            && self.num_timing_points && self.timing_points && self.beatmap_id
-            && self.beatmap_set_id && self.thread_id && self.standard_grade && self.taiko_grade
-            && self.ctb_grade && self.mania_grade && self.local_offset && self.stack_leniency
-            && self.gameplay_mode && self.song_source && self.song_tags && self.online_offset
-            && self.font_used_for_song_title && self.unplayed && self.last_played && self.is_osz2
-            && self.beatmap_folder_name && self.last_checked_against_repo
-            && self.ignore_beatmap_sound && self.ignore_beatmap_skin && self.disable_storyboard
-            && self.disable_video && self.visual_override && self.unknown_short
-            && self.offset_from_song_start_in_editor_ms && self.mania_scroll_speed
+        self.entry_size
+            && self.artist_name
+            && self.artist_name_unicode
+            && self.song_title
+            && self.song_title_unicode
+            && self.creator_name
+            && self.difficulty
+            && self.audio_file_name
+            && self.md5_beatmap_hash
+            && self.dotosu_file_name
+            && self.ranked_status
+            && self.number_of_hitcircles
+            && self.number_of_sliders
+            && self.number_of_spinners
+            && self.last_modification_time
+            && self.approach_rate
+            && self.circle_size
+            && self.hp_drain
+            && self.overall_difficulty
+            && self.slider_velocity
+            && self.num_mod_combo_star_ratings_standard
+            && self.mod_combo_star_ratings_standard
+            && self.num_mod_combo_star_ratings_taiko
+            && self.mod_combo_star_ratings_taiko
+            && self.num_mod_combo_star_ratings_ctb
+            && self.mod_combo_star_ratings_ctb
+            && self.num_mod_combo_star_ratings_mania
+            && self.mod_combo_star_ratings_mania
+            && self.drain_time
+            && self.total_time
+            && self.preview_offset_from_start_ms
+            && self.num_timing_points
+            && self.timing_points
+            && self.beatmap_id
+            && self.beatmap_set_id
+            && self.thread_id
+            && self.standard_grade
+            && self.taiko_grade
+            && self.ctb_grade
+            && self.mania_grade
+            && self.local_offset
+            && self.stack_leniency
+            && self.gameplay_mode
+            && self.song_source
+            && self.song_tags
+            && self.online_offset
+            && self.font_used_for_song_title
+            && self.unplayed
+            && self.last_played
+            && self.is_osz2
+            && self.beatmap_folder_name
+            && self.last_checked_against_repo
+            && self.ignore_beatmap_sound
+            && self.ignore_beatmap_skin
+            && self.disable_storyboard
+            && self.disable_video
+            && self.visual_override
+            && self.unknown_short
+            && self.offset_from_song_start_in_editor_ms
+            && self.mania_scroll_speed
     }
 
     fn from_subcommand_matches(matches: &ArgMatches) -> Self {
@@ -132,30 +214,22 @@ impl BeatmapMask {
         let hp_drain = matches.is_present("HP drain");
         let overall_difficulty = matches.is_present("Overall difficulty");
         let slider_velocity = matches.is_present("Slider velocity");
-        let num_mod_combo_star_ratings_standard = matches.is_present(
-            "Number of precalculated mod combo star ratings (standard)"
-        );
-        let mod_combo_star_ratings_standard = matches.is_present(
-            "Precalculated mod combo star ratings (standard)"
-        );
-        let num_mod_combo_star_ratings_taiko = matches.is_present(
-            "Number of precalculated mod combo star ratings (taiko)"
-        );
-        let mod_combo_star_ratings_taiko = matches.is_present(
-            "Precalculated mod combo star ratings (taiko)"
-        );
-        let num_mod_combo_star_ratings_ctb = matches.is_present(
-            "Number of precalculated mod combo star ratings (CTB)"
-        );
-        let mod_combo_star_ratings_ctb = matches.is_present(
-            "Precalculated mod combo star ratings (CTB)"
-        );
-        let num_mod_combo_star_ratings_mania = matches.is_present(
-            "Number of precalculated mod combo star ratings (mania)"
-        );
-        let mod_combo_star_ratings_mania = matches.is_present(
-            "Precalculated mod combo star ratings (mania)"
-        );
+        let num_mod_combo_star_ratings_standard =
+            matches.is_present("Number of precalculated mod combo star ratings (standard)");
+        let mod_combo_star_ratings_standard =
+            matches.is_present("Precalculated mod combo star ratings (standard)");
+        let num_mod_combo_star_ratings_taiko =
+            matches.is_present("Number of precalculated mod combo star ratings (taiko)");
+        let mod_combo_star_ratings_taiko =
+            matches.is_present("Precalculated mod combo star ratings (taiko)");
+        let num_mod_combo_star_ratings_ctb =
+            matches.is_present("Number of precalculated mod combo star ratings (CTB)");
+        let mod_combo_star_ratings_ctb =
+            matches.is_present("Precalculated mod combo star ratings (CTB)");
+        let num_mod_combo_star_ratings_mania =
+            matches.is_present("Number of precalculated mod combo star ratings (mania)");
+        let mod_combo_star_ratings_mania =
+            matches.is_present("Precalculated mod combo star ratings (mania)");
         let drain_time = matches.is_present("Drain time");
         let total_time = matches.is_present("Total time");
         let preview_offset_from_start_ms = matches.is_present("Preview offset from start (ms)");
@@ -186,7 +260,8 @@ impl BeatmapMask {
         let disable_video = matches.is_present("Disable video");
         let visual_override = matches.is_present("Visual override");
         let unknown_short = matches.is_present("Unknown short");
-        let offset_from_song_start_in_editor_ms = matches.is_present("Offset from song start in editor (ms)");
+        let offset_from_song_start_in_editor_ms =
+            matches.is_present("Offset from song start in editor (ms)");
         let mania_scroll_speed = matches.is_present("Mania scroll speed");
         BeatmapMask {
             entry_size,
@@ -248,7 +323,7 @@ impl BeatmapMask {
             visual_override,
             unknown_short,
             offset_from_song_start_in_editor_ms,
-            mania_scroll_speed
+            mania_scroll_speed,
         }
     }
 }
@@ -262,13 +337,20 @@ pub struct OsuDbMask {
     pub player_name: bool,
     pub number_of_beatmaps: bool,
     pub beatmap_mask: Option<BeatmapMask>,
-    pub unknown_int: bool
+    pub unknown_int: bool,
 }
 
 impl OsuDbMask {
-    pub fn new(version: bool, folder_count: bool, account_unlocked: bool, account_unlock_date: bool,
-        player_name: bool, number_of_beatmaps: bool, beatmap_mask: Option<BeatmapMask>,
-        unknown_int: bool) -> Self {
+    pub fn new(
+        version: bool,
+        folder_count: bool,
+        account_unlocked: bool,
+        account_unlock_date: bool,
+        player_name: bool,
+        number_of_beatmaps: bool,
+        beatmap_mask: Option<BeatmapMask>,
+        unknown_int: bool,
+    ) -> Self {
         OsuDbMask {
             version,
             folder_count,
@@ -277,7 +359,7 @@ impl OsuDbMask {
             player_name,
             number_of_beatmaps,
             beatmap_mask,
-            unknown_int
+            unknown_int,
         }
     }
 }
@@ -285,8 +367,13 @@ impl OsuDbMask {
 impl Mask for OsuDbMask {
     fn is_complete(&self) -> bool {
         if let Some(beatmap_mask) = self.beatmap_mask {
-            beatmap_mask.is_complete() && self.version && self.folder_count && self.account_unlocked
-                && self.account_unlock_date && self.player_name && self.number_of_beatmaps
+            beatmap_mask.is_complete()
+                && self.version
+                && self.folder_count
+                && self.account_unlocked
+                && self.account_unlock_date
+                && self.player_name
+                && self.number_of_beatmaps
                 && self.unknown_int
         } else {
             false
@@ -295,345 +382,481 @@ impl Mask for OsuDbMask {
 
     fn from_show_args(show_args: Vec<&str>) -> Self {
         let matches = App::new("osu!.db show options parser")
-            .arg(Arg::with_name("Version")
-                .long("VERSION")
-                .required(false)
-                .takes_value(false)
-                .multiple(false))
-            .arg(Arg::with_name("Folder count")
-                .long("FOLDER-COUNT")
-                .required(false)
-                .takes_value(false)
-                .multiple(false))
-            .arg(Arg::with_name("Account unlocked")
-                .long("ACCOUNT-UNLOCKED")
-                .required(false)
-                .takes_value(false)
-                .multiple(false))
-            .arg(Arg::with_name("Account unlock date")
-                .long("ACCOUNT-UNLOCK-DATE")
-                .required(false)
-                .takes_value(false)
-                .multiple(false))
-            .arg(Arg::with_name("Player name")
-                .long("PLAYER-NAME")
-                .required(false)
-                .takes_value(false)
-                .multiple(false))
-            .arg(Arg::with_name("Number of beatmaps")
-                .long("NUMBER-OF-BEATMAPS")
-                .required(false)
-                .takes_value(false)
-                .multiple(false))
-            .subcommand(SubCommand::with_name("BEATMAP-OPTIONS")
-                .arg(Arg::with_name("Entry size")
-                    .long("ENTRY-SIZE")
+            .arg(
+                Arg::with_name("Version")
+                    .long("VERSION")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Artist name")
-                    .long("ARTIST-NAME")
+                    .multiple(false),
+            )
+            .arg(
+                Arg::with_name("Folder count")
+                    .long("FOLDER-COUNT")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Artist name unicode")
-                    .long("ARTIST-NAME-UNICODE")
+                    .multiple(false),
+            )
+            .arg(
+                Arg::with_name("Account unlocked")
+                    .long("ACCOUNT-UNLOCKED")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Song title")
-                    .long("SONG-TITLE")
+                    .multiple(false),
+            )
+            .arg(
+                Arg::with_name("Account unlock date")
+                    .long("ACCOUNT-UNLOCK-DATE")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Song title unicode")
-                    .long("SONG-TITLE-UNICODE")
+                    .multiple(false),
+            )
+            .arg(
+                Arg::with_name("Player name")
+                    .long("PLAYER-NAME")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Creator name")
-                    .long("CREATOR-NAME")
+                    .multiple(false),
+            )
+            .arg(
+                Arg::with_name("Number of beatmaps")
+                    .long("NUMBER-OF-BEATMAPS")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Difficulty")
-                    .long("DIFFICULTY")
+                    .multiple(false),
+            )
+            .subcommand(
+                SubCommand::with_name("BEATMAP-OPTIONS")
+                    .arg(
+                        Arg::with_name("Entry size")
+                            .long("ENTRY-SIZE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Artist name")
+                            .long("ARTIST-NAME")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Artist name unicode")
+                            .long("ARTIST-NAME-UNICODE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Song title")
+                            .long("SONG-TITLE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Song title unicode")
+                            .long("SONG-TITLE-UNICODE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Creator name")
+                            .long("CREATOR-NAME")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Difficulty")
+                            .long("DIFFICULTY")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Audio file name")
+                            .long("AUDIO-FILE-NAME")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("MD5 beatmap hash")
+                            .long("MD5-BEATMAP-HASH")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name(".osu file name")
+                            .long("DOTOSU-FILE-NAME")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Ranked status")
+                            .long("RANKED-STATUS")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Number of hitcircles")
+                            .long("NUMBER-OF-HITCIRCLES")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Number of sliders")
+                            .long("NUMBER-OF-SLIDERS")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Number of spinners")
+                            .long("NUMBER-OF-SPINNERS")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Last modification time")
+                            .long("LAST-MODIFICATION-TIME")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Approach rate")
+                            .long("APPROACH-RATE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Circle size")
+                            .long("CIRCLE-SIZE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("HP drain")
+                            .long("HP-DRAIN")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Overall difficulty")
+                            .long("OVERALL-DIFFICULTY")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Slider velocity")
+                            .long("SLIDER-VELOCITY")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Number of precalculated mod combo star ratings (standard)")
+                            .long("NUM-MOD-COMBO-STAR-RATINGS-STANDARD")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Precalculated mod combo star ratings (standard)")
+                            .long("MOD-COMBO-STAR-RATINGS-STANDARD")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Number of precalculated mod combo star ratings (taiko)")
+                            .long("NUM-MOD-COMBO-STAR-RATINGS-TAIKO")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Precalculated mod combo star ratings (taiko)")
+                            .long("MOD-COMBO-STAR-RATINGS-TAIKO")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Number of precalculated mod combo star ratings (CTB)")
+                            .long("NUM-MOD-COMBO-STAR-RATINGS-CTB")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Precalculated mod combo star ratings (CTB)")
+                            .long("MOD-COMBO-STAR-RATINGS-CTB")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Number of precalculated mod combo star ratings (mania)")
+                            .long("NUM-MOD-COMBO-STAR-RATINGS-MANIA")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Precalculated mod combo star ratings (mania)")
+                            .long("MOD-COMBO-STAR-RATINGS-MANIA")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Drain time")
+                            .long("DRAIN-TIME")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Total time")
+                            .long("TOTAL-TIME")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Preview offset from start (ms)")
+                            .long("PREVIEW-OFFSET-FROM-START-MS")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Number of timing points")
+                            .long("NUM-TIMING-POINTS")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Timing points")
+                            .long("TIMING-POINTS")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Beatmap ID")
+                            .long("BEATMAP-ID")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Beatmap set ID")
+                            .long("BEATMAP-SET-ID")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Thread ID")
+                            .long("THREAD-ID")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Standard grade")
+                            .long("STANDARD-GRADE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Taiko grade")
+                            .long("TAIKO-GRADE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("CTB grade")
+                            .long("CTB-GRADE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Mania grade")
+                            .long("MANIA-GRADE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Local offset")
+                            .long("LOCAL-OFFSET")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Stack leniency")
+                            .long("STACK-LENIENCY")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Gameplay mode")
+                            .long("GAMEPLAY-MODE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Song source")
+                            .long("SONG-SOURCE")
+                            .multiple(false)
+                            .required(false)
+                            .takes_value(true)
+                            .number_of_values(1)
+                            .value_name("SOURCE")
+                            .takes_value(false),
+                    )
+                    .arg(
+                        Arg::with_name("Song tags")
+                            .long("SONG-TAGS")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Online offset")
+                            .long("ONLINE-OFFSET")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Font used for song title")
+                            .long("FONT-USED-FOR-SONG-TITLE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Unplayed")
+                            .long("UNPLAYED")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Last played")
+                            .long("LAST-PLAYED")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Is OSZ2")
+                            .long("IS-OSZ2")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Beatmap folder name")
+                            .long("BEATMAP-FOLDER-NAME")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Last checked against repo")
+                            .long("LAST-CHECKED-AGAINST-REPO")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Ignore beatmap sound")
+                            .long("IGNORE-BEATMAP-SOUND")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Ignore beatmap skin")
+                            .long("IGNORE-BEATMAP-SKIN")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Disable storyboard")
+                            .long("DISABLE-STORYBOARD")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Disable video")
+                            .long("DISABLE-VIDEO")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Visual override")
+                            .long("VISUAL-OVERRIDE")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Unknown short")
+                            .long("UNKNOWN-SHORT")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Offset from song start in editor (ms)")
+                            .long("OFFSET-FROM-SONG-START-IN-EDITOR-MS")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Mania scroll speed")
+                            .long("MANIA-SCROLL-SPEED")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    ),
+            )
+            .arg(
+                Arg::with_name("Unknown int")
+                    .long("UNKNOWN-INT")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Audio file name")
-                    .long("AUDIO-FILE-NAME")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("MD5 beatmap hash")
-                    .long("MD5-BEATMAP-HASH")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name(".osu file name")
-                    .long("DOTOSU-FILE-NAME")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Ranked status")
-                    .long("RANKED-STATUS")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Number of hitcircles")
-                    .long("NUMBER-OF-HITCIRCLES")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Number of sliders")
-                    .long("NUMBER-OF-SLIDERS")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Number of spinners")
-                    .long("NUMBER-OF-SPINNERS")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Last modification time")
-                    .long("LAST-MODIFICATION-TIME")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Approach rate")
-                    .long("APPROACH-RATE")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Circle size")
-                    .long("CIRCLE-SIZE")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("HP drain")
-                    .long("HP-DRAIN")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Overall difficulty")
-                    .long("OVERALL-DIFFICULTY")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Slider velocity")
-                    .long("SLIDER-VELOCITY")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Number of precalculated mod combo star ratings (standard)")
-                    .long("NUM-MOD-COMBO-STAR-RATINGS-STANDARD")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Precalculated mod combo star ratings (standard)")
-                    .long("MOD-COMBO-STAR-RATINGS-STANDARD")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Number of precalculated mod combo star ratings (taiko)")
-                    .long("NUM-MOD-COMBO-STAR-RATINGS-TAIKO")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Precalculated mod combo star ratings (taiko)")
-                    .long("MOD-COMBO-STAR-RATINGS-TAIKO")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Number of precalculated mod combo star ratings (CTB)")
-                    .long("NUM-MOD-COMBO-STAR-RATINGS-CTB")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Precalculated mod combo star ratings (CTB)")
-                    .long("MOD-COMBO-STAR-RATINGS-CTB")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Number of precalculated mod combo star ratings (mania)")
-                    .long("NUM-MOD-COMBO-STAR-RATINGS-MANIA")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Precalculated mod combo star ratings (mania)")
-                    .long("MOD-COMBO-STAR-RATINGS-MANIA")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Drain time")
-                    .long("DRAIN-TIME")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Total time")
-                    .long("TOTAL-TIME")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Preview offset from start (ms)")
-                    .long("PREVIEW-OFFSET-FROM-START-MS")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Number of timing points")
-                    .long("NUM-TIMING-POINTS")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Timing points")
-                    .long("TIMING-POINTS")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Beatmap ID")
-                    .long("BEATMAP-ID")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Beatmap set ID")
-                    .long("BEATMAP-SET-ID")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Thread ID")
-                    .long("THREAD-ID")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Standard grade")
-                    .long("STANDARD-GRADE")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Taiko grade")
-                    .long("TAIKO-GRADE")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("CTB grade")
-                    .long("CTB-GRADE")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Mania grade")
-                    .long("MANIA-GRADE")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Local offset")
-                    .long("LOCAL-OFFSET")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Stack leniency")
-                    .long("STACK-LENIENCY")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Gameplay mode")
-                    .long("GAMEPLAY-MODE")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Song source")
-                    .long("SONG-SOURCE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("SOURCE")
-                    .takes_value(false))
-                .arg(Arg::with_name("Song tags")
-                    .long("SONG-TAGS")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Online offset")
-                    .long("ONLINE-OFFSET")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Font used for song title")
-                    .long("FONT-USED-FOR-SONG-TITLE")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Unplayed")
-                    .long("UNPLAYED")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Last played")
-                    .long("LAST-PLAYED")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Is OSZ2")
-                    .long("IS-OSZ2")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Beatmap folder name")
-                    .long("BEATMAP-FOLDER-NAME")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Last checked against repo")
-                    .long("LAST-CHECKED-AGAINST-REPO")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Ignore beatmap sound")
-                    .long("IGNORE-BEATMAP-SOUND")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Ignore beatmap skin")
-                    .long("IGNORE-BEATMAP-SKIN")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Disable storyboard")
-                    .long("DISABLE-STORYBOARD")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Disable video")
-                    .long("DISABLE-VIDEO")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Visual override")
-                    .long("VISUAL-OVERRIDE")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Unknown short")
-                    .long("UNKNOWN-SHORT")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Offset from song start in editor (ms)")
-                    .long("OFFSET-FROM-SONG-START-IN-EDITOR-MS")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Mania scroll speed")
-                    .long("MANIA-SCROLL-SPEED")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false)))
-            .arg(Arg::with_name("Unknown int")
-                .long("UNKNOWN-INT")
-                .required(false)
-                .takes_value(false)
-                .multiple(false))
+                    .multiple(false),
+            )
             .get_matches_from(show_args.into_iter());
         let version = matches.is_present("Version");
         let folder_count = matches.is_present("Folder count");
@@ -655,7 +878,7 @@ impl Mask for OsuDbMask {
             player_name,
             number_of_beatmaps,
             beatmap_mask,
-            unknown_int
+            unknown_int,
         }
     }
 }

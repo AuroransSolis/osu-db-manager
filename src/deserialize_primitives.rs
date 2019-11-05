@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use chrono::{naive::NaiveDate, Duration as ChronoDuration};
 
-use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
+use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 // Primitive types we need to read from databases:
 // Byte
 // Short
@@ -32,7 +32,7 @@ const USERNAME_ERR: &str = "Read invalid incidator byte for username string";
 macro_rules! primitive {
     ($msg:ident) => {
         DbFileParseError::new(PrimitiveError, $msg)
-    }
+    };
 }
 
 #[inline]
@@ -98,15 +98,18 @@ pub fn read_uleb128(bytes: &[u8], i: &mut usize) -> ParseFileResult<usize> {
             // If the last byte has a value that fits within the remaining number of bits, add it
             // to our total and break the loop
             if 0b11111111 >> (size_of::<usize>() * 8 - shift) | b
-                < (0b10000000 >> size_of::<usize>() * 8 - shift - 1) {
+                < (0b10000000 >> size_of::<usize>() * 8 - shift - 1)
+            {
                 out += (b as usize) << shift;
                 found_end = true;
                 break;
             } else {
-                let err_msg = format!("While the ULEB128 integer format supports integers \
-                    of arbitrary lengths, this program will only handle ULEB128 integers \
-                    representing integers up to and including {} bits in length.",
-                    size_of::<usize>() * 8);
+                let err_msg = format!(
+                    "While the ULEB128 integer format supports integers \
+                     of arbitrary lengths, this program will only handle ULEB128 integers \
+                     representing integers up to and including {} bits in length.",
+                    size_of::<usize>() * 8
+                );
                 return Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()));
             }
         }
@@ -120,9 +123,12 @@ pub fn read_uleb128(bytes: &[u8], i: &mut usize) -> ParseFileResult<usize> {
     if found_end {
         Ok(out)
     } else {
-        let err_msg = format!("While the ULEB128 integer format supports integers \
-            of arbitrary lengths, this program will only handle ULEB128 integers representing \
-            integers up to and including {} bits in length.", size_of::<usize>() * 8);
+        let err_msg = format!(
+            "While the ULEB128 integer format supports integers \
+             of arbitrary lengths, this program will only handle ULEB128 integers representing \
+             integers up to and including {} bits in length.",
+            size_of::<usize>() * 8
+        );
         Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
     }
 }
@@ -134,22 +140,26 @@ pub fn read_uleb128_with_len(bytes: &[u8], i: &mut usize) -> ParseFileResult<(us
     let mut shift = 0;
     let mut len = 0;
     while shift < size_of::<usize>() * 8 {
-        let b = read_byte(bytes, i).map_err(|_| DbFileParseError::new(PrimitiveError,
-            "Failed to read byte for ULEB128 integer."))?;
+        let b = read_byte(bytes, i).map_err(|_| {
+            DbFileParseError::new(PrimitiveError, "Failed to read byte for ULEB128 integer.")
+        })?;
         // Handle case when there's less than eight bits left in the usize
         if shift + 8 >= size_of::<usize>() * 8 {
             // If the last byte has a value that fits within the remaining number of bits, add it
             // to our total and break the loop
             if 0b11111111 >> (size_of::<usize>() * 8 - shift) | b
-                < (0b10000000 >> size_of::<usize>() * 8 - shift - 1) {
+                < (0b10000000 >> size_of::<usize>() * 8 - shift - 1)
+            {
                 out += (b as usize) << shift;
                 found_end = true;
                 break;
             } else {
-                let err_msg = format!("While the ULEB128 integer format supports integers \
-                    of arbitrary lengths, this program will only handle ULEB128 integers \
-                    representing integers up to and including {} bits in length.",
-                    size_of::<usize>() * 8);
+                let err_msg = format!(
+                    "While the ULEB128 integer format supports integers \
+                     of arbitrary lengths, this program will only handle ULEB128 integers \
+                     representing integers up to and including {} bits in length.",
+                    size_of::<usize>() * 8
+                );
                 return Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()));
             }
         }
@@ -164,47 +174,63 @@ pub fn read_uleb128_with_len(bytes: &[u8], i: &mut usize) -> ParseFileResult<(us
     if found_end {
         Ok((out, len))
     } else {
-        let err_msg = format!("While the ULEB128 integer format supports integers \
-            of arbitrary lengths, this program will only handle ULEB128 integers representing \
-            integers up to and including {} bits in length.", size_of::<usize>() * 8);
+        let err_msg = format!(
+            "While the ULEB128 integer format supports integers \
+             of arbitrary lengths, this program will only handle ULEB128 integers representing \
+             integers up to and including {} bits in length.",
+            size_of::<usize>() * 8
+        );
         Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
     }
 }
 
 #[inline]
 pub fn read_single(bytes: &[u8], i: &mut usize) -> ParseFileResult<f32> {
-    Ok(f32::from_bits(read_int(bytes, i).map_err(|_| primitive!(SINGLE_ERR))? as u32))
+    Ok(f32::from_bits(
+        read_int(bytes, i).map_err(|_| primitive!(SINGLE_ERR))? as u32,
+    ))
 }
 
 #[inline]
 pub fn read_double(bytes: &[u8], i: &mut usize) -> ParseFileResult<f64> {
-    Ok(f64::from_bits(read_long(bytes, i).map_err(|_| primitive!(DOUBLE_ERR))? as u64))
+    Ok(f64::from_bits(
+        read_long(bytes, i).map_err(|_| primitive!(DOUBLE_ERR))? as u64,
+    ))
 }
 
 #[inline]
-pub fn read_string_utf8(bytes: &[u8], i: &mut usize, field: &str)
-    -> ParseFileResult<Option<String>> {
+pub fn read_string_utf8(
+    bytes: &[u8],
+    i: &mut usize,
+    field: &str,
+) -> ParseFileResult<Option<String>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         *i += 1;
         if indicator == 0x0b {
             let length = read_uleb128(bytes, i)?;
             if *i + length <= bytes.len() {
-                let tmp = Ok(
-                    Some(String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                let tmp = Ok(Some(
+                    String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
                         let err_msg = format!("Error reading string for {} ({})", field, e);
                         DbFileParseError::new(PrimitiveError, err_msg.as_str())
-                    })?)
-                );
+                    })?,
+                ));
                 *i += length;
                 tmp
             } else {
-                Err(DbFileParseError::new(PrimitiveError, "String length goes past end of file."))
+                Err(DbFileParseError::new(
+                    PrimitiveError,
+                    "String length goes past end of file.",
+                ))
             }
         } else if indicator == 0 {
             Ok(None)
         } else {
-            let err_msg = format!("Read invalid string indicator ({}, index: {}).", indicator, i);
+            let err_msg = format!(
+                "Read invalid string indicator ({}, index: {}).",
+                indicator, i
+            );
             Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
         }
     } else {
@@ -213,8 +239,11 @@ pub fn read_string_utf8(bytes: &[u8], i: &mut usize, field: &str)
 }
 
 #[inline]
-pub fn read_string_utf8_with_len(bytes: &[u8], i: &mut usize, field: &str)
-    -> ParseFileResult<(usize, Option<String>)> {
+pub fn read_string_utf8_with_len(
+    bytes: &[u8],
+    i: &mut usize,
+    field: &str,
+) -> ParseFileResult<(usize, Option<String>)> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         *i += 1;
@@ -223,15 +252,20 @@ pub fn read_string_utf8_with_len(bytes: &[u8], i: &mut usize, field: &str)
             if *i + length <= bytes.len() {
                 let tmp = Ok((
                     1 + length_bytes + length,
-                    Some(String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
-                        let err_msg = format!("Error reading string for {} ({})", field, e);
-                        DbFileParseError::new(PrimitiveError, err_msg.as_str())
-                    })?)
+                    Some(
+                        String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                            let err_msg = format!("Error reading string for {} ({})", field, e);
+                            DbFileParseError::new(PrimitiveError, err_msg.as_str())
+                        })?,
+                    ),
                 ));
                 *i += length;
                 tmp
             } else {
-                Err(DbFileParseError::new(PrimitiveError, "String length goes past end of file."))
+                Err(DbFileParseError::new(
+                    PrimitiveError,
+                    "String length goes past end of file.",
+                ))
             }
         } else if indicator == 0 {
             Ok((1, None))
@@ -254,8 +288,11 @@ pub fn read_datetime(bytes: &[u8], i: &mut usize) -> ParseFileResult<NaiveDate> 
     let ticks = read_long(bytes, i).map_err(|_| primitive!(DATETIME_ERR))?;
     let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
     let chrono_duration = ChronoDuration::from_std(duration_since_epoch).map_err(|e| {
-        let msg = format!("Failed to convert std::time::Duration to chrono::Duration\n\
-                {}", e);
+        let msg = format!(
+            "Failed to convert std::time::Duration to chrono::Duration\n\
+             {}",
+            e
+        );
         DbFileParseError(PrimitiveError, msg)
     })?;
     Ok(NaiveDate::from_ymd(1970, 0, 0) + chrono_duration)
@@ -265,7 +302,10 @@ pub fn read_datetime(bytes: &[u8], i: &mut usize) -> ParseFileResult<NaiveDate> 
 pub fn read_md5_hash(bytes: &[u8], i: &mut usize) -> ParseFileResult<String> {
     let indicator = read_byte(bytes, i)?;
     if indicator == 0 {
-        Err(DbFileParseError::new(PrimitiveError, "Missing hash! Indicator was 0."))
+        Err(DbFileParseError::new(
+            PrimitiveError,
+            "Missing hash! Indicator was 0.",
+        ))
     } else if indicator == 0x0b {
         if *i + 32 < bytes.len() {
             // first byte will be 32 every time
@@ -274,7 +314,10 @@ pub fn read_md5_hash(bytes: &[u8], i: &mut usize) -> ParseFileResult<String> {
             Ok(String::from_utf8(hash_bytes)
                 .map_err(|_| DbFileParseError::new(PrimitiveError, "Error reading MD5 hash."))?)
         } else {
-            Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left to read MD5 hash."))
+            Err(DbFileParseError::new(
+                PrimitiveError,
+                "Not enough bytes left to read MD5 hash.",
+            ))
         }
     } else {
         let msg = format!("{}: {}", HASH_ERR, indicator);
@@ -293,21 +336,34 @@ pub fn read_player_name(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<S
         // maintainer, I have found that the longest usernames that Tillerino has read are about 20
         // characters. I also limit the username length to 64 characters and return an error if it's
         // longer.
-        let player_name_len = read_byte(bytes, i).map_err(|_| DbFileParseError::new(PrimitiveError,
-            "Failed to read player name length."))?;
+        let player_name_len = read_byte(bytes, i).map_err(|_| {
+            DbFileParseError::new(PrimitiveError, "Failed to read player name length.")
+        })?;
         if player_name_len & 0b11000000 != 0 {
-            return Err(DbFileParseError::new(PrimitiveError, "Read invalid player name length."));
+            return Err(DbFileParseError::new(
+                PrimitiveError,
+                "Read invalid player name length.",
+            ));
         } else if *i + player_name_len as usize <= bytes.len() {
             let tmp = Ok(Some(
-                String::from_utf8(bytes[*i..*i + player_name_len as usize].to_vec())
-                    .map_err(|_| DbFileParseError::new(PrimitiveError, "Bytes made invalid UTF-8 \
-                        string!"))?
+                String::from_utf8(bytes[*i..*i + player_name_len as usize].to_vec()).map_err(
+                    |_| {
+                        DbFileParseError::new(
+                            PrimitiveError,
+                            "Bytes made invalid UTF-8 \
+                             string!",
+                        )
+                    },
+                )?,
             ));
             *i += player_name_len as usize;
             tmp
         } else {
-            Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left in buffer for \
-                specified string length."))
+            Err(DbFileParseError::new(
+                PrimitiveError,
+                "Not enough bytes left in buffer for \
+                 specified string length.",
+            ))
         }
     } else {
         let msg = format!("{}: {}", USERNAME_ERR, indicator);
@@ -316,7 +372,10 @@ pub fn read_player_name(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<S
 }
 
 #[inline]
-pub fn read_player_name_with_len(bytes: &[u8], i: &mut usize) -> ParseFileResult<(usize, Option<String>)> {
+pub fn read_player_name_with_len(
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<(usize, Option<String>)> {
     let indicator = read_byte(bytes, i)?;
     if indicator == 0 {
         Ok((1, None))
@@ -325,25 +384,38 @@ pub fn read_player_name_with_len(bytes: &[u8], i: &mut usize) -> ParseFileResult
         // for the player name string length. Additionally, from talking with a Tillerino
         // maintainer, I have found that the longest usernames that Tillerino has read are about 20
         // characters.
-        let player_name_len = read_byte(bytes, i).map_err(|_| DbFileParseError::new(PrimitiveError,
-            "Failed to read player name length."))?;
+        let player_name_len = read_byte(bytes, i).map_err(|_| {
+            DbFileParseError::new(PrimitiveError, "Failed to read player name length.")
+        })?;
         if player_name_len & 0b10000000 == 0b10000000 {
-            return Err(DbFileParseError::new(PrimitiveError, "Read invalid player name length."));
+            return Err(DbFileParseError::new(
+                PrimitiveError,
+                "Read invalid player name length.",
+            ));
         }
         if *i + player_name_len as usize <= bytes.len() {
             let tmp = Ok((
                 2 + player_name_len as usize,
                 Some(
-                    String::from_utf8(bytes[*i..*i + player_name_len as usize].to_vec())
-                        .map_err(|_| DbFileParseError::new(PrimitiveError, "Bytes made invalid \
-                            UTF-8 string!"))?
-                )
+                    String::from_utf8(bytes[*i..*i + player_name_len as usize].to_vec()).map_err(
+                        |_| {
+                            DbFileParseError::new(
+                                PrimitiveError,
+                                "Bytes made invalid \
+                                 UTF-8 string!",
+                            )
+                        },
+                    )?,
+                ),
             ));
             *i += 2 + player_name_len as usize;
             tmp
         } else {
-            Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left in buffer for \
-                specified string length."))
+            Err(DbFileParseError::new(
+                PrimitiveError,
+                "Not enough bytes left in buffer for \
+                 specified string length.",
+            ))
         }
     } else {
         let msg = format!("{}: {}", USERNAME_ERR, indicator);

@@ -1,16 +1,17 @@
-#[macro_use] extern crate criterion;
+#[macro_use]
+extern crate criterion;
 extern crate num_cpus;
 
+mod argument;
 mod databases;
 mod deserialize_primitives;
-mod argument;
-mod maybe_deserialize_primitives;
 mod masks;
+mod maybe_deserialize_primitives;
 
-use crate::databases::{osu::osudb::OsuDb, scores::scoresdb::ScoresDb, load::Load};
+use crate::databases::{load::Load, osu::osudb::OsuDb, scores::scoresdb::ScoresDb};
 mod read_error;
 
-use criterion::{Criterion, black_box};
+use criterion::{black_box, Criterion};
 use std::fs::read;
 
 const OSUDB_FILE: &str = "tama-osu!.db";
@@ -30,7 +31,7 @@ macro_rules! make_bench {
                     });
                 });
             }
-            
+
             fn $scores_name(c: &mut Criterion) {
                 let id = format!("Load entire scores.db (-j{})", $number);
                 c.bench_function(id.as_str(), move |b| {
@@ -53,7 +54,7 @@ macro_rules! make_bench {
 
 // Uncomment up to the number of threads available on your CPU
 // Yes, I could make a proc macro for this, but I'm feeling lazy so no.
-make_bench!{
+make_bench! {
     (1, load_osudb_jobs_1, load_scoresdb_jobs_1),
     (2, load_osudb_jobs_2, load_scoresdb_jobs_2),
     (3, load_osudb_jobs_3, load_scoresdb_jobs_3),
@@ -74,7 +75,7 @@ make_bench!{
     */
 }
 
-criterion_main!{osu_db_bench}
+criterion_main! {osu_db_bench}
 
 fn bench_open_osudb_file(c: &mut Criterion) {
     c.bench_function("Opening osu!.db file and reading to vector", move |b| {

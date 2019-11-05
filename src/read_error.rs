@@ -5,20 +5,20 @@ pub enum ParseErrorKind {
     CollectionDbError,
     ScoresDbError,
     QueryError,
-    Other
+    Other,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DbFileParseError {
     kind: ParseErrorKind,
-    message: String
+    message: String,
 }
 
 impl DbFileParseError {
     pub fn new<T: Into<String>>(kind: ParseErrorKind, message: T) -> Self {
         DbFileParseError {
             kind,
-            message: message.into()
+            message: message.into(),
         }
     }
 }

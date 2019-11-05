@@ -1,15 +1,15 @@
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
+use crate::databases::{collection::collection::Collection, load::Load};
 use crate::deserialize_primitives::*;
-use crate::databases::{load::Load, collection::collection::Collection};
-use crate::read_error::{ParseFileResult};
+use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
 pub struct CollectionDb {
     pub version: i32,
     pub number_of_collections: i32,
-    pub collections: Vec<Collection>
+    pub collections: Vec<Collection>,
 }
 
 impl Load for CollectionDb {
@@ -25,7 +25,7 @@ impl Load for CollectionDb {
         Ok(CollectionDb {
             version,
             number_of_collections,
-            collections
+            collections,
         })
     }
 
@@ -37,28 +37,42 @@ impl Load for CollectionDb {
         let counter = Arc::new(Mutex::new(0));
         let start_read = Arc::new(Mutex::new(8));
         let threads = (0..jobs)
-            .map(|_| spawn_collection_loader_thread(number_of_collections as usize, counter.clone(),
-                start_read.clone(), &bytes)).collect::<Vec<_>>();
-        let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
+            .map(|_| {
+                spawn_collection_loader_thread(
+                    number_of_collections as usize,
+                    counter.clone(),
+                    start_read.clone(),
+                    &bytes,
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut results = threads
+            .into_iter()
+            .map(|joinhandle| joinhandle.join().unwrap())
             .collect::<Vec<_>>();
         let mut collections = results.pop().unwrap()?;
         for collection_result in results {
             collections.append(&mut collection_result?);
         }
         collections.sort_by(|(a, _), (b, _)| a.cmp(b));
-        let collections = collections.into_iter().map(|(_, collection)| collection)
+        let collections = collections
+            .into_iter()
+            .map(|(_, collection)| collection)
             .collect::<Vec<Collection>>();
         Ok(CollectionDb {
             version,
             number_of_collections,
-            collections
+            collections,
         })
     }
 }
 
-fn spawn_collection_loader_thread(number: usize, counter: Arc<Mutex<usize>>,
-    start_read: Arc<Mutex<usize>>, byte_pointer: *const Vec<u8>)
-    -> JoinHandle<ParseFileResult<Vec<(usize, Collection)>>> {
+fn spawn_collection_loader_thread(
+    number: usize,
+    counter: Arc<Mutex<usize>>,
+    start_read: Arc<Mutex<usize>>,
+    byte_pointer: *const Vec<u8>,
+) -> JoinHandle<ParseFileResult<Vec<(usize, Collection)>>> {
     let tmp = byte_pointer as usize;
     thread::spawn(move || {
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
@@ -85,11 +99,14 @@ fn spawn_collection_loader_thread(number: usize, counter: Arc<Mutex<usize>>,
             for _ in 0..number_of_beatmaps {
                 md5_beatmap_hashes.push(read_md5_hash(bytes, i)?);
             }
-            collections.push((num, Collection {
-                collection_name,
-                number_of_beatmaps,
-                md5_beatmap_hashes
-            }));
+            collections.push((
+                num,
+                Collection {
+                    collection_name,
+                    number_of_beatmaps,
+                    md5_beatmap_hashes,
+                },
+            ));
         }
     })
 }

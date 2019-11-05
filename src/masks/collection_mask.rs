@@ -1,4 +1,4 @@
-use clap::{Arg, App, SubCommand, AppSettings, ArgGroup, ArgMatches};
+use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 
 use crate::masks::mask::Mask;
 
@@ -6,7 +6,7 @@ use crate::masks::mask::Mask;
 pub struct CollectionMask {
     pub collection_name: bool,
     pub number_of_beatmaps: bool,
-    pub md5_beatmap_hashes: bool
+    pub md5_beatmap_hashes: bool,
 }
 
 impl CollectionMask {
@@ -14,7 +14,7 @@ impl CollectionMask {
         CollectionMask {
             collection_name,
             number_of_beatmaps,
-            md5_beatmap_hashes
+            md5_beatmap_hashes,
         }
     }
 }
@@ -24,7 +24,7 @@ impl Default for CollectionMask {
         CollectionMask {
             collection_name: true,
             number_of_beatmaps: true,
-            md5_beatmap_hashes: true
+            md5_beatmap_hashes: true,
         }
     }
 }
@@ -41,7 +41,7 @@ impl CollectionMask {
         CollectionMask {
             collection_name,
             number_of_beatmaps,
-            md5_beatmap_hashes
+            md5_beatmap_hashes,
         }
     }
 }
@@ -50,16 +50,19 @@ impl CollectionMask {
 pub struct CollectionDbMask {
     pub version: bool,
     pub number_of_collections: bool,
-    pub collections_mask: Option<CollectionMask>
+    pub collections_mask: Option<CollectionMask>,
 }
 
 impl CollectionDbMask {
-    pub fn new(version: bool, number_of_collections: bool, collections_mask: Option<CollectionMask>)
-        -> Self {
+    pub fn new(
+        version: bool,
+        number_of_collections: bool,
+        collections_mask: Option<CollectionMask>,
+    ) -> Self {
         CollectionDbMask {
             version,
             number_of_collections,
-            collections_mask
+            collections_mask,
         }
     }
 }
@@ -75,32 +78,44 @@ impl Mask for CollectionDbMask {
 
     fn from_show_args(show_args: Vec<&str>) -> Self {
         let matches = App::new("collection.db show options parser")
-            .arg(Arg::with_name("Version")
-                .long("VERSION")
-                .required(false)
-                .takes_value(false)
-                .multiple(false))
-            .arg(Arg::with_name("Number of collections")
-                .long("NUMBER-OF-COLLECTIONS")
-                .required(false)
-                .takes_value(false)
-                .multiple(false))
-            .subcommand(SubCommand::with_name("COLLECTION-OPTIONS")
-                .arg(Arg::with_name("Collection name")
-                    .long("COLLECTION-NAME")
+            .arg(
+                Arg::with_name("Version")
+                    .long("VERSION")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("Number of beatmaps")
-                    .long("NUMBER-OF-BEATMAPS")
+                    .multiple(false),
+            )
+            .arg(
+                Arg::with_name("Number of collections")
+                    .long("NUMBER-OF-COLLECTIONS")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false))
-                .arg(Arg::with_name("MD5 beatmap hashes")
-                    .long("MD5-BEATMAP-HASHES")
-                    .required(false)
-                    .takes_value(false)
-                    .multiple(false)))
+                    .multiple(false),
+            )
+            .subcommand(
+                SubCommand::with_name("COLLECTION-OPTIONS")
+                    .arg(
+                        Arg::with_name("Collection name")
+                            .long("COLLECTION-NAME")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("Number of beatmaps")
+                            .long("NUMBER-OF-BEATMAPS")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    )
+                    .arg(
+                        Arg::with_name("MD5 beatmap hashes")
+                            .long("MD5-BEATMAP-HASHES")
+                            .required(false)
+                            .takes_value(false)
+                            .multiple(false),
+                    ),
+            )
             .get_matches_from(show_args.into_iter());
         let version = matches.is_present("Version");
         let number_of_collections = matches.is_present("Number of collections");
@@ -112,7 +127,7 @@ impl Mask for CollectionDbMask {
         CollectionDbMask {
             version,
             number_of_collections,
-            collections_mask
+            collections_mask,
         }
     }
 }

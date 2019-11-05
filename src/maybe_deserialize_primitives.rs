@@ -3,9 +3,9 @@ use std::time::Duration;
 
 use chrono::{naive::NaiveDate, Duration as ChronoDuration};
 
-use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::*};
 use crate::deserialize_primitives::*;
-use crate::load_settings::{LoadSetting, EqualCopy, EqualClone, Relational, Compare, FilterResult};
+use crate::load_settings::{Compare, EqualClone, EqualCopy, FilterResult, LoadSetting, Relational};
+use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
 // Primitive types we need to read from databases:
 // Byte
@@ -35,12 +35,16 @@ const USERNAME_ERR: &str = "Read invalid incidator byte for username string";
 macro_rules! primitive {
     ($msg:ident) => {
         DbFileParseError::new(PrimitiveError, $msg)
-    }
+    };
 }
 
 #[inline]
-pub fn maybe_read_byte(s: LoadSetting<Relational<u8>>, skip: &mut bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<Option<u8> {
+pub fn maybe_read_byte(
+    s: LoadSetting<Relational<u8>>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<u8>> {
     if *i < bytes.len() {
         if s.is_ignore() || *skip {
             *i += 1;
@@ -65,8 +69,12 @@ pub fn maybe_read_byte(s: LoadSetting<Relational<u8>>, skip: &mut bool, bytes: &
 }
 
 #[inline]
-pub fn maybe_read_short(s: LoadSetting<Relational<i16>>, skip: &mut bool, bytes: &[u8],
-    i: &mut usize) -> ParseFileResult<Option<i16>> {
+pub fn maybe_read_short(
+    s: LoadSetting<Relational<i16>>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<i16>> {
     if *i + 1 < bytes.len() {
         if s.is_ignore() || *skip {
             *i += 2;
@@ -93,8 +101,12 @@ pub fn maybe_read_short(s: LoadSetting<Relational<i16>>, skip: &mut bool, bytes:
 }
 
 #[inline]
-pub fn maybe_read_int(s: LoadSetting<Relational<i32>>, skip: &mut bool, bytes: &[u8], i: &mut usize)
-    -> ParseFileResult<Option<i32>> {
+pub fn maybe_read_int(
+    s: LoadSetting<Relational<i32>>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<i32>> {
     if *i + 3 < bytes.len() {
         if s.is_ignore() || *skip {
             *i += 4;
@@ -121,8 +133,12 @@ pub fn maybe_read_int(s: LoadSetting<Relational<i32>>, skip: &mut bool, bytes: &
 }
 
 #[inline]
-pub fn maybe_read_long(s: LoadSetting<Relational<i64>>, skip: &mut bool, bytes: &[u8],
-    i: &mut usize) -> ParseFileResult<Option<i64>> {
+pub fn maybe_read_long(
+    s: LoadSetting<Relational<i64>>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<i64>> {
     if *i + 7 < bytes.len() {
         if s.is_ignore() || *skip {
             *i += 8;
@@ -149,8 +165,12 @@ pub fn maybe_read_long(s: LoadSetting<Relational<i64>>, skip: &mut bool, bytes: 
 }
 
 #[inline]
-pub fn maybe_read_single(s: LoadSetting<Relational<f32>>, skip: &mut bool, bytes: &[u8],
-    i: &mut usize) -> ParseFileResult<Option<f32>> {
+pub fn maybe_read_single(
+    s: LoadSetting<Relational<f32>>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<f32>> {
     if *i + 4 < bytes.len() {
         if s.is_ignore() || *skip {
             *i += 4;
@@ -178,8 +198,12 @@ pub fn maybe_read_single(s: LoadSetting<Relational<f32>>, skip: &mut bool, bytes
 }
 
 #[inline]
-pub fn maybe_read_double(s: LoadSetting<Relational<f64>>, skip: &mut bool, bytes: &[u8],
-    i: &mut usize) -> ParseFileResult<Option<f64>> {
+pub fn maybe_read_double(
+    s: LoadSetting<Relational<f64>>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<f64>> {
     if *i + 8 < bytes.len() {
         if s.is_ignore() || *skip {
             *i += 8;
@@ -207,8 +231,13 @@ pub fn maybe_read_double(s: LoadSetting<Relational<f64>>, skip: &mut bool, bytes
 }
 
 #[inline]
-pub fn maybe_read_string_utf8(s: LoadSetting<EqualClone<String>>, skip: &mut bool, bytes: &[u8],
-    i: &mut usize, field: &str) -> ParseFileResult<Option<String>> {
+pub fn maybe_read_string_utf8(
+    s: LoadSetting<EqualClone<String>>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+    field: &str,
+) -> ParseFileResult<Option<String>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         *i += 1;
@@ -236,12 +265,18 @@ pub fn maybe_read_string_utf8(s: LoadSetting<EqualClone<String>>, skip: &mut boo
                     }
                 }
             } else {
-                Err(DbFileParseError::new(PrimitiveError, "String length goes past end of file."))
+                Err(DbFileParseError::new(
+                    PrimitiveError,
+                    "String length goes past end of file.",
+                ))
             }
         } else if indicator == 0 {
             Ok(None)
         } else {
-            let err_msg = format!("Read invalid string indicator ({}, index: {}).", indicator, i);
+            let err_msg = format!(
+                "Read invalid string indicator ({}, index: {}).",
+                indicator, i
+            );
             Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
         }
     } else {
@@ -250,8 +285,12 @@ pub fn maybe_read_string_utf8(s: LoadSetting<EqualClone<String>>, skip: &mut boo
 }
 
 #[inline]
-pub fn maybe_read_boolean(s: LoadSetting<EqualCopy<bool>>, skip: &mut bool, bytes: &[u8],
-    i: &mut usize) -> ParseFileResult<Option<bool>> {
+pub fn maybe_read_boolean(
+    s: LoadSetting<EqualCopy<bool>>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<bool>> {
     if *i < bytes.len() {
         if s.is_ignore() || *skip {
             *i += 1;
@@ -276,8 +315,12 @@ pub fn maybe_read_boolean(s: LoadSetting<EqualCopy<bool>>, skip: &mut bool, byte
 }
 
 #[inline]
-pub fn maybe_read_datetime(s: LoadSetting<Relational<NaiveDate>>, skip: &mut bool, bytes: &[u8],
-    i: &mut usize) -> ParseFileResult<Option<NaiveDate>> {
+pub fn maybe_read_datetime(
+    s: LoadSetting<Relational<NaiveDate>>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<NaiveDate>> {
     if *i + 7 < bytes.len() {
         if s.is_ignore() || *skip {
             *i += 8;
@@ -288,8 +331,11 @@ pub fn maybe_read_datetime(s: LoadSetting<Relational<NaiveDate>>, skip: &mut boo
             let ticks = u64::from_le_bytes(buf);
             let duration_since_epoch = Duration::from_micros(ticks / 10);
             let chrono_duration = ChronoDuration::from_std(duration_since_epoch).map_err(|e| {
-                let msg = format!("Failed to convert std::time::Duration to chrono::Duration\n\
-                    {}", e);
+                let msg = format!(
+                    "Failed to convert std::time::Duration to chrono::Duration\n\
+                     {}",
+                    e
+                );
                 DbFileParseError::new(PrimitiveError, msg)
             })?;
             let naive_date = NaiveDate::from_ymd(1970, 0, 0) + chrono_duration;
@@ -310,12 +356,19 @@ pub fn maybe_read_datetime(s: LoadSetting<Relational<NaiveDate>>, skip: &mut boo
 }
 
 #[inline]
-pub fn maybe_read_md5_hash(s: LoadSetting<EqualClone<String>>, skip: &mut bool, bytes: &[u8],
-    i: &mut usize) -> ParseFileResult<Option<String>> {
+pub fn maybe_read_md5_hash(
+    s: LoadSetting<EqualClone<String>>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<String>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         if indicator == 0 {
-            Err(DbFileParseError::new(PrimitiveError, "Missing hash! Indicator was 0."))
+            Err(DbFileParseError::new(
+                PrimitiveError,
+                "Missing hash! Indicator was 0.",
+            ))
         } else if indicator == 0x0b {
             if *i + 32 < bytes.len() {
                 if s.is_ignore() || *skip {
@@ -338,20 +391,33 @@ pub fn maybe_read_md5_hash(s: LoadSetting<EqualClone<String>>, skip: &mut bool, 
                     }
                 }
             } else {
-                Err(DbFileParseError::new(PrimitiveError, "Not enough bytes left to read MD5 \
-                        hash."))
+                Err(DbFileParseError::new(
+                    PrimitiveError,
+                    "Not enough bytes left to read MD5 \
+                     hash.",
+                ))
             }
         } else {
-            Err(DbFileParseError::new(PrimitiveError, format!("{}: {}", HASH_ERR, indicator)))
+            Err(DbFileParseError::new(
+                PrimitiveError,
+                format!("{}: {}", HASH_ERR, indicator),
+            ))
         }
     } else {
-        Err(DbFileParseError::new(PrimitiveError, "Could not read hash indicator byte."))
+        Err(DbFileParseError::new(
+            PrimitiveError,
+            "Could not read hash indicator byte.",
+        ))
     }
 }
 
 #[inline]
-pub fn maybe_read_player_name(s: LoadSetting<EqualClone<String>>, skip: &mut bool, bytes: &[u8],
-    i: &mut usize) -> ParseFileResult<Option<String>> {
+pub fn maybe_read_player_name(
+    s: LoadSetting<EqualClone<String>>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<String>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         *i += 1;
@@ -370,14 +436,19 @@ pub fn maybe_read_player_name(s: LoadSetting<EqualClone<String>>, skip: &mut boo
                     let length = bytes[*i] as usize;
                     *i += 1;
                     if i & 11000000 != 0 {
-                        Err(DbFileParseError::new(PrimitiveError,
-                            "Read invalid player name length"))
+                        Err(DbFileParseError::new(
+                            PrimitiveError,
+                            "Read invalid player name length",
+                        ))
                     }
                     if *i + length < bytes.len() {
-                        let tmp = String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
-                            DbFileParseError::new(PrimitiveError,
-                                format!("Failed to parse bytes into string:\n{}", e))
-                        })?;
+                        let tmp =
+                            String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                                DbFileParseError::new(
+                                    PrimitiveError,
+                                    format!("Failed to parse bytes into string:\n{}", e),
+                                )
+                            })?;
                         if let LoadSetting::Filter(filter) = s {
                             if filter.compare(tmp.clone()) {
                                 Ok(Some(tmp))
@@ -389,20 +460,28 @@ pub fn maybe_read_player_name(s: LoadSetting<EqualClone<String>>, skip: &mut boo
                             Ok(Some(tmp))
                         }
                     } else {
-                        Err(DbFileParseError::new(PrimitiveError,
-                            "Not enough bytes left to read player name."))
+                        Err(DbFileParseError::new(
+                            PrimitiveError,
+                            "Not enough bytes left to read player name.",
+                        ))
                     }
                 } else {
-                    Err(DbFileParseError::new(PrimitiveError,
-                        "Could not read player name length byte."))
+                    Err(DbFileParseError::new(
+                        PrimitiveError,
+                        "Could not read player name length byte.",
+                    ))
                 }
             }
         } else {
-            Err(DbFileParseError::new(PrimitiveError,
-                "Read invalid indicator for player name string."))
+            Err(DbFileParseError::new(
+                PrimitiveError,
+                "Read invalid indicator for player name string.",
+            ))
         }
     } else {
-        Err(DbFileParseError::new(PrimitiveError,
-            "Could not read indicator for player name string."))
+        Err(DbFileParseError::new(
+            PrimitiveError,
+            "Could not read indicator for player name string.",
+        ))
     }
 }

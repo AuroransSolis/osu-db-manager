@@ -1,7 +1,10 @@
-use crate::read_error::ParseFileResult;
+use crate::databases::osu::primitives::{
+    read_int_double_pair,
+    ByteSingle::{self, *},
+};
 use crate::deserialize_primitives::*;
 use crate::maybe_deserialize_primitives::*;
-use crate::databases::osu::primitives::{read_int_double_pair, ByteSingle::{self, *}};
+use crate::read_error::ParseFileResult;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Legacy;
@@ -15,8 +18,10 @@ pub struct ModernWithEntrySize;
 pub trait ReadVersionSpecificData {
     fn read_entry_size(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<i32>>;
     fn read_arcshpod(bytes: &[u8], i: &mut usize) -> ParseFileResult<ByteSingle>;
-    fn read_mod_combo_star_ratings(bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)>;
+    fn read_mod_combo_star_ratings(
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)>;
     fn read_unknown_short(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<i16>>;
 }
 
@@ -32,8 +37,10 @@ impl ReadVersionSpecificData for Legacy {
     }
 
     #[inline]
-    fn read_mod_combo_star_ratings(_bytes: &[u8], _i: &mut usize)
-        -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
+    fn read_mod_combo_star_ratings(
+        _bytes: &[u8],
+        _i: &mut usize,
+    ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         Ok((None, None))
     }
 
@@ -55,8 +62,10 @@ impl ReadVersionSpecificData for Modern {
     }
 
     #[inline]
-    fn read_mod_combo_star_ratings(bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
+    fn read_mod_combo_star_ratings(
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         let num_int_doubles = read_int(bytes, i)?;
         let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
         for _ in 0..num_int_doubles {
@@ -83,8 +92,10 @@ impl ReadVersionSpecificData for ModernWithEntrySize {
     }
 
     #[inline]
-    fn read_mod_combo_star_ratings(bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
+    fn read_mod_combo_star_ratings(
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         let num_int_doubles = read_int(bytes, i)?;
         let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
         for _ in 0..num_int_doubles {
@@ -101,24 +112,39 @@ impl ReadVersionSpecificData for ModernWithEntrySize {
 
 pub trait ReadPartialVersionSpecificData {
     fn maybe_read_entry_size(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<i32>>;
-    fn maybe_read_arcshpod(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Option<ByteSingle>>;
-    fn maybe_read_mod_combo_star_ratings(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)>;
-    fn maybe_read_unknown_short(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Option<i16>>;
+    fn maybe_read_arcshpod(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<ByteSingle>>;
+    fn maybe_read_mod_combo_star_ratings(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)>;
+    fn maybe_read_unknown_short(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<i16>>;
 }
 
 impl ReadPartialVersionSpecificData for Legacy {
     #[inline]
-    fn maybe_read_entry_size(_c: bool, _bytes: &[u8], _i: &mut usize)
-        -> ParseFileResult<Option<i32>> {
+    fn maybe_read_entry_size(
+        _c: bool,
+        _bytes: &[u8],
+        _i: &mut usize,
+    ) -> ParseFileResult<Option<i32>> {
         Ok(None)
     }
 
     #[inline]
-    fn maybe_read_arcshpod(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Option<ByteSingle>> {
+    fn maybe_read_arcshpod(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<ByteSingle>> {
         if c {
             Ok(Some(Byte(read_byte(bytes, i)?)))
         } else {
@@ -128,28 +154,40 @@ impl ReadPartialVersionSpecificData for Legacy {
     }
 
     #[inline]
-    fn maybe_read_mod_combo_star_ratings(_c: bool, _bytes: &[u8], _i: &mut usize)
-        -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
+    fn maybe_read_mod_combo_star_ratings(
+        _c: bool,
+        _bytes: &[u8],
+        _i: &mut usize,
+    ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         Ok((None, None))
     }
 
     #[inline]
-    fn maybe_read_unknown_short(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Option<i16>> {
+    fn maybe_read_unknown_short(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<i16>> {
         maybe_read_short(c, bytes, i)
     }
 }
 
 impl ReadPartialVersionSpecificData for Modern {
     #[inline]
-    fn maybe_read_entry_size(_c: bool, _bytes: &[u8], _i: &mut usize)
-        -> ParseFileResult<Option<i32>> {
+    fn maybe_read_entry_size(
+        _c: bool,
+        _bytes: &[u8],
+        _i: &mut usize,
+    ) -> ParseFileResult<Option<i32>> {
         Ok(None)
     }
 
     #[inline]
-    fn maybe_read_arcshpod(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Option<ByteSingle>> {
+    fn maybe_read_arcshpod(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<ByteSingle>> {
         if c {
             Ok(Some(Single(read_single(bytes, i)?)))
         } else {
@@ -159,8 +197,11 @@ impl ReadPartialVersionSpecificData for Modern {
     }
 
     #[inline]
-    fn maybe_read_mod_combo_star_ratings(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
+    fn maybe_read_mod_combo_star_ratings(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         let num_int_doubles = read_int(bytes, i)?;
         if c {
             let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
@@ -175,8 +216,11 @@ impl ReadPartialVersionSpecificData for Modern {
     }
 
     #[inline]
-    fn maybe_read_unknown_short(_c: bool, _bytes: &[u8], _i: &mut usize)
-        -> ParseFileResult<Option<i16>> {
+    fn maybe_read_unknown_short(
+        _c: bool,
+        _bytes: &[u8],
+        _i: &mut usize,
+    ) -> ParseFileResult<Option<i16>> {
         Ok(None)
     }
 }
@@ -188,8 +232,11 @@ impl ReadPartialVersionSpecificData for ModernWithEntrySize {
     }
 
     #[inline]
-    fn maybe_read_arcshpod(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<Option<ByteSingle>> {
+    fn maybe_read_arcshpod(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<ByteSingle>> {
         if c {
             Ok(Some(Single(read_single(bytes, i)?)))
         } else {
@@ -199,8 +246,11 @@ impl ReadPartialVersionSpecificData for ModernWithEntrySize {
     }
 
     #[inline]
-    fn maybe_read_mod_combo_star_ratings(c: bool, bytes: &[u8], i: &mut usize)
-        -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
+    fn maybe_read_mod_combo_star_ratings(
+        c: bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         let num_int_doubles = read_int(bytes, i)?;
         if c {
             let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
@@ -215,8 +265,11 @@ impl ReadPartialVersionSpecificData for ModernWithEntrySize {
     }
 
     #[inline]
-    fn maybe_read_unknown_short(_c: bool, _bytes: &[u8], _i: &mut usize)
-        -> ParseFileResult<Option<i16>> {
+    fn maybe_read_unknown_short(
+        _c: bool,
+        _bytes: &[u8],
+        _i: &mut usize,
+    ) -> ParseFileResult<Option<i16>> {
         Ok(None)
     }
 }

@@ -2,34 +2,35 @@ use std::io::Result as IoResult;
 
 use chrono::NaiveDate;
 
-use crate::read_error::{ParseFileResult, DbFileParseError, ParseErrorKind::QueryError};
 use crate::load_settings::{
-    Empty,
+    collection::collection_load_settings::CollectionLoadSettings, query::QueryStruct, Empty,
     LoadSetting,
-    collection::collection_load_settings::CollectionLoadSettings,
-    query::QueryStruct
 };
 use crate::masks::collection_mask::CollectionDbMask;
+use crate::read_error::{DbFileParseError, ParseErrorKind::QueryError, ParseFileResult};
 
 pub struct CollectionDbLoadSettings {
     pub version: LoadSetting<Empty>,
     pub number_of_collections: LoadSetting<Empty>,
-    pub collections_query: CollectionLoadSettings
+    pub collections_query: CollectionLoadSettings,
 }
 
 impl QueryStruct<CollectionDbMask> for CollectionDbLoadSettings {
     fn load_all(&self) -> bool {
-        self.collections_query.load_all() && self.version.is_load()
+        self.collections_query.load_all()
+            && self.version.is_load()
             && self.number_of_collections.is_load()
     }
 
     fn ignore_all(&self) -> bool {
-        self.collections_query.ignore_all() && self.version.is_ignore()
+        self.collections_query.ignore_all()
+            && self.version.is_ignore()
             && self.number_of_collections.is_ignore()
     }
 
     fn is_partial(&self) -> bool {
-        self.version.is_ignore() || self.number_of_collections.is_ignore()
+        self.version.is_ignore()
+            || self.number_of_collections.is_ignore()
             || self.collections_query.is_partial()
     }
 

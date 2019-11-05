@@ -1,22 +1,19 @@
-use std::thread::{self, JoinHandle};
 use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
 
-use crate::deserialize_primitives::*;
-use crate::read_error::{DbFileParseError, ParseFileResult, ParseErrorKind::PrimitiveError};
 use crate::databases::{
-    scores::{
-        partial_scoresdb_beatmap::PartialScoresDbBeatmap,
-        partial_score::PartialScore
-    },
-    load::PartialLoad
+    load::PartialLoad,
+    scores::{partial_score::PartialScore, partial_scoresdb_beatmap::PartialScoresDbBeatmap},
 };
-use crate::masks::scores_mask::{ScoresDbMask, ScoresDbBeatmapMask};
+use crate::deserialize_primitives::*;
+use crate::masks::scores_mask::{ScoresDbBeatmapMask, ScoresDbMask};
+use crate::read_error::{DbFileParseError, ParseErrorKind::PrimitiveError, ParseFileResult};
 
 #[derive(Debug, Clone)]
 pub struct PartialScoresDb {
     pub version: Option<i32>,
     pub number_of_beatmaps: i32,
-    pub beatmaps: Option<Vec<PartialScoresDbBeatmap>>
+    pub beatmaps: Option<Vec<PartialScoresDbBeatmap>>,
 }
 
 impl PartialLoad<ScoresDbMask> for PartialScoresDb {
@@ -46,50 +43,72 @@ impl PartialLoad<ScoresDbMask> for PartialScoresDb {
         Ok(PartialScoresDb {
             version,
             number_of_beatmaps,
-            beatmaps
+            beatmaps,
         })
     }
 
     fn read_multi_thread(mask: ScoresDbMask, jobs: usize, bytes: Vec<u8>) -> ParseFileResult<Self> {
         let (version, number_of_beatmaps) = {
             let mut index = 0;
-            (if mask.version {
-                Some(read_int(&bytes, &mut index)?)
-            } else {
-                index += 4;
-                None
-            }, read_int(&bytes, &mut index)?)
+            (
+                if mask.version {
+                    Some(read_int(&bytes, &mut index)?)
+                } else {
+                    index += 4;
+                    None
+                },
+                read_int(&bytes, &mut index)?,
+            )
         };
         let beatmaps = if let Some(m) = mask.beatmaps_mask {
             let counter = Arc::new(Mutex::new(0));
             let start_read = Arc::new(Mutex::new(8));
-            let threads = (0..jobs).map(|i| spawn_partial_scoredb_beatmap_loader(m,
-                number_of_beatmaps as usize, counter.clone(), start_read.clone(), &bytes, i))
+            let threads = (0..jobs)
+                .map(|i| {
+                    spawn_partial_scoredb_beatmap_loader(
+                        m,
+                        number_of_beatmaps as usize,
+                        counter.clone(),
+                        start_read.clone(),
+                        &bytes,
+                        i,
+                    )
+                })
                 .collect::<Vec<_>>();
-            let mut results = threads.into_iter().map(|joinhandle| joinhandle.join().unwrap())
+            let mut results = threads
+                .into_iter()
+                .map(|joinhandle| joinhandle.join().unwrap())
                 .collect::<Vec<_>>();
             let mut partial_scoredb_beatmaps = results.pop().unwrap()?;
             for partial_scoredb_beatmap_result in results {
                 partial_scoredb_beatmaps.append(&mut partial_scoredb_beatmap_result?);
             }
             partial_scoredb_beatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
-            Some(partial_scoredb_beatmaps.into_iter().map(|(_, scoredbbeatmap)| scoredbbeatmap)
-                .collect::<Vec<PartialScoresDbBeatmap>>())
+            Some(
+                partial_scoredb_beatmaps
+                    .into_iter()
+                    .map(|(_, scoredbbeatmap)| scoredbbeatmap)
+                    .collect::<Vec<PartialScoresDbBeatmap>>(),
+            )
         } else {
             None
         };
         Ok(PartialScoresDb {
             version,
             number_of_beatmaps,
-            beatmaps
+            beatmaps,
         })
     }
 }
 
-fn spawn_partial_scoredb_beatmap_loader(mask: ScoresDbBeatmapMask,
-    number_of_scoredb_beatmaps: usize, counter: Arc<Mutex<usize>>, start_read: Arc<Mutex<usize>>,
-    bytes_pointer: *const Vec<u8>, thread_no: usize)
-    -> JoinHandle<ParseFileResult<Vec<(usize, PartialScoresDbBeatmap)>>> {
+fn spawn_partial_scoredb_beatmap_loader(
+    mask: ScoresDbBeatmapMask,
+    number_of_scoredb_beatmaps: usize,
+    counter: Arc<Mutex<usize>>,
+    start_read: Arc<Mutex<usize>>,
+    bytes_pointer: *const Vec<u8>,
+    thread_no: usize,
+) -> JoinHandle<ParseFileResult<Vec<(usize, PartialScoresDbBeatmap)>>> {
     let tmp = bytes_pointer as usize;
     thread::spawn(move || {
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
@@ -119,21 +138,35 @@ fn spawn_partial_scoredb_beatmap_loader(mask: ScoresDbBeatmapMask,
                     // 34 bytes for MD5 beatmap hash/1 byte if indicator is 0
                     *s += 39;
                     // Assuming 32 characters max length for username, +2 for indicator and ULEB128
-                    let indicator = *bytes.get(*s)
-                        .ok_or_else(|| DbFileParseError::new(PrimitiveError, "Failed to read \
-                            indicator for player name."))?;
+                    let indicator = *bytes.get(*s).ok_or_else(|| {
+                        DbFileParseError::new(
+                            PrimitiveError,
+                            "Failed to read \
+                             indicator for player name.",
+                        )
+                    })?;
                     let player_name_len = if indicator == 0x0b {
-                        *bytes.get(*s + 1).ok_or_else(|| DbFileParseError::new(PrimitiveError,
-                            "Failed to read player name length."))?
+                        *bytes.get(*s + 1).ok_or_else(|| {
+                            DbFileParseError::new(
+                                PrimitiveError,
+                                "Failed to read player name length.",
+                            )
+                        })?
                     } else if indicator == 0 {
                         0
                     } else {
-                        return Err(DbFileParseError::new(PrimitiveError, "Read invalid indicator for score \
-                            player name."));
+                        return Err(DbFileParseError::new(
+                            PrimitiveError,
+                            "Read invalid indicator for score \
+                             player name.",
+                        ));
                     };
                     if player_name_len & 0b10000000 == 0b10000000 {
-                        return Err(DbFileParseError::new(PrimitiveError, "Read invalid player name \
-                            length."));
+                        return Err(DbFileParseError::new(
+                            PrimitiveError,
+                            "Read invalid player name \
+                             length.",
+                        ));
                     }
                     if indicator == 0 {
                         *s += 1;
@@ -175,11 +208,14 @@ fn spawn_partial_scoredb_beatmap_loader(mask: ScoresDbBeatmapMask,
             } else {
                 None
             };
-            partial_scoresdb_beatmaps.push((number, PartialScoresDbBeatmap {
-                md5_beatmap_hash,
-                number_of_scores,
-                scores
-            }));
+            partial_scoresdb_beatmaps.push((
+                number,
+                PartialScoresDbBeatmap {
+                    md5_beatmap_hash,
+                    number_of_scores,
+                    scores,
+                },
+            ));
         }
     })
 }

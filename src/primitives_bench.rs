@@ -1,7 +1,8 @@
-#[macro_use] extern crate criterion;
+#[macro_use]
+extern crate criterion;
 extern crate rand;
 
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use criterion::Criterion;
 
@@ -21,7 +22,7 @@ criterion_group! {
         bench_read_md5_hash, bench_read_player_name
 }
 
-criterion_main!{primitives_bench}
+criterion_main! {primitives_bench}
 
 fn bench_read_byte(c: &mut Criterion) {
     c.bench_function("Read byte", move |b| {
@@ -126,7 +127,9 @@ fn bench_read_string_empty(c: &mut Criterion) {
 
 fn bench_read_string(c: &mut Criterion) {
     c.bench_function("Read string (13 bytes)", move |b| {
-        let bytes = [0x0b, 13, 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33];
+        let bytes = [
+            0x0b, 13, 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33,
+        ];
         b.iter(|| {
             if let Err(_) = read_string_utf8(&bytes, &mut 0, "") {
                 panic!("Uh oh!");
@@ -160,8 +163,10 @@ fn bench_read_datetime(c: &mut Criterion) {
 
 fn bench_read_md5_hash(c: &mut Criterion) {
     c.bench_function("Read MD5 hash", move |b| {
-        let bytes = [0x0b, 32, 97, 97, 54, 99, 52, 49, 49, 98, 101, 49, 101, 99, 53, 55, 55, 51, 50,
-            100, 97, 48, 57, 98, 101, 97, 50, 56, 52, 98, 100, 50, 48, 48];
+        let bytes = [
+            0x0b, 32, 97, 97, 54, 99, 52, 49, 49, 98, 101, 49, 101, 99, 53, 55, 55, 51, 50, 100,
+            97, 48, 57, 98, 101, 97, 50, 56, 52, 98, 100, 50, 48, 48,
+        ];
         b.iter(|| {
             if let Err(_) = read_md5_hash(&bytes, &mut 0) {
                 panic!("Uh oh!");

@@ -1,7 +1,7 @@
 use std::fs::read;
-use std::io::{Result as IoResult, Error as IoError, ErrorKind::Other};
+use std::io::{Error as IoError, ErrorKind::Other, Result as IoResult};
 
-use clap::{Arg, App, SubCommand, AppSettings, ArgGroup};
+use clap::{App, AppSettings, Arg, ArgGroup, SubCommand};
 
 use crate::databases::merge::ConflictResolution;
 
@@ -12,7 +12,7 @@ pub struct Arguments {
     pub database_query: Option<String>,
     pub show_options: Option<String>,
     pub merge: Option<(Database, ConflictResolution)>,
-    pub info: Option<Info>
+    pub info: Option<Info>,
 }
 
 impl Arguments {
@@ -24,10 +24,10 @@ impl Arguments {
             database_query: None,
             show_options: None,
             merge: None,
-            info: None
+            info: None,
         }
     }
-    
+
     fn new_info(info: Info) -> Self {
         Arguments {
             db: None,
@@ -36,7 +36,7 @@ impl Arguments {
             database_query: None,
             show_options: None,
             merge: None,
-            info: Some(info)
+            info: Some(info),
         }
     }
 }
@@ -45,7 +45,7 @@ impl Arguments {
 pub enum Database {
     OsuDb(Vec<u8>),
     CollectionDb(Vec<u8>),
-    ScoresDb(Vec<u8>)
+    ScoresDb(Vec<u8>),
 }
 
 impl Database {
@@ -53,7 +53,7 @@ impl Database {
         match first {
             &Database::OsuDb(_) => Database::OsuDb(bytes),
             &Database::CollectionDb(_) => Database::CollectionDb(bytes),
-            &Database::ScoresDb(_) => Database::ScoresDb(bytes)
+            &Database::ScoresDb(_) => Database::ScoresDb(bytes),
         }
     }
 }
@@ -62,21 +62,21 @@ impl Database {
 pub enum InterfaceType {
     Shell,
     Tui,
-    None
+    None,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Info {
     Query(DbIndicator),
     Show(DbIndicator),
-    ConflictResolution
+    ConflictResolution,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DbIndicator {
     OsuDb,
     CollectionDb,
-    ScoresDb
+    ScoresDb,
 }
 
 impl From<&str> for DbIndicator {
@@ -85,7 +85,7 @@ impl From<&str> for DbIndicator {
             "o" | "osu" => DbIndicator::OsuDb,
             "c" | "collection" => DbIndicator::CollectionDb,
             "s" | "scores" => DbIndicator::ScoresDb,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
@@ -217,7 +217,8 @@ pub fn get_arguments() -> IoResult<Arguments> {
             return Ok(Arguments::new_info(Info::Show(DbIndicator::from(value))));
         } else if info_matches.is_present("conflict resolution") {
             return Ok(Arguments::new_info(Info::ConflictResolution));
-        } else { // One of the three is required, this is just for optimization purposes
+        } else {
+            // One of the three is required, this is just for optimization purposes
             unreachable!();
         }
         // If the 'info' command is used, then one of 'query', 'show', or 'merge' must be used, so
@@ -230,22 +231,23 @@ pub fn get_arguments() -> IoResult<Arguments> {
         arguments.db = Some(Database::CollectionDb(read(path)?));
     } else if let Some(path) = matches.value_of("scores.db specifier") {
         arguments.db = Some(Database::ScoresDb(read(path)?));
-    } else { // One of the three is required; this is just for optimization purposes
+    } else {
+        // One of the three is required; this is just for optimization purposes
         unreachable!()
     };
     if let Some(jobs) = matches.value_of("Jobs") {
-        let jobs = jobs.parse::<usize>()
+        let jobs = jobs
+            .parse::<usize>()
             .map_err(|_| IoError::new(Other, "Invalid number of jobs."))?;
         arguments.jobs = Some(jobs);
     } else {
         arguments.jobs = Some(1);
     }
     if let Some(path) = matches.value_of("Merge") {
-        let second = Database::new_of_same_type(arguments.db.as_ref().unwrap(),read(path)?);
+        let second = Database::new_of_same_type(arguments.db.as_ref().unwrap(), read(path)?);
         let resolution_method = if let Some(resolution_method) = matches.value_of("Resolution") {
-            ConflictResolution::from_argument(resolution_method).ok_or_else(|| {
-                IoError::new(Other, "Invalid conflict resolution type.")
-            })?
+            ConflictResolution::from_argument(resolution_method)
+                .ok_or_else(|| IoError::new(Other, "Invalid conflict resolution type."))?
         } else {
             ConflictResolution::MergeSubentries
         };
@@ -256,7 +258,7 @@ pub fn get_arguments() -> IoResult<Arguments> {
             "n" | "none" => InterfaceType::None,
             "s" | "shell" => InterfaceType::Shell,
             "t" | "tui" => InterfaceType::Tui,
-            _ => unreachable!() // No other values are accepted
+            _ => unreachable!(), // No other values are accepted
         };
         arguments.interface = Some(interface);
     } else {
@@ -264,16 +266,22 @@ pub fn get_arguments() -> IoResult<Arguments> {
     }
     if let Some(query) = matches.value_of("Database query") {
         if arguments.merge.is_some() {
-            return Err(IoError::new(Other, "Queries can only be passed in as an argument when no \
-                interface is specified."));
+            return Err(IoError::new(
+                Other,
+                "Queries can only be passed in as an argument when no \
+                 interface is specified.",
+            ));
         } else {
             arguments.database_query = Some(query.to_string());
         }
     }
     if let Some(show_opts) = matches.value_of("Show options") {
         if arguments.merge.is_some() {
-            return Err(IoError::new(Other, "Show options can only be passed in as an argument when \
-                no interface is specified."));
+            return Err(IoError::new(
+                Other,
+                "Show options can only be passed in as an argument when \
+                 no interface is specified.",
+            ));
         } else {
             arguments.show_options = Some(show_opts.to_string());
         }
