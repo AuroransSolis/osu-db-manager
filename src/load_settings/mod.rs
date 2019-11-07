@@ -23,13 +23,13 @@ pub trait Compare<T> {
 }
 
 #[derive(Clone)]
-pub enum LoadSetting<C: Compare> {
+pub enum LoadSetting<C: Compare<C>> {
     Load,
     Filter(C),
     Ignore,
 }
 
-impl<T> LoadSetting<T> {
+impl<C: Compare<C>> LoadSetting<C> {
     pub(crate) fn is_ignore(&self) -> bool {
         match self {
             LoadSetting::Ignore => true,
@@ -45,7 +45,7 @@ impl<T> LoadSetting<T> {
     }
 }
 
-impl<C: Compare> From<Option<C>> for LoadSetting<C> {
+impl<C: Compare<C>> From<Option<C>> for LoadSetting<C> {
     fn from(other: Option<C>) -> Self {
         if let Some(c) = other {
             LoadSetting::Filter(c)
@@ -74,6 +74,16 @@ impl<T: Copy + Clone + PartialEq> Compare<T> for EqualCopy<T> {
     }
 }
 
+impl<T: Copy + Clone + PartialEq> Compare<Option<T>> for EqualCopy<T> {
+    fn compare(&self, other: Option<T>) -> bool {
+        if let Some(value) = other {
+            *self.value == other
+        } else {
+            false
+        }
+    }
+}
+
 impl<T: Copy + Clone + PartialEq + FromStr> EqualCopy<T> {
     pub fn from_matches(matches: &ArgMatches, field: &str) -> IoResult<Option<Self>> {
         if let Some(m) = matches.value_of(field) {
@@ -96,9 +106,10 @@ impl EqualCopy<bool> {
                 "f" | "false" | "n" | "no" | "0" => Ok(Some(EqualCopy { value: false })),
                 _ => {
                     let msg = format!(
-                        "Could not parse {} as a boolean. Valid inputs are:\n \
+                        "Could not parse '{}' as a boolean. Valid inputs are:\n \
                          - t/true/y/yes/1\n \
-                         - f/false/n/no/0"
+                         - f/false/n/no/0",
+                        m
                     );
                     Err(IoError::new(InvalidInput, msg.as_str()))
                 }
@@ -120,6 +131,16 @@ impl<T: Clone + PartialEq> Compare<T> for EqualClone<T> {
     }
 }
 
+impl<T: Clone + PartialEq> Compare<Option<T>> for EqualClone<T> {
+    fn compare(&self, other: Option<T>) -> bool {
+        if let Some(value) = other {
+            self.value.clone() == other
+        } else {
+            false
+        }
+    }
+}
+
 impl<T: Clone + PartialEq + From<&str>> EqualClone<T> {
     fn from_matches(matches: &ArgMatches, field: &str) -> IoResult<Option<Self>> {
         if let Some(m) = matches.value_of(field) {
@@ -137,10 +158,10 @@ pub enum Relational<T: Copy + Clone + PartialEq + PartialOrd> {
     Gt(T),
     LtE(T),
     GtE(T),
-    InEE(Range<T>), // in range (a, b)
-    InEI(Range<T>), // in range (a, b]
-    InIE(Range<T>), // in range [a, b)
-    InII(Range<T>), // in range [a, b]
+    InEE(T, T), // in range (a, b)
+    InEI(T, T), // in range (a, b]
+    InIE(T, T), // in range [a, b)
+    InII(T, T), // in range [a, b]
 }
 
 impl<T: Copy + Clone + PartialEq + PartialOrd> Compare<T> for Relational<T> {
@@ -151,10 +172,10 @@ impl<T: Copy + Clone + PartialEq + PartialOrd> Compare<T> for Relational<T> {
             Relational::Gt(gt) => other > gt,
             Relational::LtE(lte) => other <= lte,
             Relational::GtE(gte) => other >= gte,
-            Relational::InEE(Range { start, end }) => other > range.start && other < range.end,
-            Relational::InEI(Range { start, end }) => other > range.start && other <= range.end,
-            Relational::InIE(Range { start, end }) => other >= range.start && other < range.end,
-            Relational::InII(Range { start, end }) => other >= range.start && other <= range.end,
+            Relational::InEE(start, end) => other > start && other < end,
+            Relational::InEI(start, end) => other > start && other <= end,
+            Relational::InIE(start, end) => other >= start && other < end,
+            Relational::InII(start, end) => other >= start && other <= end,
         }
     }
 }

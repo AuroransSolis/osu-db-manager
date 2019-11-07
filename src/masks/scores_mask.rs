@@ -1,3 +1,5 @@
+use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
+
 use crate::masks::mask::Mask;
 
 #[derive(Copy, Clone, Debug)]
@@ -67,9 +69,7 @@ impl ScoreMask {
             online_score_id,
         }
     }
-}
 
-impl Mask for ScoreMask {
     fn is_complete(&self) -> bool {
         self.gameplay_mode
             && self.score_version
@@ -92,28 +92,20 @@ impl Mask for ScoreMask {
             && self.online_score_id
     }
 
-    fn from_show_and_query(show: Self, query: Self) -> Self {
-        ScoreMask {
-            gameplay_mode: show.gameplay_mode || query.gameplay_mode,
-            score_version: show.score_version || query.score_version,
-            md5_beatmap_hash: show.md5_beatmap_hash || query.md5_beatmap_hash,
-            player_name: show.player_name || query.player_name,
-            md5_replay_hash: show.md5_replay_hash || query.md5_replay_hash,
-            number_of_300s: show.number_of_300s || query.number_of_300s,
-            number_of_100s: show.number_of_100s || query.number_of_100s,
-            number_of_50s: show.number_of_50s || query.number_of_50s,
-            number_of_gekis: show.number_of_gekis || query.number_of_gekis,
-            number_of_katus: show.number_of_katus || query.number_of_katus,
-            number_of_misses: show.number_of_misses || query.number_of_misses,
-            replay_score: show.replay_score || query.replay_score,
-            max_combo: show.max_combo || query.max_combo,
-            perfect_combo: show.perfect_combo || query.perfect_combo,
-            mods_used: show.mods_used || query.mods_used,
-            empty_string: show.empty_string || query.empty_string,
-            replay_timestamp: show.replay_timestamp || query.replay_timestamp,
-            negative_one: show.negative_one || query.negative_one,
-            online_score_id: show.online_score_id || query.online_score_id,
-        }
+    fn from_subcommand_matches(matches: &ArgMatches) -> Self {
+        let gameplay_mode = matches.is_present("Gameplay mode");
+        let score_version = matches.is_present("Score version");
+        let md5_beatmap_hash = matches.is_present("MD5 beatmap hash");
+        let player_name = matches.is_present("Player name");
+        let md5_replay_hash = matches.is_present("MD5 replay hash");
+        let number_of_300s = matches.is_present("Number of 300s");
+        let number_of_100s = matches.is_present("Number of 100s");
+        let number_of_50s = matches.is_present("Number of 50s");
+        let number_of_gekis = matches.is_present("Number of gekis");
+        let number_of_katus = matches.is_present("Number of katus");
+        let number_of_misses = matches.is_present("Number of misses");
+        let replay_score = matches.is_present("Replay score");
+        let max_combo = matches.is_present("Max combo");
     }
 }
 

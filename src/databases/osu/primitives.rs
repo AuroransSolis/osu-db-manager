@@ -5,7 +5,6 @@ use std::ops::Range;
 use std::str::FromStr;
 
 use crate::deserialize_primitives::*;
-use crate::query::is_number;
 use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
 // Deserializing osu!.db-specific data types

@@ -12,6 +12,7 @@ use crate::databases::{
     },
 };
 use crate::deserialize_primitives::*;
+use crate::load_settings::osu::osudb_load_settings::OsuDbLoadSettings;
 use crate::masks::osu_mask::{BeatmapMask, OsuDbMask};
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
@@ -28,8 +29,8 @@ pub struct PartialOsuDb {
     pub unknown_int: Option<i32>,
 }
 
-impl PartialLoad<OsuDbMask> for PartialOsuDb {
-    fn read_single_thread(mask: OsuDbMask, bytes: Vec<u8>) -> ParseFileResult<Self> {
+impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
+    fn read_single_thread(settings: OsuDbLoadSettings, bytes: Vec<u8>) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
         let version = read_int(&bytes, i)?;
@@ -41,7 +42,7 @@ impl PartialLoad<OsuDbMask> for PartialOsuDb {
         } else {
             maybe_read_datetime(mask.account_unlock_date, &bytes, i)?
         };
-        let player_name = maybe_read_player_name(mask.player_name, &bytes, i)?;
+        let player_name = maybe_read_player_name(settings.player_name, &bytes, i)?;
         let num_beatmaps = read_int(&bytes, i)?;
         let (beatmaps, unknown_int) = if let Some(m) = mask.beatmap_mask {
             let mut tmp = Vec::with_capacity(num_beatmaps as usize);

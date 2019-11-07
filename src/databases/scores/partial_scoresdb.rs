@@ -6,6 +6,7 @@ use crate::databases::{
     scores::{partial_score::PartialScore, partial_scoresdb_beatmap::PartialScoresDbBeatmap},
 };
 use crate::deserialize_primitives::*;
+use crate::load_settings::scores::scoresdb_load_settings::ScoresDbLoadSettings;
 use crate::masks::scores_mask::{ScoresDbBeatmapMask, ScoresDbMask};
 use crate::read_error::{DbFileParseError, ParseErrorKind::PrimitiveError, ParseFileResult};
 
@@ -16,7 +17,7 @@ pub struct PartialScoresDb {
     pub beatmaps: Option<Vec<PartialScoresDbBeatmap>>,
 }
 
-impl PartialLoad<ScoresDbMask> for PartialScoresDb {
+impl PartialLoad<ScoresDbMask, ScoresDbLoadSettings> for PartialScoresDb {
     fn read_single_thread(mask: ScoresDbMask, bytes: Vec<u8>) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;

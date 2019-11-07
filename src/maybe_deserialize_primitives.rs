@@ -412,7 +412,7 @@ pub fn maybe_read_md5_hash(
 }
 
 #[inline]
-pub fn maybe_read_player_name(
+pub fn maybe_read_player_name_string(
     s: LoadSetting<EqualClone<String>>,
     skip: &mut bool,
     bytes: &[u8],

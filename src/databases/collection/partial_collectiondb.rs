@@ -17,7 +17,7 @@ pub struct PartialCollectionDb {
     pub collections: Option<Vec<PartialCollection>>,
 }
 
-impl PartialLoad<CollectionDbMask> for PartialCollectionDb {
+impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollectionDb {
     fn read_single_thread(
         settings: CollectionDbLoadSettings,
         bytes: Vec<u8>,
