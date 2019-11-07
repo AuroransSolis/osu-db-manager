@@ -116,6 +116,7 @@ pub fn get_arguments() -> IoResult<Arguments> {
             .help("Specifies that the given path is to a scores.db"))
         .group(ArgGroup::with_name("Database type indicator and path")
             .args(&["osu!.db specifier", "collection.db specifier", "scores.db specifier"])
+            .multiple(false)
             .required(true))
         .arg(Arg::with_name("Jobs")
             .short("j")
@@ -128,22 +129,19 @@ pub fn get_arguments() -> IoResult<Arguments> {
         .arg(Arg::with_name("Interface type")
             .short("i")
             .long("interface")
+            .conflicts_with_all(&["Database query", "Show options"])
             .takes_value(true)
             .value_name("INTERFACE_TYPE")
-            .possible_values(&["s", "shell", "t", "tui", "n", "none"])
+            .possible_values(&["s", "shell", "t", "tui"])
             .multiple(false)
             .required(false)
-            .help("Interface type specifier. Valid interfaces: 't'/'tui', 's'/'shell'. Default \
+            .help("Alternative interface type specifier. Valid interfaces: 't'/'tui', 's'/'shell'. Default \
                 is none (print requested information and quit)."))
         .arg(Arg::with_name("Database query")
             .short("q")
             .long("query")
             .value_name("QUERY")
             .takes_value(true)
-            .multiple(true)
-            .min_values(1)
-            .max_values(67) // Complete beatmap + osu!.db query
-            .allow_hyphen_values(true)
             .required(false)
             .help("Database query. Use 'info --query TYPE' for information on what you can \
                 query in database type TYPE. Can be used in conjunction with show options."))
@@ -152,19 +150,13 @@ pub fn get_arguments() -> IoResult<Arguments> {
             .long("show")
             .value_name("SHOW_OPTIONS")
             .takes_value(true)
-            .multiple(true)
-            .min_values(1)
-            .max_values(67) // Complete beatmap + osu!.db show options
-            .allow_hyphen_values(true)
             .required(false)
-            .conflicts_with("Interface type")
             .help("What information to show from each database entry. Use 'info --show TYPE' \
                 for information on what you can show from each database type TYPE. Can be used in \
                 conjunction with a query."))
         .arg(Arg::with_name("Merge")
             .short("m")
             .long("merge")
-            .conflicts_with_all(&["osu!.db specifier", "Database query", "Show options"])
             .takes_value(true)
             .min_values(1)
             .max_values(2)
