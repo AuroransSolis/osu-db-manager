@@ -7,6 +7,7 @@ use crate::databases::merge::ConflictResolution;
 
 pub struct Arguments {
     pub db: Option<Database>,
+    pub verbosity: Verbosity,
     pub jobs: Option<usize>,
     pub interface: Option<InterfaceType>,
     pub database_query: Option<String>,
@@ -19,6 +20,7 @@ impl Arguments {
     fn new() -> Self {
         Arguments {
             db: None,
+            verbosity: Verbosity::Quiet,
             jobs: None,
             interface: None,
             database_query: None,
@@ -32,6 +34,7 @@ impl Arguments {
         Arguments {
             db: None,
             jobs: None,
+            verbosity: Verbosity::Quiet,
             interface: None,
             database_query: None,
             show_options: None,
@@ -58,11 +61,16 @@ impl Database {
     }
 }
 
+pub enum Verbosity {
+    Quiet,
+    Low,
+    High,
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum InterfaceType {
     Shell,
     Tui,
-    None,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -118,6 +126,21 @@ pub fn get_arguments() -> IoResult<Arguments> {
             .args(&["osu!.db specifier", "collection.db specifier", "scores.db specifier"])
             .multiple(false)
             .required(true))
+        .arg(Arg::with_name("Verbose")
+            .short("v")
+            .long("verbose")
+            .takes_value(false)
+            .help("Show verbose output."))
+        .arg(Arg::with_name("Extra verbose")
+            .short("vv")
+            .long("extra-verbose")
+            .takes_value(false)
+            .help("Show highly verbose output."))
+        .group(ArgGroup::with_name("Verbosity")
+            .args(&["Verbose", "Extra verbose"])
+            .multiple(false)
+            .conflicts_with("Interface type")
+            .required(false))
         .arg(Arg::with_name("Jobs")
             .short("j")
             .long("jobs")
@@ -235,26 +258,48 @@ pub fn get_arguments() -> IoResult<Arguments> {
     } else {
         arguments.jobs = Some(1);
     }
-    if let Some(path) = matches.value_of("Merge") {
+    let merge = if let Some(path) = matches.value_of("Merge") {
         let second = Database::new_of_same_type(arguments.db.as_ref().unwrap(), read(path)?);
-        let resolution_method = if let Some(resolution_method) = matches.value_of("Resolution") {
-            ConflictResolution::from_argument(resolution_method)
-                .ok_or_else(|| IoError::new(Other, "Invalid conflict resolution type."))?
-        } else {
-            ConflictResolution::MergeSubentries
-        };
-        arguments.merge = Some((second, resolution_method));
-    }
+        Some(second)
+    } else {
+        None
+    };
     if let Some(interface) = matches.value_of("Interface type") {
         let interface = match interface {
-            "n" | "none" => InterfaceType::None,
             "s" | "shell" => InterfaceType::Shell,
             "t" | "tui" => InterfaceType::Tui,
             _ => unreachable!(), // No other values are accepted
         };
         arguments.interface = Some(interface);
+        return Ok(arguments);
+    }
+    let resolution = if let Some(res_method) = matches.value_of("Resolution") {
+        let res_method = ConflictResolution::from_argument(res_method).ok_or_else(|| {
+            IoError::new(
+                Other,
+                "Unrecognized merge conflict resolution method. Valid methods:\n\
+                 ignore-duplicates, replace-destination, merge-subentries,\
+                 rename-source-with-prefix=PREFIX, rename-source-with-suffix=SUFFIX,\
+                 rename-destination-with-prefix=PREFIX, rename-destination-with-suffix=SUFFIX\n\n\
+                 Note: prefix/suffix methods must be put in quotes, for example:\n    \
+                 -r \"rename-source-with-suffix=foo\"",
+            )
+        })?;
+        Some(res_method)
     } else {
-        arguments.interface = Some(InterfaceType::None);
+        None
+    };
+    if let Some(merge) = merge {
+        if let Some(resolution) = resolution {
+            arguments.merge = Some((merge, resolution));
+        } else {
+            arguments.merge = Some((merge, ConflictResolution::MergeSubentries))
+        }
+    } else if resolution.is_some() {
+        return Err(IoError::new(
+            Other,
+            "Conflict resolution method specified without merge argument.",
+        ));
     }
     if let Some(query) = matches.value_of("Database query") {
         if arguments.merge.is_some() {
