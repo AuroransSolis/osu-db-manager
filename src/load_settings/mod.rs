@@ -54,12 +54,9 @@ impl<C: Compare<C>> From<Option<C>> for LoadSetting<C> {
     }
 }
 
-// Filler type for types that I don't allow the user to query
-struct Empty {}
-
-impl Compare<Empty> for Empty {
+impl Compare<()> for () {
     // Never load things marked with `Empty` - they aren't necessary, so don't waste time on them
-    fn compare(&self, other: Empty) -> bool {
+    fn compare(&self, other: ()) -> bool {
         false
     }
 }

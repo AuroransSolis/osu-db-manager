@@ -1,14 +1,14 @@
 use std::io::Result as IoResult;
 
 use crate::load_settings::{
-    query::QueryStruct, scores::scoresdb_beatmap_load_settings::ScoresDbBeatmapLoadSettings, Empty,
+    query::QueryStruct, scores::scoresdb_beatmap_load_settings::ScoresDbBeatmapLoadSettings,
     LoadSetting,
 };
 use crate::masks::scores_mask::ScoresDbMask;
 
 pub struct ScoresDbLoadSettings {
-    pub version: LoadSetting<Empty>,
-    pub number_of_beatmaps: LoadSetting<Empty>,
+    pub version: LoadSetting<()>,
+    pub number_of_beatmaps: LoadSetting<()>,
     pub beatmap_load_settings: ScoresDbBeatmapLoadSettings,
 }
 

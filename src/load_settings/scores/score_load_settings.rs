@@ -5,7 +5,7 @@ use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use crate::databases::osu::primitives::GameplayMode;
 use crate::load_settings::{
-    query::QueryStruct, Empty, EqualClone, EqualCopy, LoadSetting, Relational,
+    query::QueryStruct, EqualClone, EqualCopy, LoadSetting, Relational,
 };
 use crate::masks::scores_mask::ScoreMask;
 
@@ -25,9 +25,9 @@ pub struct ScoreLoadSettings {
     pub max_combo: LoadSetting<Relational<i16>>,
     pub perfect_combo: LoadSetting<EqualCopy<bool>>,
     pub mods_used: LoadSetting<Relational<i32>>,
-    pub empty_string: LoadSetting<Empty>,
+    pub empty_string: LoadSetting<()>,
     pub replay_timestamp: LoadSetting<Relational<NaiveDate>>,
-    pub negative_one: LoadSetting<Empty>,
+    pub negative_one: LoadSetting<()>,
     pub online_score_id: LoadSetting<Relational<i32>>,
 }
 

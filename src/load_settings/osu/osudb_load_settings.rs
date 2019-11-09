@@ -3,20 +3,20 @@ use std::io::Result as IoResult;
 use chrono::NaiveDate;
 
 use crate::load_settings::{
-    osu::beatmap_load_settings::BeatmapLoadSettings, query::QueryStruct, Empty, LoadSetting,
+    osu::beatmap_load_settings::BeatmapLoadSettings, query::QueryStruct, LoadSetting,
 };
 use crate::masks::osu_mask::OsuDbMask;
 use crate::read_error::{DbFileParseError, ParseErrorKind::QueryError, ParseFileResult};
 
 pub struct OsuDbLoadSettings {
-    pub version: LoadSetting<Empty>,
-    pub folder_count: LoadSetting<Empty>,
-    pub account_unlocked: LoadSetting<Empty>,
-    pub account_unlock_date: LoadSetting<Empty>,
-    pub player_name: LoadSetting<Empty>,
-    pub number_of_beatmaps: LoadSetting<Empty>,
+    pub version: LoadSetting<()>,
+    pub folder_count: LoadSetting<()>,
+    pub account_unlocked: LoadSetting<()>,
+    pub account_unlock_date: LoadSetting<()>,
+    pub player_name: LoadSetting<()>,
+    pub number_of_beatmaps: LoadSetting<()>,
     pub beatmap_load_settings: BeatmapLoadSettings,
-    pub unknown_int: LoadSetting<Empty>,
+    pub unknown_int: LoadSetting<()>,
 }
 
 impl Default for OsuDbLoadSettings {

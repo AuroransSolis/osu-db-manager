@@ -5,10 +5,11 @@ use clap::{App, AppSettings, Arg, ArgGroup, SubCommand};
 
 use crate::databases::osu::primitives::{ByteSingle, GameplayMode, RankedStatus};
 use crate::load_settings::{
-    query::QueryStruct, Empty, EqualClone, EqualCopy, LoadSetting, Relational,
+    query::QueryStruct, EqualClone, EqualCopy, LoadSetting, Relational,
 };
 use crate::masks::osu_mask::BeatmapMask;
 
+#[derive(Clone)]
 pub struct BeatmapLoadSettings {
     pub entry_size: LoadSetting<Relational<i32>>,
     pub artist_name: LoadSetting<EqualClone<String>>,
@@ -31,18 +32,18 @@ pub struct BeatmapLoadSettings {
     pub overall_difficulty: LoadSetting<Relational<ByteSingle>>,
     pub slider_velocity: LoadSetting<Relational<f64>>,
     pub num_mod_combo_star_ratings_standard: LoadSetting<Relational<i32>>,
-    pub mod_combo_star_ratings_standard: LoadSetting<Empty>,
+    pub mod_combo_star_ratings_standard: LoadSetting<()>,
     pub num_mod_combo_star_ratings_taiko: LoadSetting<Relational<i32>>,
-    pub mod_combo_star_ratings_taiko: LoadSetting<Empty>,
+    pub mod_combo_star_ratings_taiko: LoadSetting<()>,
     pub num_mod_combo_star_ratings_ctb: LoadSetting<Relational<i32>>,
-    pub mod_combo_star_ratings_ctb: LoadSetting<Empty>,
+    pub mod_combo_star_ratings_ctb: LoadSetting<()>,
     pub num_mod_combo_star_ratings_mania: LoadSetting<Relational<i32>>,
-    pub mod_combo_star_ratings_mania: LoadSetting<Empty>,
+    pub mod_combo_star_ratings_mania: LoadSetting<()>,
     pub drain_time: LoadSetting<Relational<i32>>,
     pub total_time: LoadSetting<Relational<i32>>,
     pub preview_offset_from_start_ms: LoadSetting<Relational<i32>>,
     pub num_timing_points: LoadSetting<Relational<i32>>,
-    pub timing_points: LoadSetting<Empty>,
+    pub timing_points: LoadSetting<()>,
     pub beatmap_id: LoadSetting<Relational<i32>>,
     pub beatmap_set_id: LoadSetting<Relational<i32>>,
     pub thread_id: LoadSetting<Relational<i32>>,

@@ -3,15 +3,15 @@ use std::io::Result as IoResult;
 use chrono::NaiveDate;
 
 use crate::load_settings::{
-    collection::collection_load_settings::CollectionLoadSettings, query::QueryStruct, Empty,
+    collection::collection_load_settings::CollectionLoadSettings, query::QueryStruct,
     LoadSetting,
 };
 use crate::masks::collection_mask::CollectionDbMask;
 use crate::read_error::{DbFileParseError, ParseErrorKind::QueryError, ParseFileResult};
 
 pub struct CollectionDbLoadSettings {
-    pub version: LoadSetting<Empty>,
-    pub number_of_collections: LoadSetting<Empty>,
+    pub version: LoadSetting<()>,
+    pub number_of_collections: LoadSetting<()>,
     pub collections_query: CollectionLoadSettings,
 }
 
