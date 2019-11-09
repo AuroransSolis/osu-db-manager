@@ -125,12 +125,12 @@ pub trait ReadPartialVersionSpecificData {
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>>;
     fn maybe_read_mod_combo_star_ratings(
-        skip: &mut bool,
+        skip: bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)>;
     fn maybe_read_unknown_short(
-        skip: &mut bool,
+        skip: bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<i16>>;
@@ -209,10 +209,9 @@ impl ReadPartialVersionSpecificData for Modern {
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>> {
-        if c {
-            Ok(Some(Single(read_single(bytes, i)?)))
+        if let Some(single) = maybe_read_single(setting.into(), skip, bytes, i)? {
+            Ok(Some(Single(single)))
         } else {
-            *i += 4;
             Ok(None)
         }
     }
