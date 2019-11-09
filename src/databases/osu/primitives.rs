@@ -302,6 +302,24 @@ impl ByteSingle {
     }
 }
 
+impl From<ByteSingle> for u8 {
+    fn from(other: ByteSingle) -> Self {
+        match other {
+            Byte(byte) => byte,
+            Single(single) => single as u8,
+        }
+    }
+}
+
+impl From<ByteSingle> for f32 {
+    fn from(other: ByteSingle) -> Self {
+        match other {
+            Byte(byte) => byte as f32,
+            Single(single) => single,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum GameplayMode {
     Standard,
