@@ -3,8 +3,9 @@ use crate::databases::osu::primitives::{
     ByteSingle::{self, *},
 };
 use crate::deserialize_primitives::*;
+use crate::load_settings::{Compare, LoadSetting, Relational};
 use crate::maybe_deserialize_primitives::*;
-use crate::read_error::ParseFileResult;
+use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Legacy;
@@ -111,19 +112,25 @@ impl ReadVersionSpecificData for ModernWithEntrySize {
 }
 
 pub trait ReadPartialVersionSpecificData {
-    fn maybe_read_entry_size(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<i32>>;
+    fn maybe_read_entry_size(
+        setting: LoadSetting<Relational<i32>>,
+        skip: &mut bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<i32>>;
     fn maybe_read_arcshpod(
-        c: bool,
+        setting: LoadSetting<Relational<ByteSingle>>,
+        skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>>;
     fn maybe_read_mod_combo_star_ratings(
-        c: bool,
+        skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)>;
     fn maybe_read_unknown_short(
-        c: bool,
+        skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<i16>>;
@@ -132,30 +139,31 @@ pub trait ReadPartialVersionSpecificData {
 impl ReadPartialVersionSpecificData for Legacy {
     #[inline]
     fn maybe_read_entry_size(
-        _c: bool,
-        _bytes: &[u8],
-        _i: &mut usize,
+        setting: LoadSetting<Relational<i32>>,
+        skip: &mut bool,
+        bytes: &[u8],
+        i: &mut usize,
     ) -> ParseFileResult<Option<i32>> {
         Ok(None)
     }
 
     #[inline]
     fn maybe_read_arcshpod(
-        c: bool,
+        setting: LoadSetting<Relational<ByteSingle>>,
+        skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>> {
-        if c {
-            Ok(Some(Byte(read_byte(bytes, i)?)))
+        if let Some(byte) = maybe_read_byte(setting.into(), skip, bytes, i)? {
+            Ok(Some(Byte(byte)))
         } else {
-            *i += 1;
             Ok(None)
         }
     }
 
     #[inline]
     fn maybe_read_mod_combo_star_ratings(
-        _c: bool,
+        _skip: &mut bool,
         _bytes: &[u8],
         _i: &mut usize,
     ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
@@ -164,27 +172,40 @@ impl ReadPartialVersionSpecificData for Legacy {
 
     #[inline]
     fn maybe_read_unknown_short(
-        c: bool,
+        skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<i16>> {
-        maybe_read_short(c, bytes, i)
+        if *skip {
+            if *i + 1 < bytes.len() {
+                Ok(None)
+            } else {
+                Err(DbFileParseError::new(
+                    ParseErrorKind::OsuDbError,
+                    "Insufficient bytes to read unknown short.",
+                ))
+            }
+        } else {
+            Ok(Some(read_short(bytes, i)?))
+        }
     }
 }
 
 impl ReadPartialVersionSpecificData for Modern {
     #[inline]
     fn maybe_read_entry_size(
-        _c: bool,
-        _bytes: &[u8],
-        _i: &mut usize,
+        setting: LoadSetting<Relational<i32>>,
+        skip: &mut bool,
+        bytes: &[u8],
+        i: &mut usize,
     ) -> ParseFileResult<Option<i32>> {
         Ok(None)
     }
 
     #[inline]
     fn maybe_read_arcshpod(
-        c: bool,
+        setting: LoadSetting<Relational<ByteSingle>>,
+        skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>> {
@@ -227,20 +248,25 @@ impl ReadPartialVersionSpecificData for Modern {
 
 impl ReadPartialVersionSpecificData for ModernWithEntrySize {
     #[inline]
-    fn maybe_read_entry_size(c: bool, bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<i32>> {
-        maybe_read_int(c, bytes, i)
+    fn maybe_read_entry_size(
+        setting: LoadSetting<Relational<i32>>,
+        skip: &mut bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<i32>> {
+        maybe_read_int(setting, skip, bytes, i)
     }
 
     #[inline]
     fn maybe_read_arcshpod(
-        c: bool,
+        setting: LoadSetting<Relational<ByteSingle>>,
+        skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>> {
-        if c {
-            Ok(Some(Single(read_single(bytes, i)?)))
+        if let Some(single) = maybe_read_single(setting.into(), skip, bytes, i)? {
+            Ok(Some(Single(single)))
         } else {
-            *i += 4;
             Ok(None)
         }
     }
