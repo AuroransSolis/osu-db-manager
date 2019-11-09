@@ -218,12 +218,12 @@ impl ReadPartialVersionSpecificData for Modern {
 
     #[inline]
     fn maybe_read_mod_combo_star_ratings(
-        c: bool,
+        skip: bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         let num_int_doubles = read_int(bytes, i)?;
-        if c {
+        if skip {
             let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
             for _ in 0..num_int_doubles {
                 int_double_pairs.push(read_int_double_pair(bytes, i)?);
@@ -237,7 +237,7 @@ impl ReadPartialVersionSpecificData for Modern {
 
     #[inline]
     fn maybe_read_unknown_short(
-        _c: bool,
+        _skip: bool,
         _bytes: &[u8],
         _i: &mut usize,
     ) -> ParseFileResult<Option<i16>> {
@@ -272,12 +272,12 @@ impl ReadPartialVersionSpecificData for ModernWithEntrySize {
 
     #[inline]
     fn maybe_read_mod_combo_star_ratings(
-        c: bool,
+        skip: bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         let num_int_doubles = read_int(bytes, i)?;
-        if c {
+        if skip {
             let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
             for _ in 0..num_int_doubles {
                 int_double_pairs.push(read_int_double_pair(bytes, i)?);
@@ -291,7 +291,7 @@ impl ReadPartialVersionSpecificData for ModernWithEntrySize {
 
     #[inline]
     fn maybe_read_unknown_short(
-        _c: bool,
+        _skip: bool,
         _bytes: &[u8],
         _i: &mut usize,
     ) -> ParseFileResult<Option<i16>> {
