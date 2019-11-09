@@ -13,21 +13,20 @@ use clap::ArgMatches;
 
 use crate::databases::osu::primitives::{ByteSingle, GameplayMode, RankedStatus};
 
-pub enum FilterResult<T> {
-    Meets(Option<T>),
-    Fails,
-}
-
+// Comparison trait for use in partial loading.
 pub trait Compare<T> {
     fn compare(&self, other: T) -> bool;
 }
 
+// Generic struct that will be used to create the query structs for the databases
 #[derive(Clone)]
 pub enum LoadSetting<C: Compare<C>> {
     Load,
     Filter(C),
     Ignore,
 }
+
+impl<C: Compare<C> + Copy> Copy for LoadSetting<C> {}
 
 impl<C: Compare<C>> LoadSetting<C> {
     pub(crate) fn is_ignore(&self) -> bool {
@@ -55,14 +54,17 @@ impl<C: Compare<C>> From<Option<C>> for LoadSetting<C> {
     }
 }
 
+// Filler type for types that I don't allow the user to query
 struct Empty {}
 
 impl Compare<Empty> for Empty {
+    // Never load things marked with `Empty` - they aren't necessary, so don't waste time on them
     fn compare(&self, other: Empty) -> bool {
         false
     }
 }
 
+// Equality checking struct for `Copy` types
 #[derive(Copy, Clone)]
 pub struct EqualCopy<T: Copy + Clone + PartialEq> {
     value: T,
@@ -74,6 +76,7 @@ impl<T: Copy + Clone + PartialEq> Compare<T> for EqualCopy<T> {
     }
 }
 
+// Also allow comparing `T` with `Option<T>`
 impl<T: Copy + Clone + PartialEq> Compare<Option<T>> for EqualCopy<T> {
     fn compare(&self, other: Option<T>) -> bool {
         if let Some(value) = other {
@@ -94,6 +97,15 @@ impl<T: Copy + Clone + PartialEq + FromStr> EqualCopy<T> {
             }))
         } else {
             Ok(None)
+        }
+    }
+}
+
+// Enable conversion between `EqualCopy` types, e.g. `EqualCopy<ByteSingle>` to `EqualCopy<u8>`
+impl<T, U: From<T>> From<EqualCopy<T>> for EqualCopy<U> {
+    fn from(other: EqualCopy<T>) -> Self {
+        EqualCopy {
+            value: U::from(other.value),
         }
     }
 }
@@ -120,6 +132,7 @@ impl EqualCopy<bool> {
     }
 }
 
+// Equality checking struct for `Clone` types
 #[derive(Clone)]
 pub struct EqualClone<T: Clone + PartialEq> {
     value: T,
@@ -131,6 +144,7 @@ impl<T: Clone + PartialEq> Compare<T> for EqualClone<T> {
     }
 }
 
+// Allow comparing `T` with `Option<T>`
 impl<T: Clone + PartialEq> Compare<Option<T>> for EqualClone<T> {
     fn compare(&self, other: Option<T>) -> bool {
         if let Some(value) = other {
@@ -151,6 +165,7 @@ impl<T: Clone + PartialEq + From<&str>> EqualClone<T> {
     }
 }
 
+// Ordered comparisons
 #[derive(Copy, Clone)]
 pub enum Relational<T: Copy + Clone + PartialEq + PartialOrd> {
     Eq(T),
@@ -183,17 +198,17 @@ impl<T: Copy + Clone + PartialEq + PartialOrd> Compare<T> for Relational<T> {
 use self::Relational::*;
 
 impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
-    pub fn inner_to_option(self) -> Self {
+    pub fn inner_to_option(self) -> Relational<Option<T>> {
         match self {
             Eq(eq) => Eq(Some(eq)),
             Lt(lt) => Lt(Some(lt)),
             Gt(gt) => Gt(Some(gt)),
             LtE(lte) => LtE(Some(lte)),
             GtE(gte) => GtE(Some(gte)),
-            InEE(Range { start, end }) => InEE(Some(start..end)),
-            InEI(Range { start, end }) => InEI(Some(start..end)),
-            InIE(Range { start, end }) => InIE(Some(start..end)),
-            InII(Range { start, end }) => InII(Some(start..end)),
+            InEE(start, end) => InEE(Some(start), Some(end)),
+            InEI(start, end) => InEI(Some(start), Some(end)),
+            InIE(start, end) => InIE(Some(start), Some(end)),
+            InII(start, end) => InII(Some(start), Some(end)),
         }
     }
 
@@ -245,10 +260,10 @@ impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
                     }
                 } else {
                     match (first, last) {
-                        ("(", ")") => InEE(start..end),
-                        ("(", "]") => InEI(start..end),
-                        ("[", ")") => InIE(start..end),
-                        ("[", "]") => InII(start..end),
+                        ("(", ")") => InEE(start, end),
+                        ("(", "]") => InEI(start, end),
+                        ("[", ")") => InIE(start, end),
+                        ("[", "]") => InII(start, end),
                         _ => unreachable!(),
                     }
                 }))
@@ -298,10 +313,10 @@ impl<T: Copy + Clone + PartialEq + PartialOrd + FromStr> Relational<T> {
                     }
                 } else {
                     match (first, last) {
-                        ("(", ")") => InEE(start..end),
-                        ("(", "]") => InEI(start..end),
-                        ("[", ")") => InIE(start..end),
-                        ("[", "]") => InII(start..end),
+                        ("(", ")") => InEE(start, end),
+                        ("(", "]") => InEI(start, end),
+                        ("[", ")") => InIE(start, end),
+                        ("[", "]") => InII(start, end),
                         _ => unreachable!(),
                     }
                 }))
