@@ -52,7 +52,7 @@ pub struct BeatmapLoadSettings {
     pub mania_grade: LoadSetting<Relational<u8>>,
     pub local_offset: LoadSetting<Relational<i16>>,
     pub stack_leniency: LoadSetting<Relational<f32>>,
-    pub gameplay_mode: LoadSetting<GameplayMode>,
+    pub gameplay_mode: LoadSetting<EqualCopy<GameplayMode>>,
     pub song_source: LoadSetting<EqualClone<String>>,
     pub song_tags: LoadSetting<EqualClone<String>>,
     pub online_offset: LoadSetting<Relational<i16>>,
