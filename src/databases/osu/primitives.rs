@@ -5,6 +5,7 @@ use std::ops::Range;
 use std::str::FromStr;
 
 use crate::deserialize_primitives::*;
+use crate::load_settings::{Compare, EqualCopy, LoadSetting};
 use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
 // Deserializing osu!.db-specific data types
@@ -192,27 +193,48 @@ impl RankedStatus {
 
     #[inline]
     pub fn maybe_read_from_bytes(
-        c: bool,
+        setting: LoadSetting<EqualCopy<RankedStatus>>,
+        skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<Self>> {
-        if c {
-            match read_byte(bytes, i).map_err(|_| primitive!(RANKED_STATUS_ERR))? {
-                0 => Ok(Some(Unknown)),
-                1 => Ok(Some(Unsubmitted)),
-                2 => Ok(Some(PendingWIPGraveyard)),
-                3 => Ok(Some(Unused)),
-                4 => Ok(Some(Ranked)),
-                5 => Ok(Some(Approved)),
-                6 => Ok(Some(Qualified)),
-                7 => Ok(Some(Loved)),
-                b @ _ => {
-                    let err_msg = format!("Found invalid ranked status value ({})", b);
-                    Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
+        if *i < bytes.len() {
+            if setting.is_ignore() || *skip {
+                *i += 1;
+                Ok(None)
+            } else {
+                let byte = bytes[*i];
+                *i += 1;
+                let ranked_status = match byte {
+                    0 => Ok(Unknown),
+                    1 => Ok(Unsubmitted),
+                    2 => Ok(PendingWIPGraveyard),
+                    3 => Ok(Unused),
+                    4 => Ok(Ranked),
+                    5 => Ok(Approved),
+                    6 => Ok(Qualified),
+                    7 => Ok(Loved),
+                    b @ _ => {
+                        let err_msg = format!("Found invalid ranked status value ({})", b);
+                        Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
+                    }
+                }?;
+                if let LoadSetting::Filter(cmp) = setting {
+                    if cmp.compare(ranked_status) {
+                        Ok(Some(ranked_status))
+                    } else {
+                        *skip = true;
+                        Ok(None)
+                    }
+                } else {
+                    Ok(Some(ranked_status))
                 }
             }
         } else {
-            Ok(None)
+            Err(DbFileParseError::new(
+                PrimitiveError,
+                "Insufficient bytes to read ranking status.",
+            ))
         }
     }
 }
@@ -365,24 +387,44 @@ impl GameplayMode {
 
     #[inline]
     pub fn maybe_read_from_bytes(
-        c: bool,
+        setting: LoadSetting<EqualCopy<GameplayMode>>,
+        skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<Self>> {
-        if c {
-            let b = read_byte(bytes, i).map_err(|_| primitive!(GAMEPLAY_MODE_ERR))?;
-            match b {
-                0 => Ok(Some(Standard)),
-                1 => Ok(Some(Taiko)),
-                2 => Ok(Some(Ctb)),
-                3 => Ok(Some(Mania)),
-                _ => {
-                    let err_msg = format!("Read invalid gamemode specifier ({})", b);
-                    Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
+        if i < bytes.len() {
+            if setting.is_ignore() || *skip {
+                *i += 1;
+                Ok(None)
+            } else {
+                let byte = bytes[*i];
+                *i += 1;
+                let gameplay_mode = match b {
+                    0 => Ok(Standard),
+                    1 => Ok(Taiko),
+                    2 => Ok(Ctb),
+                    3 => Ok(Mania),
+                    _ => {
+                        let err_msg = format!("Read invalid gamemode specifier ({})", b);
+                        Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
+                    }
+                }?;
+                if let LoadSetting::Filter(cmp) = setting {
+                    if cmp.compare(gameplay_mode) {
+                        Ok(Some(gameplay_mode))
+                    } else {
+                        *skip = true;
+                        Ok(None)
+                    }
+                } else {
+                    Ok(Some(gameplay_mode))
                 }
             }
         } else {
-            Ok(None)
+            Err(DbFileParseError::new(
+                PrimitiveError,
+                "Insufficient bytes to read gameplay mode.",
+            ))
         }
     }
 }
