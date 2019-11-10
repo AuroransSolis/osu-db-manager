@@ -133,6 +133,29 @@ pub fn maybe_read_int(
 }
 
 #[inline]
+pub fn maybe_read_int_nocomp(
+    s: LoadSetting<()>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<i32>> {
+    if *i + 3 < bytes.len() {
+        if s.is_ignore() || *skip {
+            *i += 4;
+            Ok(None)
+        } else {
+            let mut buf = [0; 4];
+            buf.copy_from_slice(&bytes[*i..*i + 4]);
+            let tmp = Ok(Some(i32::from_le_bytes(buf)));
+            *i += 4;
+            tmp
+        }
+    } else {
+        Err(primitive!(INT_ERR))
+    }
+}
+
+#[inline]
 pub fn maybe_read_long(
     s: LoadSetting<Relational<i64>>,
     skip: &mut bool,
@@ -315,6 +338,27 @@ pub fn maybe_read_boolean(
 }
 
 #[inline]
+pub fn maybe_read_boolean_nocomp(
+    s: LoadSetting<()>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<bool>> {
+    if *i < bytes.len() {
+        if s.is_ignore() || *skip {
+            *i += 1;
+            Ok(None)
+        } else {
+            let tmp = Ok(Some(bytes[*i] != 0));
+            *i += 1;
+            tmp
+        }
+    } else {
+        Err(primitive!(BOOLEAN_ERR))
+    }
+}
+
+#[inline]
 pub fn maybe_read_datetime(
     s: LoadSetting<Relational<NaiveDate>>,
     skip: &mut bool,
@@ -349,6 +393,38 @@ pub fn maybe_read_datetime(
             } else {
                 Ok(Some(NaiveDate))
             }
+        }
+    } else {
+        Err(primitive!(DATETIME_ERR))
+    }
+}
+
+#[inline]
+pub fn maybe_read_datetime_nocomp(
+    s: LoadSetting<()>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<NaiveDate>> {
+    if *i + 7 < bytes.len() {
+        if s.is_ignore() || *skip {
+            *i += 8;
+            Ok(None)
+        } else {
+            let mut buf = [0; 8];
+            buf.copy_from_slice(&bytes[*i..*i + 8]);
+            let ticks = u64::from_le_bytes(buf);
+            let duration_since_epoch = Duration::from_micros(ticks / 10);
+            let chrono_duration = ChronoDuration::from_std(duration_since_epoch).map_err(|e| {
+                let msg = format!(
+                    "Failed to convert std::time::Duration to chrono::Duration\n\
+                     {}",
+                    e
+                );
+                DbFileParseError::new(PrimitiveError, msg)
+            })?;
+            let naive_date = NaiveDate::from_ymd(1970, 0, 0) + chrono_duration;
+            Ok(Some(NaiveDate))
         }
     } else {
         Err(primitive!(DATETIME_ERR))
@@ -412,7 +488,7 @@ pub fn maybe_read_md5_hash(
 }
 
 #[inline]
-pub fn maybe_read_player_name_string(
+pub fn maybe_read_player_name(
     s: LoadSetting<EqualClone<String>>,
     skip: &mut bool,
     bytes: &[u8],
@@ -459,6 +535,72 @@ pub fn maybe_read_player_name_string(
                         } else {
                             Ok(Some(tmp))
                         }
+                    } else {
+                        Err(DbFileParseError::new(
+                            PrimitiveError,
+                            "Not enough bytes left to read player name.",
+                        ))
+                    }
+                } else {
+                    Err(DbFileParseError::new(
+                        PrimitiveError,
+                        "Could not read player name length byte.",
+                    ))
+                }
+            }
+        } else {
+            Err(DbFileParseError::new(
+                PrimitiveError,
+                "Read invalid indicator for player name string.",
+            ))
+        }
+    } else {
+        Err(DbFileParseError::new(
+            PrimitiveError,
+            "Could not read indicator for player name string.",
+        ))
+    }
+}
+
+#[inline]
+pub fn maybe_read_player_name_nocomp(
+    s: LoadSetting<()>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<String>> {
+    if *i < bytes.len() {
+        let indicator = bytes[*i];
+        *i += 1;
+        if indicator == 0 {
+            Ok(None)
+        } else if indicator == 0x0b {
+            if s.is_ignore() {
+                Ok(None)
+            } else {
+                if *i < bytes.len() {
+                    // Usernames are ASCII (1 byte in Unicode too), and so should never need more
+                    // than a byte for the player name string length. Additionally, from talking
+                    // with a Tillerino maintainer, I have found that the longest usernames that
+                    // Tillerino has read are about 20 characters. I also limit the username length
+                    // to 64 characters and return an error if it's longer.
+                    let length = bytes[*i] as usize;
+                    *i += 1;
+                    if i & 11000000 != 0 {
+                        Err(DbFileParseError::new(
+                            PrimitiveError,
+                            "Read invalid player name length",
+                        ))
+                    }
+                    if *i + length < bytes.len() {
+                        let tmp =
+                            String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                                DbFileParseError::new(
+                                    PrimitiveError,
+                                    format!("Failed to parse bytes into string:\n{}", e),
+                                )
+                            })?;
+                        Ok(Some(tmp))
                     } else {
                         Err(DbFileParseError::new(
                             PrimitiveError,
