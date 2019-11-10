@@ -73,7 +73,7 @@ pub struct PartialBeatmap {
 
 impl PartialBeatmap {
     pub fn read_from_bytes<T: ReadPartialVersionSpecificData>(
-        settings: BeatmapLoadSettings,
+        settings: &BeatmapLoadSettings,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Self> {
@@ -213,8 +213,7 @@ impl PartialBeatmap {
             maybe_read_boolean(settings.disable_storyboard, &mut skip, bytes, i)?;
         let disable_video = maybe_read_boolean(settings.disable_video, &mut skip, bytes, i)?;
         let visual_override = maybe_read_boolean(settings.visual_override, &mut skip, bytes, i)?;
-        let unknown_short =
-            T::maybe_read_unknown_short(skip, bytes, i)?;
+        let unknown_short = T::maybe_read_unknown_short(skip, bytes, i)?;
         let offset_from_song_start_in_editor_ms = maybe_read_int(
             settings.offset_from_song_start_in_editor_ms,
             &mut skip,
