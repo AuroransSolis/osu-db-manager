@@ -16,7 +16,7 @@ pub struct OsuDbLoadSettings {
     pub player_name: LoadSetting<()>,
     pub number_of_beatmaps: LoadSetting<()>,
     pub beatmap_load_settings: BeatmapLoadSettings,
-    pub unknown_int: LoadSetting<()>,
+    pub unknown_short: LoadSetting<()>,
 }
 
 impl Default for OsuDbLoadSettings {
@@ -29,7 +29,7 @@ impl Default for OsuDbLoadSettings {
             player_name: LoadSetting::Ignore,
             number_of_beatmaps: LoadSetting::Ignore,
             beatmap_load_settings: BeatmapLoadSettings::default(),
-            unknown_int: LoadSetting::Ignore,
+            unknown_short: LoadSetting::Ignore,
         }
     }
 }
@@ -42,7 +42,7 @@ impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {
             && self.account_unlocked.is_load()
             && self.account_unlock_date.is_load()
             && self.player_name.is_load()
-            && self.unknown_int.is_load()
+            && self.unknown_short.is_load()
     }
 
     fn ignore_all(&self) -> bool {
@@ -52,7 +52,7 @@ impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {
             && self.account_unlocked.is_ignore()
             && self.account_unlock_date.is_ignore()
             && self.player_name.is_ignore()
-            && self.unknown_int.is_ignore()
+            && self.unknown_short.is_ignore()
     }
 
     fn is_partial(&self) -> bool {
@@ -62,7 +62,7 @@ impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {
             || self.account_unlocked.is_ignore()
             || self.account_unlock_date.is_ignore()
             || self.player_name.is_ignore()
-            || self.unknown_int.is_ignore()
+            || self.unknown_short.is_ignore()
     }
 
     fn set_from_query(&mut self, args: Vec<&str>) -> IoResult<()> {
@@ -91,8 +91,8 @@ impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {
         if let Some(beatmap_mask) = mask.beatmap_mask.as_ref() {
             self.beatmap_load_settings.set_from_mask(beatmap_mask);
         }
-        if self.unknown_int.is_ignore() && mask.unknown_int {
-            self.unknown_int = LoadSetting::Load;
+        if self.unknown_short.is_ignore() && mask.unknown_short {
+            self.unknown_short = LoadSetting::Load;
         }
     }
 }

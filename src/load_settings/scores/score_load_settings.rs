@@ -4,9 +4,7 @@ use chrono::NaiveDate;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use crate::databases::osu::primitives::GameplayMode;
-use crate::load_settings::{
-    query::QueryStruct, EqualClone, EqualCopy, LoadSetting, Relational,
-};
+use crate::load_settings::{query::QueryStruct, EqualClone, EqualCopy, LoadSetting, Relational};
 use crate::masks::scores_mask::ScoreMask;
 
 pub struct ScoreLoadSettings {

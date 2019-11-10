@@ -44,6 +44,54 @@ impl<C: Compare<C>> LoadSetting<C> {
     }
 }
 
+impl<T: Copy + Clone> LoadSetting<EqualCopy<T>> {
+    pub(crate) fn apply(&self, other: T) -> Option<T> {
+        match self {
+            LoadSetting::Load => Some(other),
+            LoadSetting::Filter(cmp) => {
+                if cmp.compare(other) {
+                    Some(other)
+                } else {
+                    None
+                }
+            }
+            LoadSetting::Ignore => None,
+        }
+    }
+}
+
+impl<T: Copy + Clone> LoadSetting<Relational<T>> {
+    pub(crate) fn apply(&self, other: T) -> Option<T> {
+        match self {
+            LoadSetting::Load => Some(other),
+            LoadSetting::Filter(cmp) => {
+                if cmp.compare(other) {
+                    Some(other)
+                } else {
+                    None
+                }
+            }
+            LoadSetting::Ignore => None,
+        }
+    }
+}
+
+impl<T: Clone> LoadSetting<EqualClone<T>> {
+    pub(crate) fn apply(&self, other: T) -> Option<T> {
+        match self {
+            LoadSetting::Load => Some(other),
+            LoadSetting::Filter(cmp) => {
+                if cmp.compare(other.clone()) {
+                    Some(other)
+                } else {
+                    None
+                }
+            }
+            LoadSetting::Ignore => None,
+        }
+    }
+}
+
 impl<C: Compare<C>> From<Option<C>> for LoadSetting<C> {
     fn from(other: Option<C>) -> Self {
         if let Some(c) = other {

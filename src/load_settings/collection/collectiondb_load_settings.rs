@@ -3,8 +3,7 @@ use std::io::Result as IoResult;
 use chrono::NaiveDate;
 
 use crate::load_settings::{
-    collection::collection_load_settings::CollectionLoadSettings, query::QueryStruct,
-    LoadSetting,
+    collection::collection_load_settings::CollectionLoadSettings, query::QueryStruct, LoadSetting,
 };
 use crate::masks::collection_mask::CollectionDbMask;
 use crate::read_error::{DbFileParseError, ParseErrorKind::QueryError, ParseFileResult};

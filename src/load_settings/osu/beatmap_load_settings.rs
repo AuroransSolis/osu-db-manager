@@ -4,9 +4,7 @@ use chrono::naive::NaiveDate;
 use clap::{App, AppSettings, Arg, ArgGroup, SubCommand};
 
 use crate::databases::osu::primitives::{ByteSingle, GameplayMode, RankedStatus};
-use crate::load_settings::{
-    query::QueryStruct, EqualClone, EqualCopy, LoadSetting, Relational,
-};
+use crate::load_settings::{query::QueryStruct, EqualClone, EqualCopy, LoadSetting, Relational};
 use crate::masks::osu_mask::BeatmapMask;
 
 #[derive(Clone)]
