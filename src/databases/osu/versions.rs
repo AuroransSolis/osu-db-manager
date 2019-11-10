@@ -172,11 +172,11 @@ impl ReadPartialVersionSpecificData for Legacy {
 
     #[inline]
     fn maybe_read_unknown_short(
-        skip: &mut bool,
+        skip: bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<i16>> {
-        if *skip {
+        if skip {
             if *i + 1 < bytes.len() {
                 Ok(None)
             } else {
