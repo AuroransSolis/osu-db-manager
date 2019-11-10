@@ -337,7 +337,7 @@ pub struct OsuDbMask {
     pub player_name: bool,
     pub number_of_beatmaps: bool,
     pub beatmap_mask: Option<BeatmapMask>,
-    pub unknown_int: bool,
+    pub unknown_short: bool,
 }
 
 impl OsuDbMask {
@@ -349,7 +349,7 @@ impl OsuDbMask {
         player_name: bool,
         number_of_beatmaps: bool,
         beatmap_mask: Option<BeatmapMask>,
-        unknown_int: bool,
+        unknown_short: bool,
     ) -> Self {
         OsuDbMask {
             version,
@@ -359,7 +359,7 @@ impl OsuDbMask {
             player_name,
             number_of_beatmaps,
             beatmap_mask,
-            unknown_int,
+            unknown_short,
         }
     }
 }
@@ -374,7 +374,7 @@ impl Mask for OsuDbMask {
                 && self.account_unlock_date
                 && self.player_name
                 && self.number_of_beatmaps
-                && self.unknown_int
+                && self.unknown_short
         } else {
             false
         }
@@ -869,7 +869,7 @@ impl Mask for OsuDbMask {
         } else {
             None
         };
-        let unknown_int = matches.is_present("Unknown int");
+        let unknown_short = matches.is_present("Unknown int");
         OsuDbMask {
             version,
             folder_count,
@@ -878,7 +878,7 @@ impl Mask for OsuDbMask {
             player_name,
             number_of_beatmaps,
             beatmap_mask,
-            unknown_int,
+            unknown_short,
         }
     }
 }

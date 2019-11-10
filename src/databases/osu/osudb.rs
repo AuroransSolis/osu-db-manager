@@ -23,7 +23,7 @@ pub struct OsuDb {
     pub player_name: Option<String>,
     pub number_of_beatmaps: i32,
     pub beatmaps: Vec<Beatmap>,
-    pub unknown_int: i32,
+    pub unknown_short: i16,
 }
 
 impl Load for OsuDb {
@@ -62,7 +62,7 @@ impl Load for OsuDb {
             );
             return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
         }
-        let unknown_int = read_int(&bytes, &mut index)?;
+        let unknown_short = read_int(&bytes, &mut index)?;
         Ok(OsuDb {
             version,
             folder_count,
@@ -71,7 +71,7 @@ impl Load for OsuDb {
             player_name,
             number_of_beatmaps: num_beatmaps,
             beatmaps,
-            unknown_int,
+            unknown_short,
         })
     }
 
@@ -152,7 +152,7 @@ impl Load for OsuDb {
             );
             return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
         };
-        let unknown_int = read_int(&bytes, &mut *start.lock().unwrap())?;
+        let unknown_short = read_int(&bytes, &mut *start.lock().unwrap())?;
         Ok(OsuDb {
             version,
             folder_count,
@@ -161,7 +161,7 @@ impl Load for OsuDb {
             player_name,
             number_of_beatmaps: num_beatmaps,
             beatmaps,
-            unknown_int,
+            unknown_short,
         })
     }
 }
