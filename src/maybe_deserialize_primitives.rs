@@ -255,7 +255,7 @@ pub fn maybe_read_double(
 
 #[inline]
 pub fn maybe_read_string_utf8(
-    s: LoadSetting<EqualClone<String>>,
+    s: &LoadSetting<EqualClone<String>>,
     skip: &mut bool,
     bytes: &[u8],
     i: &mut usize,
@@ -286,6 +286,51 @@ pub fn maybe_read_string_utf8(
                     } else {
                         Ok(Some(tmp))
                     }
+                }
+            } else {
+                Err(DbFileParseError::new(
+                    PrimitiveError,
+                    "String length goes past end of file.",
+                ))
+            }
+        } else if indicator == 0 {
+            Ok(None)
+        } else {
+            let err_msg = format!(
+                "Read invalid string indicator ({}, index: {}).",
+                indicator, i
+            );
+            Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
+        }
+    } else {
+        Err(primitive!(STRING_ERR))
+    }
+}
+
+#[inline]
+pub fn maybe_read_string_utf8_nocomp(
+    s: LoadSetting<()>,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+    field: &str,
+) -> ParseFileResult<Option<String>> {
+    if *i < bytes.len() {
+        let indicator = bytes[*i];
+        *i += 1;
+        if indicator == 0x0b {
+            let length = read_uleb128(bytes, i)?;
+            if *i + length <= bytes.len() {
+                if s.is_ignore() || *skip {
+                    *i += length;
+                    Ok(None)
+                } else {
+                    let tmp = String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                        let err_msg = format!("Error reading string for {} ({})", field, e);
+                        DbFileParseError::new(PrimitiveError, err_msg.as_str())
+                    })?;
+                    *i += length;
+                    Ok(Some(tmp))
                 }
             } else {
                 Err(DbFileParseError::new(
@@ -433,7 +478,7 @@ pub fn maybe_read_datetime_nocomp(
 
 #[inline]
 pub fn maybe_read_md5_hash(
-    s: LoadSetting<EqualClone<String>>,
+    s: &LoadSetting<EqualClone<String>>,
     skip: &mut bool,
     bytes: &[u8],
     i: &mut usize,
@@ -489,7 +534,7 @@ pub fn maybe_read_md5_hash(
 
 #[inline]
 pub fn maybe_read_player_name(
-    s: LoadSetting<EqualClone<String>>,
+    s: &LoadSetting<EqualClone<String>>,
     skip: &mut bool,
     bytes: &[u8],
     i: &mut usize,
