@@ -27,26 +27,27 @@ impl PartialCollection {
             "collection name",
         )?;
         let number_of_beatmaps = read_int(bytes, i)?;
-        let md5_beatmap_hashes = if !settings.md5_beatmap_hash.is_ignore() && !skip {
+        let md5_beatmap_hashes = if settings.md5_beatmap_hash.is_ignore() {
+            *i += number_of_beatmaps as usize * 34;
+            None
+        } else {
             if number_of_beatmaps == 0 {
                 None
             } else {
                 let mut tmp = Vec::with_capacity(number_of_beatmaps as usize);
                 for _ in 0..number_of_beatmaps {
+                    // Only load in the hashes that match the one we care about. Ignore the others.
                     if let Some(hash) = maybe_read_md5_hash(
                         settings.md5_beatmap_hash.clone(),
                         &mut false,
                         bytes,
                         i,
                     )? {
-                        tmp.push(hash)
+                        tmp.push(hash);
                     }
                 }
                 Some(tmp)
             }
-        } else {
-            *i += number_of_beatmaps as usize * 34;
-            None
         };
         let number_of_beatmaps = if settings.number_of_beatmaps.is_load() {
             Some(number_of_beatmaps)

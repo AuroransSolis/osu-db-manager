@@ -6,7 +6,7 @@ use crate::load_settings::{query::QueryStruct, EqualClone, EqualCopy, LoadSettin
 use crate::masks::collection_mask::CollectionMask;
 
 pub struct CollectionLoadSettings {
-    pub collection_name: LoadSetting<EqualClone<Option<String>>>,
+    pub collection_name: LoadSetting<EqualClone<String>>,
     pub number_of_beatmaps: LoadSetting<Relational<i32>>,
     pub md5_beatmap_hash: LoadSetting<EqualClone<String>>,
 }

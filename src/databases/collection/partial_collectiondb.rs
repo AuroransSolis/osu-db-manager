@@ -3,8 +3,9 @@ use std::thread::{self, JoinHandle};
 
 use crate::databases::{collection::partial_collection::PartialCollection, load::PartialLoad};
 use crate::deserialize_primitives::*;
-use crate::load_settings::{
-    collection::collectiondb_load_settings::CollectionDbLoadSettings, FilterResult,
+use crate::load_settings::collection::{
+    collection_load_settings::CollectionLoadSettings,
+    collectiondb_load_settings::CollectionDbLoadSettings,
 };
 use crate::masks::collection_mask::{CollectionDbMask, CollectionMask};
 use crate::maybe_deserialize_primitives::*;
@@ -25,9 +26,11 @@ impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollecti
         let mut skip = false;
         let mut index = 0;
         let i = &mut index;
-        let version = read_int(&bytes, i)?;
+        let version = maybe_read_int_nocomp(settings.version, &mut false, &bytes, i)?;
         let number_of_collections = read_int(&bytes, i)?;
-        let collections = if !settings.collections_query.ignore_all() {
+        let collections = if settings.collections_query.ignore_all() || number_of_collections == 0 {
+            None
+        } else {
             let mut tmp = Vec::with_capacity(number_of_collections as usize);
             for _ in 0..number_of_collections {
                 if let Some(collection) =
@@ -37,13 +40,6 @@ impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollecti
                 }
             }
             Some(tmp)
-        } else {
-            None
-        };
-        let version = if settings.version.is_ignore() {
-            Some(version)
-        } else {
-            None
         };
         let number_of_collections = if mask.number_of_collections {
             Some(number_of_collections)
@@ -58,7 +54,7 @@ impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollecti
     }
 
     fn read_multi_thread(
-        mask: CollectionDbMask,
+        settings: CollectionDbLoadSettings,
         jobs: usize,
         bytes: Vec<u8>,
     ) -> ParseFileResult<Self> {
@@ -83,7 +79,7 @@ impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollecti
                 let threads = (0..jobs)
                     .map(|_| {
                         spawn_partial_collection_loader_thread(
-                            collections_mask,
+                            &settings.collections_query,
                             number_of_collections as usize,
                             counter.clone(),
                             start_read.clone(),
@@ -124,7 +120,7 @@ impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollecti
 }
 
 fn spawn_partial_collection_loader_thread(
-    mask: CollectionMask,
+    settings: *const CollectionLoadSettings,
     number: usize,
     counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>,
