@@ -15,7 +15,7 @@ Here's a non-comprehensive list of smaller goals I'm working to achieve as part 
 
 ---
 ### Relevant Documentation
-- [Database formats](https://osu.ppy.sh/help/wiki/osu!_File_Formats/Db_(file_format\))
+- [Database formats](https://osu.ppy.sh/help/wiki/osu!_File_Formats/Db_(file_format))
 - [Gameplay mods](https://github.com/ppy/osu-api/wiki#mods)
 
 ---
