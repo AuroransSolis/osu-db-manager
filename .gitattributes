@@ -4,3 +4,4 @@ new-auro-scores.db filter=lfs diff=lfs merge=lfs -text
 old-auro-scores.db filter=lfs diff=lfs merge=lfs -text
 rtrx-scores.db filter=lfs diff=lfs merge=lfs -text
 bigger-tama-osu!.db filter=lfs diff=lfs merge=lfs -text
+jminn-osu!.db filter=lfs diff=lfs merge=lfs -text
