@@ -1,3 +1,4 @@
+#![rustfmt::skip]
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 
 use crate::masks::mask::Mask;
@@ -65,7 +66,9 @@ const BEATMAP_FIELDS: [&str; 60] = [
     "Mania scroll speed",
 ];
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy,
+Clone,
+Debug)]
 pub struct BeatmapMask {
     pub entry_size: bool,
     pub artist_name: bool,
@@ -198,6 +201,22 @@ impl BeatmapMask {
             .version("1.0.0")
             .author("Aurorans Solis")
             .about("Parser for show options for entries in osu!.db (beatmaps).")
+            .arg(
+                Arg::with_name("All")
+                    .long("all")
+                    .takes_value(false)
+                    .required(false)
+                    .multiple(false)
+                    .help("Show all fields"),
+            )
+            .arg(
+                Arg::with_name("None")
+                    .long("none")
+                    .takes_value(false)
+                    .required(false)
+                    .multiple(false)
+                    .help("Show no fields"),
+            )
             .arg(
                 Arg::with_name("Entry size")
                     .long("entry-size")
@@ -677,75 +696,205 @@ impl BeatmapMask {
                     .help("Show mania scroll speed"),
             )
             .get_matches_from(input.split_ascii_whitespace());
-        let entry_size = matches.is_present("Entry size");
-        let artist_name = matches.is_present("Artist name (ASCII)");
-        let artist_name_unicode = matches.is_present("Artist name (Unicode)");
-        let song_title = matches.is_present("Song title (ASCII)");
-        let song_title_unicode = matches.is_present("Song title (Unicode)");
-        let creator_name = matches.is_present("Creator name");
-        let difficulty = matches.is_present("Difficulty");
-        let audio_file_name = matches.is_present("Audio file name");
-        let md5_beatmap_hash = matches.is_present("MD5 beatmap hash");
-        let dotosu_file_name = matches.is_present(".osu file name");
-        let ranked_status = matches.is_present("Ranked status");
-        let number_of_hitcircles = matches.is_present("Number of hitcircles");
-        let number_of_sliders = matches.is_present("Number of sliders");
-        let number_of_spinners = matches.is_present("Number of spinners");
-        let last_modification_time = matches.is_present("Last modification time");
-        let approach_rate = matches.is_present("Approach rate");
-        let circle_size = matches.is_present("Circle size");
-        let hp_drain = matches.is_present("HP drain");
-        let overall_difficulty = matches.is_present("Overall difficulty");
-        let slider_velocity = matches.is_present("Slider velocity");
-        let num_mod_combo_star_ratings_standard =
-            matches.is_present("Number of precalculated mod combo star ratings (standard)");
-        let mod_combo_star_ratings_standard =
-            matches.is_present("Precalculated mod combo star ratings (standard)");
-        let num_mod_combo_star_ratings_taiko =
-            matches.is_present("Number of precalculated mod combo star ratings (taiko)");
-        let mod_combo_star_ratings_taiko =
-            matches.is_present("Precalculated mod combo star ratings (taiko)");
-        let num_mod_combo_star_ratings_ctb =
-            matches.is_present("Number of precalculated mod combo star ratings (CTB)");
-        let mod_combo_star_ratings_ctb =
-            matches.is_present("Precalculated mod combo star ratings (CTB)");
-        let num_mod_combo_star_ratings_mania =
-            matches.is_present("Number of precalculated mod combo star ratings (mania)");
-        let mod_combo_star_ratings_mania =
-            matches.is_present("Precalculated mod combo star ratings (mania)");
-        let drain_time = matches.is_present("Drain time");
-        let total_time = matches.is_present("Total time");
-        let preview_offset_from_start_ms = matches.is_present("Preview offset from start (ms)");
-        let num_timing_points = matches.is_present("Number of timing points");
-        let timing_points = matches.is_present("Timing points");
-        let beatmap_id = matches.is_present("Beatmap ID");
-        let beatmap_set_id = matches.is_present("Beatmap set ID");
-        let thread_id = matches.is_present("Thread ID");
-        let standard_grade = matches.is_present("Standard grade");
-        let taiko_grade = matches.is_present("Taiko grade");
-        let ctb_grade = matches.is_present("Catch the Beat grade");
-        let mania_grade = matches.is_present("Mania grade");
-        let local_offset = matches.is_present("Local offset");
-        let stack_leniency = matches.is_present("Stack leniency");
-        let gameplay_mode = matches.is_present("Gameplay mode");
-        let song_source = matches.is_present("Song source");
-        let song_tags = matches.is_present("Song tags");
-        let online_offset = matches.is_present("Online offset");
-        let font_used_for_song_title = matches.is_present("Font used for song title");
-        let unplayed = matches.is_present("Unplayed");
-        let last_played = matches.is_present("Last played");
-        let is_osz2 = matches.is_present("Is OSZ2");
-        let beatmap_folder_name = matches.is_present("Beatmap folder name");
-        let last_checked_against_repo = matches.is_present("Last checked against repo");
-        let ignore_beatmap_sound = matches.is_present("Ignore beatmap sound");
-        let ignore_beatmap_skin = matches.is_present("Ignore beatmap skin");
-        let disable_storyboard = matches.is_present("Disable storyboard");
-        let disable_video = matches.is_present("Disable video");
-        let visual_override = matches.is_present("Visual override");
-        let unknown_short = matches.is_present("Unknown short");
-        let offset_from_song_start_in_editor_ms =
-            matches.is_present("Offset from song start in editor (ms)");
-        let mania_scroll_speed = matches.is_present("Mania scroll speed");
+        let [
+            entry_size,
+            artist_name,
+            artist_name_unicode,
+            song_title,
+            song_title_unicode,
+            creator_name,
+            difficulty,
+            audio_file_name,
+            md5_beatmap_hash,
+            dotosu_file_name,
+            ranked_status,
+            number_of_hitcircles,
+            number_of_sliders,
+            number_of_spinners,
+            last_modification_time,
+            approach_rate,
+            circle_size,
+            hp_drain,
+            overall_difficulty,
+            slider_velocity,
+            num_mod_combo_star_ratings_standard,
+            mod_combo_star_ratings_standard,
+            num_mod_combo_star_ratings_taiko,
+            mod_combo_star_ratings_taiko,
+            num_mod_combo_star_ratings_ctb,
+            mod_combo_star_ratings_ctb,
+            num_mod_combo_star_ratings_mania,
+            mod_combo_star_ratings_mania,
+            drain_time,
+            total_time,
+            preview_offset_from_start_ms,
+            num_timing_points,
+            timing_points,
+            beatmap_id,
+            beatmap_set_id,
+            thread_id,
+            standard_grade,
+            taiko_grade,
+            ctb_grade,
+            mania_grade,
+            local_offset,
+            stack_leniency,
+            gameplay_mode,
+            song_source,
+            song_tags,
+            online_offset,
+            font_used_for_song_title,
+            unplayed,
+            last_played,
+            is_osz2,
+            beatmap_folder_name,
+            last_checked_against_repo,
+            ignore_beatmap_sound,
+            ignore_beatmap_skin,
+            disable_storyboard,
+            disable_video,
+            visual_override,
+            unknown_short,
+            offset_from_song_start_in_editor_ms,
+            mania_scroll_speed,
+        ] = if matches.is_present("All") {
+            [true; 60]
+        } else if matches.is_present("None") {
+            [false; 60]
+        } else {
+            let entry_size = matches.is_present("Entry size");
+            let artist_name = matches.is_present("Artist name (ASCII)");
+            let artist_name_unicode = matches.is_present("Artist name (Unicode)");
+            let song_title = matches.is_present("Song title (ASCII)");
+            let song_title_unicode = matches.is_present("Song title (Unicode)");
+            let creator_name = matches.is_present("Creator name");
+            let difficulty = matches.is_present("Difficulty");
+            let audio_file_name = matches.is_present("Audio file name");
+            let md5_beatmap_hash = matches.is_present("MD5 beatmap hash");
+            let dotosu_file_name = matches.is_present(".osu file name");
+            let ranked_status = matches.is_present("Ranked status");
+            let number_of_hitcircles = matches.is_present("Number of hitcircles");
+            let number_of_sliders = matches.is_present("Number of sliders");
+            let number_of_spinners = matches.is_present("Number of spinners");
+            let last_modification_time = matches.is_present("Last modification time");
+            let approach_rate = matches.is_present("Approach rate");
+            let circle_size = matches.is_present("Circle size");
+            let hp_drain = matches.is_present("HP drain");
+            let overall_difficulty = matches.is_present("Overall difficulty");
+            let slider_velocity = matches.is_present("Slider velocity");
+            let num_mod_combo_star_ratings_standard =
+                matches.is_present("Number of precalculated mod combo star ratings (standard)");
+            let mod_combo_star_ratings_standard =
+                matches.is_present("Precalculated mod combo star ratings (standard)");
+            let num_mod_combo_star_ratings_taiko =
+                matches.is_present("Number of precalculated mod combo star ratings (taiko)");
+            let mod_combo_star_ratings_taiko =
+                matches.is_present("Precalculated mod combo star ratings (taiko)");
+            let num_mod_combo_star_ratings_ctb =
+                matches.is_present("Number of precalculated mod combo star ratings (CTB)");
+            let mod_combo_star_ratings_ctb =
+                matches.is_present("Precalculated mod combo star ratings (CTB)");
+            let num_mod_combo_star_ratings_mania =
+                matches.is_present("Number of precalculated mod combo star ratings (mania)");
+            let mod_combo_star_ratings_mania =
+                matches.is_present("Precalculated mod combo star ratings (mania)");
+            let drain_time = matches.is_present("Drain time");
+            let total_time = matches.is_present("Total time");
+            let preview_offset_from_start_ms =
+                matches.is_present("Preview offset from start (ms)");
+            let num_timing_points = matches.is_present("Number of timing points");
+            let timing_points = matches.is_present("Timing points");
+            let beatmap_id = matches.is_present("Beatmap ID");
+            let beatmap_set_id = matches.is_present("Beatmap set ID");
+            let thread_id = matches.is_present("Thread ID");
+            let standard_grade = matches.is_present("Standard grade");
+            let taiko_grade = matches.is_present("Taiko grade");
+            let ctb_grade = matches.is_present("Catch the Beat grade");
+            let mania_grade = matches.is_present("Mania grade");
+            let local_offset = matches.is_present("Local offset");
+            let stack_leniency = matches.is_present("Stack leniency");
+            let gameplay_mode = matches.is_present("Gameplay mode");
+            let song_source = matches.is_present("Song source");
+            let song_tags = matches.is_present("Song tags");
+            let online_offset = matches.is_present("Online offset");
+            let font_used_for_song_title = matches.is_present("Font used for song title");
+            let unplayed = matches.is_present("Unplayed");
+            let last_played = matches.is_present("Last played");
+            let is_osz2 = matches.is_present("Is OSZ2");
+            let beatmap_folder_name = matches.is_present("Beatmap folder name");
+            let last_checked_against_repo = matches.is_present("Last checked against repo");
+            let ignore_beatmap_sound = matches.is_present("Ignore beatmap sound");
+            let ignore_beatmap_skin = matches.is_present("Ignore beatmap skin");
+            let disable_storyboard = matches.is_present("Disable storyboard");
+            let disable_video = matches.is_present("Disable video");
+            let visual_override = matches.is_present("Visual override");
+            let unknown_short = matches.is_present("Unknown short");
+            let offset_from_song_start_in_editor_ms =
+                matches.is_present("Offset from song start in editor (ms)");
+            let mania_scroll_speed = matches.is_present("Mania scroll speed");
+            [
+                entry_size,
+                artist_name,
+                artist_name_unicode,
+                song_title,
+                song_title_unicode,
+                creator_name,
+                difficulty,
+                audio_file_name,
+                md5_beatmap_hash,
+                dotosu_file_name,
+                ranked_status,
+                number_of_hitcircles,
+                number_of_sliders,
+                number_of_spinners,
+                last_modification_time,
+                approach_rate,
+                circle_size,
+                hp_drain,
+                overall_difficulty,
+                slider_velocity,
+                num_mod_combo_star_ratings_standard,
+                mod_combo_star_ratings_standard,
+                num_mod_combo_star_ratings_taiko,
+                mod_combo_star_ratings_taiko,
+                num_mod_combo_star_ratings_ctb,
+                mod_combo_star_ratings_ctb,
+                num_mod_combo_star_ratings_mania,
+                mod_combo_star_ratings_mania,
+                drain_time,
+                total_time,
+                preview_offset_from_start_ms,
+                num_timing_points,
+                timing_points,
+                beatmap_id,
+                beatmap_set_id,
+                thread_id,
+                standard_grade,
+                taiko_grade,
+                ctb_grade,
+                mania_grade,
+                local_offset,
+                stack_leniency,
+                gameplay_mode,
+                song_source,
+                song_tags,
+                online_offset,
+                font_used_for_song_title,
+                unplayed,
+                last_played,
+                is_osz2,
+                beatmap_folder_name,
+                last_checked_against_repo,
+                ignore_beatmap_sound,
+                ignore_beatmap_skin,
+                disable_storyboard,
+                disable_video,
+                visual_override,
+                unknown_short,
+                offset_from_song_start_in_editor_ms,
+                mania_scroll_speed,
+            ]
+        };
         BeatmapMask {
             entry_size,
             artist_name,
@@ -878,7 +1027,9 @@ impl Default for BeatmapMask {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy,
+Clone,
+Debug)]
 pub struct OsuDbMask {
     pub version: bool,
     pub folder_count: bool,
@@ -931,6 +1082,22 @@ impl Mask for OsuDbMask {
             .version("1.0.0")
             .author("Aurorans Solis")
             .about("Parser for show options for osu!.db")
+            .arg(
+                Arg::with_name("All")
+                    .long("all")
+                    .takes_value(false)
+                    .required(false)
+                    .multiple(false)
+                    .help("Show all fields"),
+            )
+            .arg(
+                Arg::with_name("None")
+                    .long("none")
+                    .takes_value(false)
+                    .required(false)
+                    .multiple(false)
+                    .help("Show no fields"),
+            )
             .arg(
                 Arg::with_name("Version")
                     .long("version")
@@ -997,12 +1164,35 @@ impl Mask for OsuDbMask {
                     .help("Show unknown int"),
             )
             .get_matches_from(input.split_ascii_whitespace());
-        let version = matches.is_present("Version");
-        let folder_count = matches.is_present("Folder count");
-        let account_unlocked = matches.is_present("Account unlocked");
-        let account_unlock_date = matches.is_present("Account unlock date");
-        let player_name = matches.is_present("Player name");
-        let number_of_beatmaps = matches.is_present("Number of beatmaps");
+        let [
+            version,
+            folder_count,
+            account_unlocked,
+            account_unlock_date,
+            player_name,
+            number_of_beatmaps,
+            unknown_short
+        ] = if matches.is_present("All") {
+            [true; 7]
+        } else if matches.is_present("None") {
+            [false; 7]
+        } else {
+            let version = matches.is_present("Version");
+            let folder_count = matches.is_present("Folder count");
+            let account_unlocked = matches.is_present("Account unlocked");
+            let account_unlock_date = matches.is_present("Account unlock date");
+            let player_name = matches.is_present("Player name");
+            let number_of_beatmaps = matches.is_present("Number of beatmaps");
+            [
+                version,
+                folder_count,
+                account_unlocked,
+                account_unlock_date,
+                player_name,
+                number_of_beatmaps,
+                unknown_short,
+            ]
+        };
         let meatmap_mask = if let Some(m) = matches.value_of("Beatmap show options") {
             BeatmapMask::from_input(m)
         } else {

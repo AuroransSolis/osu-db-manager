@@ -1,3 +1,4 @@
+#![rustfmt::skip]
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
 
 use crate::masks::mask::Mask;
@@ -40,6 +41,22 @@ impl CollectionMask {
             .author("Aurorans Solis")
             .about("Parser for show options for entries in collection.db (collections)")
             .arg(
+                Arg::with_name("All")
+                    .long("all")
+                    .takes_value(false)
+                    .required(false)
+                    .multiple(false)
+                    .help("Show all fields"),
+            )
+            .arg(
+                Arg::with_name("None")
+                    .long("none")
+                    .takes_value(false)
+                    .required(false)
+                    .multiple(false)
+                    .help("Show no fields"),
+            )
+            .arg(
                 Arg::with_name("Collection name")
                     .long("collection-name")
                     .takes_value(false)
@@ -64,9 +81,17 @@ impl CollectionMask {
                     .help("Show MD5 beatmap hashes"),
             )
             .get_matches_from(input.split_ascii_whitespace());
-        let collection_name = matches.is_present("Collection name");
-        let number_of_beatmaps = matches.is_present("Number of beatmaps");
-        let md5_beatmap_hashes = matches.is_present("MD5 beatmap hashes");
+        let [collection_name, number_of_beatmaps, md5_beatmap_hashes] = if matches.is_present("All")
+        {
+            [true; 3]
+        } else if matches.is_present("None") {
+            [false; 3]
+        } else {
+            let collection_name = matches.is_present("Collection name");
+            let number_of_beatmaps = matches.is_present("Number of beatmaps");
+            let md5_beatmap_hashes = matches.is_present("MD5 beatmap hashes");
+            [collection_name, number_of_beatmaps, md5_beatmap_hashes]
+        };
         CollectionMask {
             collection_name,
             number_of_beatmaps,
@@ -107,6 +132,22 @@ impl Mask for CollectionDbMask {
             .author("Aurorans Solis")
             .about("Parser for show options for collection.db")
             .arg(
+                Arg::with_name("All")
+                    .long("all")
+                    .takes_value(false)
+                    .required(false)
+                    .multiple(false)
+                    .help("Show all fields"),
+            )
+            .arg(
+                Arg::with_name("None")
+                    .long("none")
+                    .takes_value(false)
+                    .required(false)
+                    .multiple(false)
+                    .help("Show no fields"),
+            )
+            .arg(
                 Arg::with_name("Version")
                     .long("VERSION")
                     .takes_value(false)
@@ -132,13 +173,21 @@ impl Mask for CollectionDbMask {
                     .help("Show options for collection.db entries (collections)"),
             )
             .get_matches_from(input.split_ascii_whitespace());
-        let version = matches.is_present("Version");
-        let number_of_collections = matches.is_present("Number of collections");
-        let collections_mask = if let Some(collections_mask_options) = matches.value_of("Collection show options") {
-            CollectionMask::from_input(collections_mask_options)
+        let [version, number_of_collections] = if matches.is_present("All") {
+            [true; 2]
+        } else if matches.is_present("None") {
+            [false; 2]
         } else {
-            CollectionMask::default()
+            let version = matches.is_present("Version");
+            let number_of_collections = matches.is_present("Number of collections");
+            [version, number_of_collections]
         };
+        let collections_mask =
+            if let Some(collections_mask_options) = matches.value_of("Collection show options") {
+                CollectionMask::from_input(collections_mask_options)
+            } else {
+                CollectionMask::default()
+            };
         CollectionDbMask {
             version,
             number_of_collections,
