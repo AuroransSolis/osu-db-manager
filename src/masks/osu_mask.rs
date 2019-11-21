@@ -194,7 +194,6 @@ impl BeatmapMask {
     }
 
     fn from_input(input: &str) -> Self {
-        let input_words = input.split_ascii_whitespace().collect::<Vec<&str>>();
         let matches = App::new("osu!.db beatmap entry show options parsing")
             .version("1.0.0")
             .author("Aurorans Solis")
@@ -677,7 +676,7 @@ impl BeatmapMask {
                     .multiple(false)
                     .help("Show mania scroll speed"),
             )
-            .get_matches_from(input_words.into_iter());
+            .get_matches_from(input.split_ascii_whitespace());
         let entry_size = matches.is_present("Entry size");
         let artist_name = matches.is_present("Artist name (ASCII)");
         let artist_name_unicode = matches.is_present("Artist name (Unicode)");
@@ -927,7 +926,7 @@ impl Mask for OsuDbMask {
             && self.beatmap_mask.is_complete()
     }
 
-    fn from_show_args(show_args: Vec<&str>) -> Self {
+    fn from_input(input: &str) -> Self {
         let matches = App::new("osu!.db show options parser")
             .arg(
                 Arg::with_name("Version")
@@ -986,7 +985,7 @@ impl Mask for OsuDbMask {
                     .takes_value(false)
                     .multiple(false),
             )
-            .get_matches_from(show_args.into_iter());
+            .get_matches_from(input.split_ascii_whitespace());
         let version = matches.is_present("Version");
         let folder_count = matches.is_present("Folder count");
         let account_unlocked = matches.is_present("Account unlocked");
