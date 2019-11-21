@@ -66,9 +66,7 @@ const BEATMAP_FIELDS: [&str; 60] = [
     "Mania scroll speed",
 ];
 
-#[derive(Copy,
-Clone,
-Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct BeatmapMask {
     pub entry_size: bool,
     pub artist_name: bool,
