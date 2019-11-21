@@ -4,7 +4,7 @@ use crate::masks::{
 
 pub trait Mask {
     fn is_complete(&self) -> bool;
-    fn from_show_args(show_args: Vec<&str>) -> Self;
+    fn from_show_args(args: &str) -> Self;
 }
 
 pub enum DbMask {
