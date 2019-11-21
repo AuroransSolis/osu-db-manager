@@ -928,6 +928,9 @@ impl Mask for OsuDbMask {
 
     fn from_input(input: &str) -> Self {
         let matches = App::new("osu!.db show options parser")
+            .version("1.0.0")
+            .author("Aurorans Solis")
+            .about("Parser for show options for osu!.db")
             .arg(
                 Arg::with_name("Version")
                     .long("version")

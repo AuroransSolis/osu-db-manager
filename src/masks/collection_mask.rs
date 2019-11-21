@@ -103,6 +103,9 @@ impl Mask for CollectionDbMask {
 
     fn from_input(input: &str) -> Self {
         let matches = App::new("collection.db show options parsing")
+            .version("1.0.0")
+            .author("Aurorans Solis")
+            .about("Parser for show options for collection.db")
             .arg(
                 Arg::with_name("Version")
                     .long("VERSION")
