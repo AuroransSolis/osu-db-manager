@@ -1025,9 +1025,7 @@ impl Default for BeatmapMask {
     }
 }
 
-#[derive(Copy,
-Clone,
-Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct OsuDbMask {
     pub version: bool,
     pub folder_count: bool,
