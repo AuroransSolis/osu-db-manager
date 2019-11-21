@@ -148,17 +148,20 @@ fn spawn_partial_collection_loader_thread(
                 (collection_name, number_of_beatmaps, num, s)
             };
             let i = &mut start;
-            let md5_beatmap_hashes = if settings.md5_beatmap_hash.is_ignore() || number_of_beatmaps == 0 {
-                None
-            } else {
-                let mut tmp = Vec::with_capacity(number_of_beatmaps as usize);
-                for _ in 0..number_of_beatmaps {
-                    if let Some(hash) = maybe_read_md5_hash(&settings.md5_beatmap_hash, &mut false, bytes, i)? {
-                        tmp.push(hash);
+            let md5_beatmap_hashes =
+                if settings.md5_beatmap_hash.is_ignore() || number_of_beatmaps == 0 {
+                    None
+                } else {
+                    let mut tmp = Vec::with_capacity(number_of_beatmaps as usize);
+                    for _ in 0..number_of_beatmaps {
+                        if let Some(hash) =
+                            maybe_read_md5_hash(&settings.md5_beatmap_hash, &mut false, bytes, i)?
+                        {
+                            tmp.push(hash);
+                        }
                     }
-                }
-                Some(tmp)
-            };
+                    Some(tmp)
+                };
             let number_of_beatmaps = if mask.number_of_beatmaps {
                 Some(number_of_beatmaps)
             } else {
