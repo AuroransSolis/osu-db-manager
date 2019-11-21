@@ -24,7 +24,7 @@ impl Default for CollectionMask {
         CollectionMask {
             collection_name: true,
             number_of_beatmaps: true,
-            md5_beatmap_hashes: true,
+            md5_beatmap_hashes: false,
         }
     }
 }
@@ -34,7 +34,36 @@ impl CollectionMask {
         self.collection_name && self.number_of_beatmaps && self.md5_beatmap_hashes
     }
 
-    fn from_show_matches(matches: &ArgMatches) -> Self {
+    fn from_input(input: &str) -> Self {
+        let matches = App::new("collection.db collection entry show options parsing")
+            .version("1.0.0")
+            .author("Aurorans Solis")
+            .about("Parser for show options for entries in collection.db (collections)")
+            .arg(
+                Arg::with_name("Collection name")
+                    .long("collection-name")
+                    .takes_value(false)
+                    .required(false)
+                    .multiple(false)
+                    .help("Show collection name"),
+            )
+            .arg(
+                Arg::with_name("Number of beatmaps")
+                    .long("num-beatmaps")
+                    .takes_value(false)
+                    .required(false)
+                    .multiple(false)
+                    .help("Show number of beatmaps"),
+            )
+            .arg(
+                Arg::with_name("MD5 beatmap hashes")
+                    .long("md5-beatmap-hashes")
+                    .takes_value(false)
+                    .required(false)
+                    .multiple(false)
+                    .help("Show MD5 beatmap hashes"),
+            )
+            .get_matches_from(input.split_ascii_whitespace());
         let collection_name = matches.is_present("Collection name");
         let number_of_beatmaps = matches.is_present("Number of beatmaps");
         let md5_beatmap_hashes = matches.is_present("MD5 beatmap hashes");
@@ -50,14 +79,14 @@ impl CollectionMask {
 pub struct CollectionDbMask {
     pub version: bool,
     pub number_of_collections: bool,
-    pub collections_mask: Option<CollectionMask>,
+    pub collections_mask: CollectionMask,
 }
 
 impl CollectionDbMask {
     pub fn new(
         version: bool,
         number_of_collections: bool,
-        collections_mask: Option<CollectionMask>,
+        collections_mask: CollectionMask,
     ) -> Self {
         CollectionDbMask {
             version,
@@ -69,60 +98,43 @@ impl CollectionDbMask {
 
 impl Mask for CollectionDbMask {
     fn is_complete(&self) -> bool {
-        if let Some(collection_mask) = self.collections_mask {
-            collection_mask.is_complete() && self.version && self.number_of_collections
-        } else {
-            false
-        }
+        self.version && self.number_of_collections && self.collections_mask.is_complete()
     }
 
-    fn from_show_args(show_args: Vec<&str>) -> Self {
-        let matches = App::new("collection.db show options parser")
+    fn from_input(input: &str) -> Self {
+        let matches = App::new("collection.db show options parsing")
             .arg(
                 Arg::with_name("Version")
                     .long("VERSION")
-                    .required(false)
                     .takes_value(false)
-                    .multiple(false),
+                    .required(false)
+                    .multiple(false)
+                    .help("Show collection.db version"),
             )
             .arg(
                 Arg::with_name("Number of collections")
                     .long("NUMBER-OF-COLLECTIONS")
-                    .required(false)
                     .takes_value(false)
-                    .multiple(false),
+                    .required(false)
+                    .multiple(false)
+                    .help("Show number of collections"),
             )
-            .subcommand(
-                SubCommand::with_name("COLLECTION-OPTIONS")
-                    .arg(
-                        Arg::with_name("Collection name")
-                            .long("COLLECTION-NAME")
-                            .required(false)
-                            .takes_value(false)
-                            .multiple(false),
-                    )
-                    .arg(
-                        Arg::with_name("Number of beatmaps")
-                            .long("NUMBER-OF-BEATMAPS")
-                            .required(false)
-                            .takes_value(false)
-                            .multiple(false),
-                    )
-                    .arg(
-                        Arg::with_name("MD5 beatmap hashes")
-                            .long("MD5-BEATMAP-HASHES")
-                            .required(false)
-                            .takes_value(false)
-                            .multiple(false),
-                    ),
+            .arg(
+                Arg::with_name("Collection show options")
+                    .long("collection-show-options")
+                    .takes_value(true)
+                    .value_name("SHOW_OPTIONS")
+                    .required(false)
+                    .multiple(false)
+                    .help("Show options for collection.db entries (collections)"),
             )
-            .get_matches_from(show_args.into_iter());
+            .get_matches_from(input.split_ascii_whitespace());
         let version = matches.is_present("Version");
         let number_of_collections = matches.is_present("Number of collections");
-        let collections_mask = if let Some(m) = matches.subcommand_matches("COLLECTION-OPTIONS") {
-            Some(CollectionMask::from_show_matches(m))
+        let collections_mask = if let Some(collections_mask_options) = matches.value_of("Collection show options") {
+            CollectionMask::from_input(collections_mask_options)
         } else {
-            None
+            CollectionMask::default()
         };
         CollectionDbMask {
             version,
