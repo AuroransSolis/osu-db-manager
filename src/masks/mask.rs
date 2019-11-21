@@ -5,8 +5,6 @@ use crate::masks::{
 pub trait Mask {
     fn is_complete(&self) -> bool;
     fn from_input(input: &str) -> Self;
-    fn all() -> Self;
-    fn none() -> Self;
 }
 
 pub enum DbMask {
