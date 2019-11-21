@@ -26,7 +26,7 @@ pub struct ScoreLoadSettings {
     pub empty_string: LoadSetting<()>,
     pub replay_timestamp: LoadSetting<Relational<NaiveDate>>,
     pub negative_one: LoadSetting<()>,
-    pub online_score_id: LoadSetting<Relational<i32>>,
+    pub online_score_id: LoadSetting<Relational<i64>>,
 }
 
 impl ScoreLoadSettings {
