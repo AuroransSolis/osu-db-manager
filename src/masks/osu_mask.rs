@@ -930,51 +930,58 @@ impl Mask for OsuDbMask {
         let matches = App::new("osu!.db show options parser")
             .arg(
                 Arg::with_name("Version")
-                    .long("VERSION")
+                    .long("version")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false),
+                    .multiple(false)
+                    .help("Show osu!.db version"),
             )
             .arg(
                 Arg::with_name("Folder count")
-                    .long("FOLDER-COUNT")
+                    .long("folder-count")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false),
+                    .multiple(false)
+                    .help("Show folder count"),
             )
             .arg(
                 Arg::with_name("Account unlocked")
-                    .long("ACCOUNT-UNLOCKED")
+                    .long("account-unlocked")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false),
+                    .multiple(false)
+                    .help("Show whether account is unlocked"),
             )
             .arg(
                 Arg::with_name("Account unlock date")
-                    .long("ACCOUNT-UNLOCK-DATE")
+                    .long("account-unlock-date")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false),
+                    .multiple(false)
+                    .help("Show account unlock date (Unix epoch if unlocked)"),
             )
             .arg(
                 Arg::with_name("Player name")
-                    .long("PLAYER-NAME")
+                    .long("player-name")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false),
+                    .multiple(false)
+                    .help("Show player name"),
             )
             .arg(
                 Arg::with_name("Number of beatmaps")
-                    .long("NUMBER-OF-BEATMAPS")
+                    .long("number-of-beatmaps")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false),
+                    .multiple(false)
+                    .help("Show number of beatmaps"),
             )
             .arg(
                 Arg::with_name("Beatmap show options")
                     .long("beatmap-show-options")
                     .required(false)
                     .takes_value(true)
+                    .value_name("SHOW_OPTIONS")
                     .multiple(false)
                     .help("Beatmap show options"),
             )
@@ -983,7 +990,8 @@ impl Mask for OsuDbMask {
                     .long("UNKNOWN-INT")
                     .required(false)
                     .takes_value(false)
-                    .multiple(false),
+                    .multiple(false)
+                    .help("Show unknown int"),
             )
             .get_matches_from(input.split_ascii_whitespace());
         let version = matches.is_present("Version");
