@@ -1,6 +1,7 @@
 use crate::databases::scores::partial_score::PartialScore;
 use crate::deserialize_primitives::*;
-use crate::masks::scores_mask::ScoresDbBeatmapMask;
+use crate::load_settings::scores::scoresdb_beatmap_load_settings::ScoresDbBeatmapLoadSettings;
+use crate::maybe_deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
@@ -12,29 +13,26 @@ pub struct PartialScoresDbBeatmap {
 
 impl PartialScoresDbBeatmap {
     pub fn read_from_bytes(
-        mask: ScoresDbBeatmapMask,
+        settings: ScoresDbBeatmapLoadSettings,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Self> {
-        let md5_beatmap_hash = if mask.md5_beatmap_hash {
-            Some(read_md5_hash(bytes, i)?)
-        } else {
-            *i += 34;
-            None
-        };
+        let mut skip = false;
+        let s = &mut skip;
+        let md5_beatmap_hash = maybe_read_md5_hash(&settings.md5_beatmap_hash, s, bytes, i)?;
         let number_of_scores = read_int(bytes, i)?;
-        let scores = if let Some(m) = mask.scores_mask {
-            if number_of_scores == 0 {
-                None
-            } else {
-                let mut scores = Vec::with_capacity(number_of_scores as usize);
-                for _ in 0..number_of_scores {
-                    scores.push(PartialScore::read_from_bytes(m, bytes, i)?);
-                }
-                Some(scores)
-            }
-        } else {
+        let scores = if settings.score_load_settings.ignore_all() || number_of_scores == 0 || *s {
             None
+        } else {
+            let mut scores = Vec::with_capacity(number_of_scores as usize);
+            for _ in 0..number_of_scores {
+                if let Some(score) =
+                    PartialScore::read_from_bytes(&settings.score_load_settings, bytes, i)?
+                {
+                    scores.push(score);
+                }
+            }
+            Some(scores)
         };
         Ok(PartialScoresDbBeatmap {
             md5_beatmap_hash,

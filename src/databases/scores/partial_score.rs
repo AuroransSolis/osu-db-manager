@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 
 use crate::databases::osu::primitives::GameplayMode;
-use crate::masks::scores_mask::ScoreMask;
+use crate::load_settings::scores::score_load_settings::ScoreLoadSettings;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
 
@@ -29,46 +29,59 @@ pub struct PartialScore {
 }
 
 impl PartialScore {
-    pub fn read_from_bytes(mask: ScoreMask, bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
-        let gameplay_mode = GameplayMode::maybe_read_from_bytes(mask.gameplay_mode, bytes, i)?;
-        let score_version = maybe_read_int(mask.score_version, bytes, i)?;
-        let md5_beatmap_hash = maybe_read_md5_hash(mask.md5_beatmap_hash, bytes, i)?;
-        let player_name = maybe_read_string_utf8(mask.player_name, bytes, i, "player name")?;
-        let md5_replay_hash = maybe_read_md5_hash(mask.md5_replay_hash, bytes, i)?;
-        let number_of_300s = maybe_read_short(mask.number_of_300s, bytes, i)?;
-        let number_of_100s = maybe_read_short(mask.number_of_100s, bytes, i)?;
-        let number_of_50s = maybe_read_short(mask.number_of_50s, bytes, i)?;
-        let number_of_gekis = maybe_read_short(mask.number_of_gekis, bytes, i)?;
-        let number_of_katus = maybe_read_short(mask.number_of_katus, bytes, i)?;
-        let number_of_misses = maybe_read_short(mask.number_of_misses, bytes, i)?;
-        let replay_score = maybe_read_int(mask.replay_score, bytes, i)?;
-        let max_combo = maybe_read_short(mask.max_combo, bytes, i)?;
-        let perfect_combo = maybe_read_boolean(mask.perfect_combo, bytes, i)?;
-        let mods_used = maybe_read_int(mask.mods_used, bytes, i)?;
-        let empty_string = maybe_read_string_utf8(mask.empty_string, bytes, i, "empty string")?;
-        let replay_timestamp = maybe_read_datetime(mask.replay_timestamp, bytes, i)?;
-        let negative_one = maybe_read_int(mask.negative_one, bytes, i)?;
-        let online_score_id = maybe_read_long(mask.online_score_id, bytes, i)?;
-        Ok(PartialScore {
-            gameplay_mode,
-            score_version,
-            md5_beatmap_hash,
-            player_name,
-            md5_replay_hash,
-            number_of_300s,
-            number_of_100s,
-            number_of_50s,
-            number_of_gekis,
-            number_of_katus,
-            number_of_misses,
-            replay_score,
-            max_combo,
-            perfect_combo,
-            mods_used,
-            empty_string,
-            replay_timestamp,
-            negative_one,
-            online_score_id,
-        })
+    pub fn read_from_bytes(
+        settings: &ScoreLoadSettings,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<Self>> {
+        let mut skip = false;
+        let s = &mut skip;
+        let gameplay_mode =
+            GameplayMode::maybe_read_from_bytes(settings.gameplay_mode, s, bytes, i)?;
+        let score_version = maybe_read_int(settings.score_version, s, bytes, i)?;
+        let md5_beatmap_hash = maybe_read_md5_hash(&settings.md5_beatmap_hash, s, bytes, i)?;
+        let player_name =
+            maybe_read_string_utf8(&settings.player_name, s, bytes, i, "player name")?;
+        let md5_replay_hash = maybe_read_md5_hash(&settings.md5_replay_hash, s, bytes, i)?;
+        let number_of_300s = maybe_read_short(settings.number_of_300s, s, bytes, i)?;
+        let number_of_100s = maybe_read_short(settings.number_of_100s, s, bytes, i)?;
+        let number_of_50s = maybe_read_short(settings.number_of_50s, s, bytes, i)?;
+        let number_of_gekis = maybe_read_short(settings.number_of_gekis, s, bytes, i)?;
+        let number_of_katus = maybe_read_short(settings.number_of_katus, s, bytes, i)?;
+        let number_of_misses = maybe_read_short(settings.number_of_misses, s, bytes, i)?;
+        let replay_score = maybe_read_int(settings.replay_score, s, bytes, i)?;
+        let max_combo = maybe_read_short(settings.max_combo, s, bytes, i)?;
+        let perfect_combo = maybe_read_boolean(settings.perfect_combo, s, bytes, i)?;
+        let mods_used = maybe_read_int(settings.mods_used, s, bytes, i)?;
+        let empty_string =
+            maybe_read_string_utf8_nocomp(settings.empty_string, s, bytes, i, "empty string")?;
+        let replay_timestamp = maybe_read_datetime(settings.replay_timestamp, s, bytes, i)?;
+        let negative_one = maybe_read_int_nocomp(settings.negative_one, s, bytes, i)?;
+        let online_score_id = maybe_read_long(settings.online_score_id, s, bytes, i)?;
+        if *s {
+            Ok(None)
+        } else {
+            Ok(Some(PartialScore {
+                gameplay_mode,
+                score_version,
+                md5_beatmap_hash,
+                player_name,
+                md5_replay_hash,
+                number_of_300s,
+                number_of_100s,
+                number_of_50s,
+                number_of_gekis,
+                number_of_katus,
+                number_of_misses,
+                replay_score,
+                max_combo,
+                perfect_combo,
+                mods_used,
+                empty_string,
+                replay_timestamp,
+                negative_one,
+                online_score_id,
+            }))
+        }
     }
 }
