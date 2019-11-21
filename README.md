@@ -8,17 +8,23 @@ Here's a non-comprehensive list of smaller goals I'm working to achieve as part 
 - ~~loading databases singlethreaded~~ (COMPLETE)
 - ~~loading databases multithreaded~~ (COMPLETE)
 - querying databases (WIP)
-- ~~parsing arguments~~ (COMPLETE)
+- parsing arguments (WIP)
 - merging scores/collection databases
 - interactive browsers
 - writing databases to file
+
+---
+### Relevant Documentation
+- [Database formats](https://osu.ppy.sh/help/wiki/osu!_File_Formats/Db_(file_format))
+- [Gameplay mods](https://github.com/ppy/osu-api/wiki#mods)
 
 ---
 ### Contributing
 Anyone is more than welcome to contribute! If you've cloned my repo and tested it with your own databases and found an
 issue, open one and let me know what went wrong! If you think you've got a better way of doing something I've done 
 (let's face it, it's probably a better way) or another way of going about the task entirely, open a PR and I'll review
-it as soon as I get the chance! I'm so thankful for your interest in my silly little pet project.
+it as soon as I get the chance! I also have a Trello board up with things that I have yet to do or am presently working
+on or reviewing [here](https://trello.com/b/ETQyyesX/osu-db-manager). I'm so thankful for your interest in my silly little pet project.
 
 ---
 
