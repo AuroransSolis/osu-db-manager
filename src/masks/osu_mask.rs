@@ -218,6 +218,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Entry size")
                     .long("entry-size")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -226,6 +227,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Artist name (ASCII)")
                     .long("artist-name")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -234,6 +236,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Artist name (Unicode)")
                     .long("artist-name-unicode")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -242,6 +245,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Song title (ASCII)")
                     .long("song-title")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -250,6 +254,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Song title (Unicode)")
                     .long("song-title-unicode")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -258,6 +263,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Creator name")
                     .long("creator-name")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -266,6 +272,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Difficulty")
                     .long("difficulty")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -274,6 +281,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Audio file name")
                     .long("audio-file-name")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -282,6 +290,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("MD5 beatmap hash")
                     .long("md5-beatmap-hash")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -290,6 +299,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name(".osu file name")
                     .long("dotosu-file-name")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -298,6 +308,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Ranked status")
                     .long("ranked-status")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -306,6 +317,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Number of hitcircles")
                     .long("number-of-hitcircles")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -314,6 +326,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Number of sliders")
                     .long("number-of-sliders")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -322,6 +335,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Number of spinners")
                     .long("number-of-spinners")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -330,6 +344,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Last modification time")
                     .long("last-modification-time")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -339,6 +354,7 @@ impl BeatmapMask {
                 Arg::with_name("Approach rate")
                     .short("ar")
                     .long("approach-rate")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -348,6 +364,7 @@ impl BeatmapMask {
                 Arg::with_name("Circle size")
                     .short("cs")
                     .long("circle-size")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -357,6 +374,7 @@ impl BeatmapMask {
                 Arg::with_name("HP drain")
                     .short("hp")
                     .long("hp-drain")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -366,6 +384,7 @@ impl BeatmapMask {
                 Arg::with_name("Overall difficulty")
                     .short("od")
                     .long("overall-difficulty")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -374,6 +393,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Slider velocity")
                     .long("slider-velocity")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -382,6 +402,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Number of precalculated mod combo star ratings (standard)")
                     .long("num-mod-combo-star-ratings-standard")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -390,6 +411,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Precalculated mod combo star ratings (standard)")
                     .long("mod-combo-star-ratings-standard")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -398,6 +420,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Number of precalculated mod combo star ratings (taiko)")
                     .long("num-mod-combo-star-ratings-taiko")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -406,6 +429,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Precalculated mod combo star ratings (taiko)")
                     .long("mod-combo-star-ratings-taiko")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -414,6 +438,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Number of precalculated mod combo star ratings (CTB)")
                     .long("num-mod-combo-star-ratings-ctb")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -422,6 +447,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Precalculated mod combo star ratings (CTB)")
                     .long("mod-combo-star-ratings-ctb")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -430,6 +456,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Number of precalculated mod combo star ratings (mania)")
                     .long("num-mod-combo-star-ratings-mania")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -438,6 +465,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Precalculated mod combo star ratings (mania)")
                     .long("mod-combo-star-ratings-mania")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -446,6 +474,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Drain time")
                     .long("drain-time")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -454,6 +483,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Total time")
                     .long("total-time")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -462,6 +492,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Preview offset from start (ms)")
                     .long("preview-offset-from-start-ms")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -470,6 +501,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Number of timing points")
                     .long("num-timing-points")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -478,6 +510,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Timing points")
                     .long("timing-points")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -486,6 +519,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Beatmap ID")
                     .long("beatmap-id")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -494,6 +528,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Beatmap set ID")
                     .long("beatmap-set-id")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -502,6 +537,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Thread ID")
                     .long("thread-id")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -510,6 +546,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Standard grade")
                     .long("standard-grade")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -518,6 +555,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Taiko grade")
                     .long("taiko-grade")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -526,6 +564,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Catch the Beat grade")
                     .long("ctb-grade")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -534,6 +573,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Mania grade")
                     .long("mania-grade")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -542,6 +582,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Local offset")
                     .long("local-offset")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -550,6 +591,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Stack leniency")
                     .long("stack-leniency")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -558,6 +600,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Gameplay mode")
                     .long("gameplay-mode")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -566,6 +609,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Song source")
                     .long("song-source")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -574,6 +618,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Song tags")
                     .long("song-tags")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -582,6 +627,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Online offset")
                     .long("online-offset")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -590,6 +636,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Font used for song title")
                     .long("font-used-for-song-title")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -598,6 +645,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Unplayed")
                     .long("unplayed")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -606,6 +654,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Last played")
                     .long("last-played")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -614,6 +663,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Is OSZ2")
                     .long("is-osz2")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -622,6 +672,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Beatmap folder name")
                     .long("beatmap-folder-name")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -630,6 +681,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Last checked against repo")
                     .long("last-checked-against-repo")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -638,6 +690,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Ignore beatmap sound")
                     .long("ignore-beatmap-sound")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -646,6 +699,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Ignore beatmap skin")
                     .long("ignore-beatmap-skin")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -654,6 +708,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Disable storyboard")
                     .long("disable-storyboard")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -662,6 +717,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Visual override")
                     .long("visual-override")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -670,6 +726,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Unknown short")
                     .long("unknown-short")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -680,6 +737,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Offset from song start in editor (ms)")
                     .long("offset-from-song-start-in-editor-ms")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -688,6 +746,7 @@ impl BeatmapMask {
             .arg(
                 Arg::with_name("Mania scroll speed")
                     .long("mania-scroll-speed")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -1097,6 +1156,8 @@ impl Mask for OsuDbMask {
             .arg(
                 Arg::with_name("Version")
                     .long("version")
+                    .conflicts_with_all(&["All", "None"])
+                    .conflicts_with_all(&["All", "None"])
                     .required(false)
                     .takes_value(false)
                     .multiple(false)
@@ -1105,6 +1166,7 @@ impl Mask for OsuDbMask {
             .arg(
                 Arg::with_name("Folder count")
                     .long("folder-count")
+                    .conflicts_with_all(&["All", "None"])
                     .required(false)
                     .takes_value(false)
                     .multiple(false)
@@ -1113,6 +1175,7 @@ impl Mask for OsuDbMask {
             .arg(
                 Arg::with_name("Account unlocked")
                     .long("account-unlocked")
+                    .conflicts_with_all(&["All", "None"])
                     .required(false)
                     .takes_value(false)
                     .multiple(false)
@@ -1121,6 +1184,7 @@ impl Mask for OsuDbMask {
             .arg(
                 Arg::with_name("Account unlock date")
                     .long("account-unlock-date")
+                    .conflicts_with_all(&["All", "None"])
                     .required(false)
                     .takes_value(false)
                     .multiple(false)
@@ -1129,6 +1193,7 @@ impl Mask for OsuDbMask {
             .arg(
                 Arg::with_name("Player name")
                     .long("player-name")
+                    .conflicts_with_all(&["All", "None"])
                     .required(false)
                     .takes_value(false)
                     .multiple(false)
@@ -1137,6 +1202,7 @@ impl Mask for OsuDbMask {
             .arg(
                 Arg::with_name("Number of beatmaps")
                     .long("number-of-beatmaps")
+                    .conflicts_with_all(&["All", "None"])
                     .required(false)
                     .takes_value(false)
                     .multiple(false)
@@ -1153,7 +1219,8 @@ impl Mask for OsuDbMask {
             )
             .arg(
                 Arg::with_name("Unknown int")
-                    .long("UNKNOWN-INT")
+                    .long("unknown-int")
+                    .conflicts_with_all(&["All", "None"])
                     .required(false)
                     .takes_value(false)
                     .multiple(false)

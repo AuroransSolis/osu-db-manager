@@ -117,6 +117,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Gameplay mode")
                     .long("gameplay-mode")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -125,6 +126,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Score version")
                     .long("score-version")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -133,6 +135,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("MD5 beatmap hash")
                     .long("md5-beatmap-hash")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -141,6 +144,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Player name")
                     .long("player-name")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -149,6 +153,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("MD5 replay hash")
                     .long("md5-replay-hash")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -157,6 +162,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Number of 300s")
                     .long("number-of-300s")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -165,6 +171,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Number of 100s")
                     .long("number-of-100s")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -173,6 +180,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Number of 50s")
                     .long("number-of-50s")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -181,6 +189,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Number of gekis")
                     .long("number-of-gekis")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -189,6 +198,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Number of katus")
                     .long("number-of-katus")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -197,6 +207,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Number of misses")
                     .long("number-of-misses")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -205,6 +216,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Replay score")
                     .long("replay-score")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -213,6 +225,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Max combo")
                     .long("max-combo")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -221,6 +234,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Perfect combo")
                     .long("perfect-combo")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -229,6 +243,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Mods used")
                     .long("mods-used")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -237,6 +252,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Empty string")
                     .long("empty-string")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -245,6 +261,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Replay timestamp")
                     .long("replay-timestamp")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -253,6 +270,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Negative one")
                     .long("negative-one")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -261,6 +279,7 @@ impl ScoreMask {
             .arg(
                 Arg::with_name("Online score ID")
                     .long("online-score-id")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -355,6 +374,7 @@ impl ScoreMask {
             negative_one,
             online_score_id,
         }
+                    .conflicts_with_all(&["All", "None"])
     }
 }
 
@@ -430,6 +450,7 @@ impl ScoresDbBeatmapMask {
             .arg(
                 Arg::with_name("MD5 beatmap hash")
                     .long("md5-beatmap-hash")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -438,6 +459,7 @@ impl ScoresDbBeatmapMask {
             .arg(
                 Arg::with_name("Number of scores")
                     .long("num-scores")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -535,6 +557,7 @@ impl Mask for ScoresDbMask {
             .arg(
                 Arg::with_name("Version")
                     .long("version")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -543,6 +566,7 @@ impl Mask for ScoresDbMask {
             .arg(
                 Arg::with_name("Number of beatmaps")
                     .long("number-of-beatmaps")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)

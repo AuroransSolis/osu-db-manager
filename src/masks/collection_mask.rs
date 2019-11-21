@@ -59,6 +59,7 @@ impl CollectionMask {
             .arg(
                 Arg::with_name("Collection name")
                     .long("collection-name")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -67,6 +68,7 @@ impl CollectionMask {
             .arg(
                 Arg::with_name("Number of beatmaps")
                     .long("num-beatmaps")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -75,6 +77,7 @@ impl CollectionMask {
             .arg(
                 Arg::with_name("MD5 beatmap hashes")
                     .long("md5-beatmap-hashes")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -149,7 +152,8 @@ impl Mask for CollectionDbMask {
             )
             .arg(
                 Arg::with_name("Version")
-                    .long("VERSION")
+                    .long("version")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
@@ -157,7 +161,8 @@ impl Mask for CollectionDbMask {
             )
             .arg(
                 Arg::with_name("Number of collections")
-                    .long("NUMBER-OF-COLLECTIONS")
+                    .long("num-collections")
+                    .conflicts_with_all(&["All", "None"])
                     .takes_value(false)
                     .required(false)
                     .multiple(false)
