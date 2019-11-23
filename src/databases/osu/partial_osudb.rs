@@ -62,7 +62,7 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
                         i,
                     )?);
                 }
-            } else if version >= 20140609 && version < 20160408 {
+            } else if version >= 20140609 && version < 20160408 || version >= 20191107 {
                 for _ in 0..num_beatmaps {
                     tmp.push(PartialBeatmap::read_from_bytes::<Modern>(
                         &settings.beatmap_load_settings,
@@ -156,7 +156,7 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
         } else {
             let counter = Arc::new(Mutex::new(0));
             let start = Arc::new(Mutex::new(bytes_used));
-            if version >= 20160408 {
+            if version >= 20160408 && version < 20191107 {
                 let threads = (0..jobs)
                     .map(|_| {
                         spawn_partial_beatmap_loader_thread(
@@ -182,7 +182,7 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
                     .map(|(_, beatmap)| beatmap)
                     .collect::<Vec<_>>();
                 Some(beatmaps)
-            } else if version < 20160408 && version >= 20140609 {
+            } else if version < 20160408 && version >= 20140609 || version >= 20191107 {
                 // catch valid versions
                 return Err(DbFileParseError::new(
                     OsuDbError,
@@ -258,116 +258,78 @@ fn spawn_partial_beatmap_loader_thread(
             let mut skip = false;
             let s = &mut skip;
             let artist_name = maybe_read_string_utf8(
-                settings.artist_name,
+                &settings.artist_name,
                 s,
                 bytes,
                 i,
                 "non-Unicode artist name",
             )?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let artist_name_unicode = maybe_read_string_utf8(
-                settings.artist_name_unicode,
+                &settings.artist_name_unicode,
                 s,
                 bytes,
                 i,
                 "Unicode artist name",
             )?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let song_title =
-                maybe_read_string_utf8(settings.song_title, s, bytes, i, "non-Unicode song title")?;
-            if skip {
-                continue;
-            };
+                maybe_read_string_utf8(&settings.song_title, s, bytes, i, "non-Unicode song title")?;
+            continue_if!(*s);
             let song_title_unicode = maybe_read_string_utf8(
-                settings.song_title_unicode,
+                &settings.song_title_unicode,
                 s,
                 bytes,
                 i,
                 "Unicode song title",
             )?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let creator_name =
-                maybe_read_string_utf8(settings.creator_name, s, bytes, i, "creator name")?;
-            if skip {
-                continue;
-            };
+                maybe_read_string_utf8(&settings.creator_name, s, bytes, i, "creator name")?;
+            continue_if!(*s);
             let difficulty =
-                maybe_read_string_utf8(settings.difficulty, s, bytes, i, "difficulty")?;
-            if skip {
-                continue;
-            };
+                maybe_read_string_utf8(&settings.difficulty, s, bytes, i, "difficulty")?;
+            continue_if!(*s);
             let audio_file_name =
-                maybe_read_string_utf8(settings.audio_file_name, s, bytes, i, "audio file name")?;
-            if skip {
-                continue;
-            };
-            let md5_beatmap_hash = maybe_read_md5_hash(settings.md5_beatmap_hash, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+                maybe_read_string_utf8(&settings.audio_file_name, s, bytes, i, "audio file name")?;
+            continue_if!(*s);
+            let md5_beatmap_hash = maybe_read_md5_hash(&settings.md5_beatmap_hash, s, bytes, i)?;
+            continue_if!(*s);
             let dotosu_file_name = maybe_read_string_utf8(
-                settings.dotosu_file_name,
+                &settings.dotosu_file_name,
                 s,
                 bytes,
                 i,
                 "corresponding .osu file name",
             )?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let ranked_status =
                 RankedStatus::maybe_read_from_bytes(settings.ranked_status, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let number_of_hitcircles =
                 maybe_read_short(settings.number_of_hitcircles, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let number_of_sliders = maybe_read_short(settings.number_of_sliders, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let number_of_spinners = maybe_read_short(settings.number_of_spinners, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let last_modification_time =
                 maybe_read_datetime(settings.last_modification_time, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let approach_rate =
                 ModernWithEntrySize::maybe_read_arcshpod(settings.approach_rate, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let circle_size =
                 ModernWithEntrySize::maybe_read_arcshpod(settings.circle_size, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let hp_drain =
                 ModernWithEntrySize::maybe_read_arcshpod(settings.hp_drain, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let overall_difficulty =
                 ModernWithEntrySize::maybe_read_arcshpod(settings.overall_difficulty, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let slider_velocity = maybe_read_double(settings.slider_velocity, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let (num_mcsr_standard, mcsr_standard) =
                 ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
                     settings.mod_combo_star_ratings_standard.is_ignore(),
@@ -392,18 +354,12 @@ fn spawn_partial_beatmap_loader_thread(
                     i,
                 )?;
             let drain_time = maybe_read_int(settings.drain_time, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let total_time = maybe_read_int(settings.total_time, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let preview_offset_from_start_ms =
                 maybe_read_int(settings.preview_offset_from_start_ms, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let num_timing_points = read_int(bytes, i)?;
             let timing_points = if settings.timing_points.is_ignore() {
                 *i += num_timing_points as usize * 17;
@@ -417,126 +373,72 @@ fn spawn_partial_beatmap_loader_thread(
             };
             let num_timing_points = settings.num_timing_points.apply(num_timing_points);
             let beatmap_id = maybe_read_int(settings.beatmap_id, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let beatmap_set_id = maybe_read_int(settings.beatmap_set_id, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let thread_id = maybe_read_int(settings.thread_id, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let standard_grade = maybe_read_byte(settings.standard_grade, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let taiko_grade = maybe_read_byte(settings.taiko_grade, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let ctb_grade = maybe_read_byte(settings.ctb_grade, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let mania_grade = maybe_read_byte(settings.mania_grade, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let local_offset = maybe_read_short(settings.local_offset, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let stack_leniency = maybe_read_single(settings.stack_leniency, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let gameplay_mode =
                 GameplayMode::maybe_read_from_bytes(settings.gameplay_mode, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let song_source =
-                maybe_read_string_utf8(settings.song_source, s, bytes, i, "song source")?;
-            if skip {
-                continue;
-            };
-            let song_tags = maybe_read_string_utf8(settings.song_tags, s, bytes, i, "song tags")?;
-            if skip {
-                continue;
-            };
+                maybe_read_string_utf8(&settings.song_source, s, bytes, i, "song source")?;
+            continue_if!(*s);
+            let song_tags = maybe_read_string_utf8(&settings.song_tags, s, bytes, i, "song tags")?;
+            continue_if!(*s);
             let online_offset = maybe_read_short(settings.online_offset, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let font_used_for_song_title = maybe_read_string_utf8(
-                settings.font_used_for_song_title,
+                &settings.font_used_for_song_title,
                 s,
                 bytes,
                 i,
                 "font used for song title",
             )?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let unplayed = maybe_read_boolean(settings.unplayed, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let last_played = maybe_read_datetime(settings.last_played, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let is_osz2 = maybe_read_boolean(settings.is_osz2, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let beatmap_folder_name =
-                maybe_read_string_utf8(settings.beatmap_folder_name, s, bytes, i, "folder name")?;
-            if skip {
-                continue;
-            };
+                maybe_read_string_utf8(&settings.beatmap_folder_name, s, bytes, i, "folder name")?;
+            continue_if!(*s);
             let last_checked_against_repo =
                 maybe_read_datetime(settings.last_checked_against_repo, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let ignore_beatmap_sound =
                 maybe_read_boolean(settings.ignore_beatmap_sound, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let ignore_beatmap_skin =
                 maybe_read_boolean(settings.ignore_beatmap_skin, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let disable_storyboard = maybe_read_boolean(settings.disable_storyboard, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let disable_video = maybe_read_boolean(settings.disable_video, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let visual_override = maybe_read_boolean(settings.visual_override, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let unknown_short = ModernWithEntrySize::maybe_read_unknown_short(*s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let offset_from_song_start_in_editor_ms =
                 maybe_read_int(settings.offset_from_song_start_in_editor_ms, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             let mania_scroll_speed = maybe_read_byte(settings.mania_scroll_speed, s, bytes, i)?;
-            if skip {
-                continue;
-            };
+            continue_if!(*s);
             beatmaps.push((
                 num,
                 PartialBeatmap {

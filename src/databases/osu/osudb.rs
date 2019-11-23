@@ -45,11 +45,11 @@ impl Load for OsuDb {
             for _ in 0..num_beatmaps {
                 beatmaps.push(Beatmap::read_from_bytes::<Legacy>(&bytes, &mut index)?);
             }
-        } else if version >= 20140609 && version < 20160408 {
+        } else if version >= 20140609 && version < 20160408 || version >= 20191107 {
             for _ in 0..num_beatmaps {
                 beatmaps.push(Beatmap::read_from_bytes::<Modern>(&bytes, &mut index)?);
             }
-        } else if version >= 20160408 {
+        } else if version >= 20160408 && version < 20191107 {
             for _ in 0..num_beatmaps {
                 beatmaps.push(Beatmap::read_from_bytes::<ModernWithEntrySize>(
                     &bytes, &mut index,
@@ -62,7 +62,7 @@ impl Load for OsuDb {
             );
             return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
         }
-        let unknown_short = read_int(&bytes, &mut index)?;
+        let unknown_short = read_short(&bytes, &mut index)?;
         Ok(OsuDb {
             version,
             folder_count,
@@ -138,12 +138,12 @@ impl Load for OsuDb {
                 .into_iter()
                 .map(|(_, beatmap)| beatmap)
                 .collect::<Vec<_>>()
-        } else if version / 1000 <= 2016 && version / 1000 >= 2007 {
+        } else if version / 1000 <= 2016 && version / 1000 >= 2007 || version / 1000 == 2019 {
             // catch valid versions
             return Err(DbFileParseError::new(
                 OsuDbError,
-                "osu!.db versions older than 20160408 do \
-                 not support multithreaded loading.",
+                "osu!.db versions older than 20160408 and newer than and including \
+                 20191107 do not support multithreaded loading.",
             ));
         } else {
             let err_msg = format!(
@@ -152,7 +152,7 @@ impl Load for OsuDb {
             );
             return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
         };
-        let unknown_short = read_int(&bytes, &mut *start.lock().unwrap())?;
+        let unknown_short = read_short(&bytes, &mut *start.lock().unwrap())?;
         Ok(OsuDb {
             version,
             folder_count,
