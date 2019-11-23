@@ -54,6 +54,9 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
             None
         } else {
             let mut tmp = Vec::with_capacity(num_beatmaps as usize);
+            // The following version numbers were graciously provided by OMKelderman#8113, excepting
+            // the most recent which was provided by tdeo#6188 (20191107 as of time of writing
+            // this). See versions.rs in this directory for more information on osu!.db versions.
             if version < 20140609 {
                 for _ in 0..num_beatmaps {
                     tmp.push(PartialBeatmap::read_from_bytes::<Legacy>(
@@ -70,7 +73,7 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
                         i,
                     )?);
                 }
-            } else if version >= 20160408 {
+            } else if version >= 20160408 && version < 20191107 {
                 for _ in 0..num_beatmaps {
                     tmp.push(PartialBeatmap::read_from_bytes::<ModernWithEntrySize>(
                         &settings.beatmap_load_settings,
@@ -117,39 +120,18 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
     ) -> ParseFileResult<Self> {
         let mut skip = false;
         let s = &mut skip;
-        let (
-            version,
-            folder_count,
-            account_unlocked,
-            account_unlock_date,
-            player_name,
-            mut bytes_used,
-        ) = {
-            let mut index = 0;
-            let i = &mut index;
-            let version = read_int(&bytes, i)?;
-            let folder_count = maybe_read_int_nocomp(settings.folder_count, s, &bytes, i)?;
-            let account_unlocked =
-                maybe_read_boolean_nocomp(settings.account_unlocked, s, &bytes, i)?;
-            let account_unlock_date = if let Some(true) = account_unlocked {
-                *i += 8;
-                None
-            } else if *s {
-                *i += 8;
-                None
-            } else {
-                maybe_read_datetime_nocomp(settings.account_unlock_date, s, &bytes, i)?
-            };
-            let player_name = maybe_read_player_name_nocomp(settings.player_name, s, &bytes, i)?;
-            (
-                version,
-                folder_count,
-                account_unlocked,
-                account_unlock_date,
-                player_name,
-                *i,
-            )
+        let mut index = 0;
+        let i = &mut index;
+        let version = read_int(&bytes, i)?;
+        let folder_count = maybe_read_int_nocomp(settings.folder_count, s, &bytes, i)?;
+        let account_unlocked = maybe_read_boolean_nocomp(settings.folder_count, s, &bytes, i)?;
+        let account_unlock_date = if let Some(false) = account_unlocked {
+            maybe_read_datetime_nocomp(settings.account_unlock_date, s, &bytes, i)?
+        } else {
+            *i += 8;
+            None
         };
+        let player_name = maybe_read_player_name_nocomp(settings.player_name, s, &bytes, i)?;
         let num_beatmaps = read_int(&bytes, &mut bytes_used)?;
         let beatmaps = if settings.beatmap_load_settings.ignore_all() || num_beatmaps == 0 {
             None
@@ -157,6 +139,7 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
             let counter = Arc::new(Mutex::new(0));
             let start = Arc::new(Mutex::new(bytes_used));
             if version >= 20160408 && version < 20191107 {
+                // Spawn a thread for each requested job, collect handles into a vec.
                 let threads = (0..jobs)
                     .map(|_| {
                         spawn_partial_beatmap_loader_thread(
@@ -174,16 +157,23 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
                     .collect::<Vec<_>>();
                 let mut beatmaps = results.pop().unwrap();
                 for beatmap_result in results {
+                    // I'm using a `for` loop here with the `pop` above instead of `into_iter()` and
+                    // `for_each()` or `fold()` because of the `?`. `?` only returns from the most
+                    // immediate function closure, and I want the `?` to return out of this method
+                    // call.
                     beatmaps.append(&mut beatmap_result?);
                 }
+                // Sort by their number so that the parsed data is in the same order as it appears
+                // in the database file.
                 beatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
+                // Keep only the beatmaps - drop the counting number.
                 let beatmaps = beatmaps
                     .into_iter()
                     .map(|(_, beatmap)| beatmap)
                     .collect::<Vec<_>>();
                 Some(beatmaps)
             } else if version < 20160408 && version >= 20140609 || version >= 20191107 {
-                // catch valid versions
+            // Catch valid versions.
                 return Err(DbFileParseError::new(
                     OsuDbError,
                     "osu!.db versions older than 20160408 do \
@@ -204,7 +194,11 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
         } else {
             ModernWithEntrySize::maybe_read_unknown_short(*s, &bytes, i)?
         };
-        let version = if mask.version { Some(version) } else { None };
+        let version = if settings.version.is_ignore() {
+            None
+        } else {
+            Some(version)
+        };
         Ok(PartialOsuDb {
             version,
             folder_count,
@@ -226,9 +220,17 @@ fn spawn_partial_beatmap_loader_thread(
     start: Arc<Mutex<usize>>,
     bytes_pointer: *const Vec<u8>,
 ) -> JoinHandle<ParseFileResult<Vec<(usize, PartialBeatmap)>>> {
+    // Cast the pointers to the file bytes and beatmap load settings to usizes so that we can pass
+    // them into the thread.
     let tmp_bp = bytes_pointer as usize;
     let tmp_s = settings as usize;
     thread::spawn(move || {
+        // These pointer dereferences are *technically* safe. Rust just needs the guarantee that the
+        // data being referenced - the file data and beatmap load settings - will live longer than
+        // the reference to it, which is `bytes` and `settings` respectively. Since the threads are
+        // `join()`ed in the usage of this function above before the file bytes vector or beatmap
+        // load settings are dropped, this is technically safe to use. Just I'm the one upholding
+        // the reference lifetime invariant rather than rustc.
         let (settings, bytes) = unsafe {
             (
                 &*(tmp_s as *const BeatmapLoadSettings),
@@ -238,22 +240,33 @@ fn spawn_partial_beatmap_loader_thread(
         let mut beatmaps = Vec::new();
         loop {
             let (entry_size, mut start, num) = {
+                // Lock the counter.
                 let mut ctr = counter.lock().unwrap();
                 if *ctr >= number {
+                    // Return the collected beatmaps if the requisite number have been parsed.
                     return Ok(beatmaps);
                 } else {
+                    // Otherwise, increment the counter and carry on.
                     *ctr += 1;
                 }
+                // Lock the start index.
                 let mut s = start.lock().unwrap();
+                // Keep track of where the rest of the beatmap entry actually begins.
                 let start_at = *s + 4;
                 let entry_size = read_int(bytes, &mut *s)?;
+                // Increase the start index by the size of this entry.
                 *s += entry_size as usize;
                 (entry_size, start_at, *ctr - 1)
+                // Drop the lock on the counter and start index so other threads can get started on
+                // parsing.
             };
+            // Use of the entry size means that we can safely skip to the next beatmap if this one
+            // doesn't meet the query criteria, since we know where to skip to. The
+            // `continue_if!()`s below do just that - they expand to an `if` statement where the
+            // conditional block is just `continue;` and the condition is the expression passed to
+            // the macro.
             let entry_size = settings.entry_size.apply(entry_size);
-            if entry_size.is_none() {
-                continue;
-            }
+            continue_if!(entry_size.is_none());
             let i = &mut start;
             let mut skip = false;
             let s = &mut skip;

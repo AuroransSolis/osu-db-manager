@@ -7,6 +7,9 @@ use crate::masks::osu_mask::BeatmapMask;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
 
+/// Partial beatmap struct - this is like a regular `Beatmap`, except it's possible to skip parsing
+/// arbitrary fields. Skipped fields have a `None` value. The idea behind the `PartialBeatmap` is
+/// only parsing the data that the user requests through a query and/or show options.
 #[derive(Clone, Debug)]
 pub struct PartialBeatmap {
     pub entry_size: Option<i32>,
@@ -80,47 +83,47 @@ impl PartialBeatmap {
         let mut skip = false;
         let entry_size = T::maybe_read_entry_size(settings.entry_size, &mut skip, bytes, i)?;
         let artist_name = maybe_read_string_utf8(
-            settings.artist_name,
+            &settings.artist_name,
             &mut skip,
             bytes,
             i,
             "non-Unicode artist name",
         )?;
         let artist_name_unicode = maybe_read_string_utf8(
-            settings.artist_name_unicode,
+            &settings.artist_name_unicode,
             &mut skip,
             bytes,
             i,
             "Unicode artist name",
         )?;
         let song_title = maybe_read_string_utf8(
-            settings.song_title,
+            &settings.song_title,
             &mut skip,
             bytes,
             i,
             "non-Unicode song title",
         )?;
         let song_title_unicode = maybe_read_string_utf8(
-            settings.song_title_unicode,
+            &settings.song_title_unicode,
             &mut skip,
             bytes,
             i,
             "Unicode song title",
         )?;
         let creator_name =
-            maybe_read_string_utf8(settings.creator_name, &mut skip, bytes, i, "creator name")?;
+            maybe_read_string_utf8(&settings.creator_name, &mut skip, bytes, i, "creator name")?;
         let difficulty =
-            maybe_read_string_utf8(settings.difficulty, &mut skip, bytes, i, "difficulty")?;
+            maybe_read_string_utf8(&settings.difficulty, &mut skip, bytes, i, "difficulty")?;
         let audio_file_name = maybe_read_string_utf8(
-            settings.audio_file_name,
+            &settings.audio_file_name,
             &mut skip,
             bytes,
             i,
             "audio file name",
         )?;
-        let md5_beatmap_hash = maybe_read_md5_hash(settings.md5_beatmap_hash, &mut skip, bytes, i)?;
+        let md5_beatmap_hash = maybe_read_md5_hash(&settings.md5_beatmap_hash, &mut skip, bytes, i)?;
         let dotosu_file_name = maybe_read_string_utf8(
-            settings.dotosu_file_name,
+            &settings.dotosu_file_name,
             &mut skip,
             bytes,
             i,
@@ -182,12 +185,12 @@ impl PartialBeatmap {
         let gameplay_mode =
             GameplayMode::maybe_read_from_bytes(settings.gameplay_mode, &mut skip, bytes, i)?;
         let song_source =
-            maybe_read_string_utf8(settings.song_source, &mut skip, bytes, i, "song source")?;
+            maybe_read_string_utf8(&settings.song_source, &mut skip, bytes, i, "song source")?;
         let song_tags =
-            maybe_read_string_utf8(settings.song_tags, &mut skip, bytes, i, "song tags")?;
+            maybe_read_string_utf8(&settings.song_tags, &mut skip, bytes, i, "song tags")?;
         let online_offset = maybe_read_short(settings.online_offset, &mut skip, bytes, i)?;
         let font_used_for_song_title = maybe_read_string_utf8(
-            settings.font_used_for_song_title,
+            &settings.font_used_for_song_title,
             &mut skip,
             bytes,
             i,
@@ -197,7 +200,7 @@ impl PartialBeatmap {
         let last_played = maybe_read_datetime(settings.last_played, &mut skip, bytes, i)?;
         let is_osz2 = maybe_read_boolean(settings.is_osz2, &mut skip, bytes, i)?;
         let beatmap_folder_name = maybe_read_string_utf8(
-            settings.beatmap_folder_name,
+            &settings.beatmap_folder_name,
             &mut skip,
             bytes,
             i,
