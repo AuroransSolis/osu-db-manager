@@ -1,3 +1,4 @@
+use std::slice;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
@@ -16,19 +17,19 @@ use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
 /// osu!.db struct according to documentation linked in README.
 #[derive(Debug, Clone)]
-pub struct OsuDb {
+pub struct OsuDb<'a> {
     pub version: i32,
     pub folder_count: i32,
     pub account_unlocked: bool,
     pub account_unlock_date: Option<NaiveDate>,
-    pub player_name: Option<String>,
+    pub player_name: Option<&'a str>,
     pub number_of_beatmaps: i32,
-    pub beatmaps: Vec<Beatmap>,
+    pub beatmaps: Vec<Beatmap<'a>>,
     pub unknown_short: i16,
 }
 
 impl Load for OsuDb {
-    fn read_single_thread(bytes: Vec<u8>) -> ParseFileResult<Self> {
+    fn read_single_thread(bytes: &[u8]) -> ParseFileResult<Self> {
         let mut index = 0;
         let version = read_int(&bytes, &mut index)?;
         let folder_count = read_int(&bytes, &mut index)?;
@@ -39,7 +40,7 @@ impl Load for OsuDb {
             let _ = read_datetime(&bytes, &mut index)?;
             None
         };
-        let player_name = read_string_utf8(&bytes, &mut index, "player name")?;
+        let player_name = read_str_utf8(&bytes, &mut index, "player name")?;
         let num_beatmaps = read_int(&bytes, &mut index)?;
         let mut beatmaps = Vec::with_capacity(num_beatmaps as usize);
         // The following version numbers were graciously provided by OMKelderman#8113, excepting the
@@ -103,7 +104,8 @@ impl Load for OsuDb {
                         num_beatmaps as usize,
                         counter.clone(),
                         start.clone(),
-                        &bytes,
+                        bytes.as_ptr(),
+                        bytes.len(),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -156,54 +158,51 @@ impl Load for OsuDb {
 }
 
 #[inline]
-fn spawn_beatmap_loader_thread(
+fn spawn_beatmap_loader_thread<'a>(
     number: usize,
     counter: Arc<Mutex<usize>>,
     start: Arc<Mutex<usize>>,
-    bytes_pointer: *const Vec<u8>,
-) -> JoinHandle<ParseFileResult<Vec<(usize, Beatmap)>>> {
-    // Cast the pointer to the file bytes to a usize so that we can pass it into the thread.
+    bytes_pointer: *const u8,
+    bytes_len: usize,
+) -> JoinHandle<ParseFileResult<Vec<(usize, Beatmap<'a>)>>> {
     let tmp = bytes_pointer as usize;
     thread::spawn(move || {
-        // This pointer dereference is *technically* safe. Rust just needs the guarantee that the
-        // data being referenced - the file data - will live longer than the reference to it, which
-        // is `bytes`. Since the threads are `join()`ed in the usage of this function above before
-        // the file bytes vector is dropped, this is technically safe to use. Just I'm the one
-        // upholding the reference lifetime invariant rather than rustc.
-        let bytes = unsafe { &*(tmp as *const Vec<u8>) };
+        let bytes = unsafe { slice::from_raw_parts(tmp as *const u8, bytes_len) };
         let mut beatmaps = Vec::new();
         loop {
             let (entry_size, mut start, num) = {
-                // Lock the counter.
+                // Lock the parsed beatmap counter.
                 let mut ctr = counter.lock().unwrap();
                 if *ctr >= number {
-                    // Return the collected beatmaps if the requisite number have been parsed.
+                    // Break if we've parsed all the beatmaps.
                     return Ok(beatmaps);
                 } else {
-                    // Otherwise, increment the counter and carry on.
+                    // Increment the counter by 1 if we're not done.
                     *ctr += 1;
                 }
                 // Lock the start index.
                 let mut s = start.lock().unwrap();
-                // Keep track of where the rest of the beatmap entry actually begins.
+                // This is where this thread will start parsing information.
                 let start_at = *s + 4;
+                // Get the entry size.
                 let entry_size = read_int(bytes, &mut *s)?;
-                // Increase the start index by the size of this entry.
+                // The next thread should start parsing at the current index + the size of this
+                // entry.
                 *s += entry_size as usize;
                 (entry_size, start_at, *ctr - 1)
                 // Drop the lock on the counter and start index so other threads can get started on
                 // parsing.
             };
             let i = &mut start;
-            let artist_name = read_string_utf8(bytes, i, "non-Unicode artist name")?;
-            let artist_name_unicode = read_string_utf8(bytes, i, "Unicode artist name")?;
-            let song_title = read_string_utf8(bytes, i, "non-Unicode song title")?;
-            let song_title_unicode = read_string_utf8(bytes, i, "Unicode song title")?;
-            let creator_name = read_string_utf8(bytes, i, "creator name")?;
-            let difficulty = read_string_utf8(bytes, i, "difficulty")?;
-            let audio_file_name = read_string_utf8(bytes, i, "audio file name")?;
+            let artist_name = read_str_utf8(bytes, i, "non-Unicode artist name")?;
+            let artist_name_unicode = read_str_utf8(bytes, i, "Unicode artist name")?;
+            let song_title = read_str_utf8(bytes, i, "non-Unicode song title")?;
+            let song_title_unicode = read_str_utf8(bytes, i, "Unicode song title")?;
+            let creator_name = read_str_utf8(bytes, i, "creator name")?;
+            let difficulty = read_str_utf8(bytes, i, "difficulty")?;
+            let audio_file_name = read_str_utf8(bytes, i, "audio file name")?;
             let md5_beatmap_hash = read_md5_hash(bytes, i)?;
-            let dotosu_file_name = read_string_utf8(bytes, i, "corresponding .osu file name")?;
+            let dotosu_file_name = read_str_utf8(bytes, i, "corresponding .osu file name")?;
             let ranked_status = RankedStatus::read_from_bytes(bytes, i)?;
             let number_of_hitcircles = read_short(bytes, i)?;
             let number_of_sliders = read_short(bytes, i)?;
@@ -240,14 +239,14 @@ fn spawn_beatmap_loader_thread(
             let local_offset = read_short(bytes, i)?;
             let stack_leniency = read_single(bytes, i)?;
             let gameplay_mode = GameplayMode::read_from_bytes(bytes, i)?;
-            let song_source = read_string_utf8(bytes, i, "song source")?;
-            let song_tags = read_string_utf8(bytes, i, "song tags")?;
+            let song_source = read_str_utf8(bytes, i, "song source")?;
+            let song_tags = read_str_utf8(bytes, i, "song tags")?;
             let online_offset = read_short(bytes, i)?;
-            let font_used_for_song_title = read_string_utf8(bytes, i, "font used for song title")?;
+            let font_used_for_song_title = read_str_utf8(bytes, i, "font used for song title")?;
             let unplayed = read_boolean(bytes, i)?;
             let last_played = read_datetime(bytes, i)?;
             let is_osz2 = read_boolean(bytes, i)?;
-            let beatmap_folder_name = read_string_utf8(bytes, i, "folder name")?;
+            let beatmap_folder_name = read_str_utf8(bytes, i, "folder name")?;
             let last_checked_against_repo = read_datetime(bytes, i)?;
             let ignore_beatmap_sound = read_boolean(bytes, i)?;
             let ignore_beatmap_skin = read_boolean(bytes, i)?;

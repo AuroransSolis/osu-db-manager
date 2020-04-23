@@ -9,14 +9,14 @@ use crate::masks::osu_mask::OsuDbMask;
 use crate::read_error::{DbFileParseError, ParseErrorKind::QueryError, ParseFileResult};
 
 pub struct OsuDbLoadSettings {
-    pub version: LoadSetting<()>,
-    pub folder_count: LoadSetting<()>,
-    pub account_unlocked: LoadSetting<()>,
-    pub account_unlock_date: LoadSetting<()>,
-    pub player_name: LoadSetting<()>,
-    pub number_of_beatmaps: LoadSetting<()>,
+    pub version: bool,
+    pub folder_count: bool,
+    pub account_unlocked: bool,
+    pub account_unlock_date: bool,
+    pub player_name: bool,
+    pub number_of_beatmaps: bool,
     pub beatmap_load_settings: BeatmapLoadSettings,
-    pub unknown_short: LoadSetting<()>,
+    pub unknown_short: bool,
 }
 
 impl Default for OsuDbLoadSettings {
@@ -36,33 +36,33 @@ impl Default for OsuDbLoadSettings {
 
 impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {
     fn load_all(&self) -> bool {
-        self.beatmap_load_settings.load_all()
-            && self.version.is_load()
-            && self.folder_count.is_load()
-            && self.account_unlocked.is_load()
-            && self.account_unlock_date.is_load()
-            && self.player_name.is_load()
-            && self.unknown_short.is_load()
+        self.version
+            && self.folder_count
+            && self.account_unlocked
+            && self.account_unlock_date
+            && self.player_name
+            && self.unknown_short
+            && self.beatmap_load_settings.load_all()
     }
 
     fn ignore_all(&self) -> bool {
-        self.beatmap_load_settings.ignore_all()
-            && self.version.is_ignore()
-            && self.folder_count.is_ignore()
-            && self.account_unlocked.is_ignore()
-            && self.account_unlock_date.is_ignore()
-            && self.player_name.is_ignore()
-            && self.unknown_short.is_ignore()
+        !self.version
+            && !self.folder_count
+            && !self.account_unlocked
+            && !self.account_unlock_date
+            && !self.player_name
+            && !self.unknown_short
+            && self.beatmap_load_settings.ignore_all()
     }
 
     fn is_partial(&self) -> bool {
-        self.beatmap_load_settings.is_partial()
-            || self.version.is_ignore()
-            || self.folder_count.is_ignore()
-            || self.account_unlocked.is_ignore()
-            || self.account_unlock_date.is_ignore()
-            || self.player_name.is_ignore()
-            || self.unknown_short.is_ignore()
+        !self.version
+            || !self.folder_count
+            || !self.account_unlocked
+            || !self.account_unlock_date
+            || !self.player_name
+            || !self.unknown_short
+            || self.beatmap_load_settings.is_partial()
     }
 
     fn set_from_query(&mut self, args: Vec<&str>) -> IoResult<()> {
@@ -70,29 +70,13 @@ impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {
     }
 
     fn set_from_mask(&mut self, mask: &OsuDbMask) {
-        if self.version.is_ignore() && mask.version {
-            self.version = LoadSetting::Load;
-        }
-        if self.folder_count.is_ignore() && mask.folder_count {
-            self.folder_count = LoadSetting::Load;
-        }
-        if self.account_unlocked.is_ignore() && mask.account_unlocked {
-            self.account_unlocked = LoadSetting::Load;
-        }
-        if self.account_unlock_date.is_ignore() && mask.account_unlock_date {
-            self.account_unlock_date = LoadSetting::Load;
-        }
-        if self.player_name.is_ignore() && mask.player_name {
-            self.player_name = LoadSetting::Load;
-        }
-        if self.number_of_beatmaps.is_ignore() && mask.number_of_beatmaps {
-            self.player_name = LoadSetting::Load;
-        }
-        if let Some(beatmap_mask) = mask.beatmap_mask.as_ref() {
-            self.beatmap_load_settings.set_from_mask(beatmap_mask);
-        }
-        if self.unknown_short.is_ignore() && mask.unknown_short {
-            self.unknown_short = LoadSetting::Load;
-        }
+        self.version |= mask.version;
+        self.folder_count |= mask.folder_count;
+        self.account_unlocked |= mask.account_unlocked;
+        self.account_unlock_date |= mask.account_unlock_date;
+        self.player_name |= mask.player_name;
+        self.number_of_beatmaps |= mask.number_of_beatmaps;
+        self.beatmap_load_settings.set_from_mask(&mask.beatmap_mask);
+        self.unknown_short |= mask.unknown_short;
     }
 }

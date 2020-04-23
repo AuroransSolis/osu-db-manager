@@ -9,18 +9,18 @@ use crate::masks::mask::DbMask::{self, *};
 use crate::read_error::ParseFileResult;
 
 #[derive(Debug)]
-pub enum OsuDatabase {
-    Osu(OsuDb),
-    Collection(CollectionDb),
-    Scores(ScoresDb),
-    PartialOsu(PartialOsuDb),
-    PartialCollection(PartialCollectionDb),
-    PartialScores(PartialScoresDb),
+pub enum OsuDatabase<'a> {
+    Osu(OsuDb<'a>),
+    Collection(CollectionDb<'a>),
+    Scores(ScoresDb<'a>),
+    PartialOsu(PartialOsuDb<'a>),
+    PartialCollection(PartialCollectionDb<'a>),
+    PartialScores(PartialScoresDb<'a>),
 }
 
 use self::OsuDatabase::*;
 
-impl OsuDatabase {
+impl<'a> OsuDatabase<'a> {
     pub fn read_from_bytes(jobs: usize, db: Database) -> ParseFileResult<Self> {
         Ok(match db {
             OsuDb(b) => Osu(OsuDb::read_from_bytes(jobs, b)?),
@@ -46,7 +46,7 @@ impl OsuDatabase {
         })
     }
 
-    pub fn unwrap_osu(self) -> OsuDb {
+    pub fn unwrap_osu(self) -> OsuDb<'a> {
         match self {
             Osu(osu) => osu,
             Collection(_) => panic!("Tried to unwrap a CollectionDb with 'unwrap_osu()'."),
@@ -59,7 +59,7 @@ impl OsuDatabase {
         }
     }
 
-    pub fn unwrap_collection(self) -> CollectionDb {
+    pub fn unwrap_collection(self) -> CollectionDb<'a> {
         match self {
             Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_collection()'."),
             Collection(collection) => collection,
@@ -74,7 +74,7 @@ impl OsuDatabase {
         }
     }
 
-    pub fn unwrap_scores(self) -> ScoresDb {
+    pub fn unwrap_scores(self) -> ScoresDb<'a> {
         match self {
             Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_scores()'."),
             Collection(_) => panic!("Tried to unwrap a CollectionDb with 'unwrap_scores()'."),
@@ -87,7 +87,7 @@ impl OsuDatabase {
         }
     }
 
-    pub fn unwrap_partial_osu(self) -> PartialOsuDb {
+    pub fn unwrap_partial_osu(self) -> PartialOsuDb<'a> {
         match self {
             Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_partial_osu()'."),
             Collection(_) => panic!("Tried to unwrap a CollectionDb with 'unwrap_partial_osu()'."),
@@ -102,7 +102,7 @@ impl OsuDatabase {
         }
     }
 
-    pub fn unwrap_partial_collection(self) -> PartialCollectionDb {
+    pub fn unwrap_partial_collection(self) -> PartialCollectionDb<'a> {
         match self {
             Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_partial_collection()'."),
             Collection(_) => {
@@ -119,7 +119,7 @@ impl OsuDatabase {
         }
     }
 
-    pub fn unwrap_partial_scores(self) -> PartialScoresDb {
+    pub fn unwrap_partial_scores(self) -> PartialScoresDb<'a> {
         match self {
             Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_partial_scores()'."),
             Collection(_) => {

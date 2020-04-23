@@ -6,9 +6,9 @@ use crate::load_settings::{query::QueryStruct, EqualClone, EqualCopy, LoadSettin
 use crate::masks::collection_mask::CollectionMask;
 
 pub struct CollectionLoadSettings {
-    pub collection_name: LoadSetting<EqualClone<String>>,
-    pub number_of_beatmaps: LoadSetting<Relational<i32>>,
-    pub md5_beatmap_hash: LoadSetting<EqualClone<String>>,
+    pub collection_name: EqualClone<String>,
+    pub number_of_beatmaps: Relational<i32>,
+    pub md5_beatmap_hash: EqualClone<String>,
 }
 
 impl CollectionLoadSettings {
@@ -69,15 +69,9 @@ impl CollectionLoadSettings {
         Ok(())
     }
 
-    pub fn set_from_mask(&mut self, mask: CollectionMask) {
-        if self.collection_name.is_ignore() && mask.collection_name {
-            self.collection_name = LoadSetting::Load;
-        }
-        if self.number_of_beatmaps.is_ignore() && mask.number_of_beatmaps {
-            self.number_of_beatmaps = LoadSetting::Load;
-        }
-        if self.md5_beatmap_hash.is_ignore() && mask.md5_beatmap_hashes {
-            self.md5_beatmap_hash = LoadSetting::Load;
-        }
+    pub fn set_from_mask(&mut self, mask: &CollectionMask) {
+        self.collection_name.apply_mask(mask.collection_name);
+        self.number_of_beatmaps.apply_mask(mask.number_of_beatmaps);
+        self.md5_beatmap_hash.apply_mask(mask.md5_beatmap_hashes);
     }
 }

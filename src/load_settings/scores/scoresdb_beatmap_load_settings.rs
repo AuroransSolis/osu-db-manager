@@ -9,28 +9,28 @@ use crate::load_settings::{
 use crate::masks::scores_mask::ScoresDbBeatmapMask;
 
 pub struct ScoresDbBeatmapLoadSettings {
-    pub md5_beatmap_hash: LoadSetting<EqualClone<String>>,
-    pub number_of_scores: LoadSetting<Relational<i32>>,
+    pub md5_beatmap_hash: EqualClone<String>,
+    pub number_of_scores: Relational<i32>,
     pub score_load_settings: ScoreLoadSettings,
 }
 
 impl ScoresDbBeatmapLoadSettings {
     pub fn load_all(&self) -> bool {
-        self.score_load_settings.load_all()
-            && self.md5_beatmap_hash.is_load()
+        self.md5_beatmap_hash.is_load()
             && self.number_of_scores.is_load()
+            && self.score_load_settings.load_all()
     }
 
     pub fn ignore_all(&self) -> bool {
-        self.score_load_settings.ignore_all()
-            && self.md5_beatmap_hash.is_ignore()
+        self.md5_beatmap_hash.is_ignore()
             && self.number_of_scores.is_ignore()
+            && self.score_load_settings.ignore_all()
     }
 
     pub fn is_partial(&self) -> bool {
-        self.score_load_settings.is_partial()
-            || self.md5_beatmap_hash.is_ignore()
+        self.md5_beatmap_hash.is_ignore()
             || self.number_of_scores.is_ignore()
+            || self.score_load_settings.is_partial()
     }
 
     pub fn set_from_query(&mut self, args: Vec<&str>) -> IoResult<()> {
@@ -219,15 +219,13 @@ impl ScoresDbBeatmapLoadSettings {
         }
     }
 
-    pub fn set_from_mask(&mut self, mask: ScoresDbBeatmapMask) {
+    pub fn set_from_mask(&mut self, mask: &ScoresDbBeatmapMask) {
         if self.md5_beatmap_hash.is_ignore() && mask.md5_beatmap_hash {
             self.md5_beatmap_hash = LoadSetting::Load;
         }
         if self.number_of_scores.is_ignore() && mask.number_of_scores {
             self.number_of_scores = LoadSetting::Load;
         }
-        if let Some(m) = mask.scores_mask {
-            self.score_load_settings.set_from_mask(m);
-        }
+        self.score_load_settings.set_from_mask(&mask.scores_mask);
     }
 }

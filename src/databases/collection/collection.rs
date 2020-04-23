@@ -1,16 +1,18 @@
 use crate::deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
 
+/// The collection is the entry type in collection.db. Each entry has a name and the hashes of the
+/// beatmaps in a given collection.
 #[derive(Debug, Clone)]
-pub struct Collection {
-    pub collection_name: Option<String>,
+pub struct Collection<'a> {
+    pub collection_name: Option<&'a str>,
     pub number_of_beatmaps: i32,
-    pub md5_beatmap_hashes: Vec<String>,
+    pub md5_beatmap_hashes: Vec<&'a str>,
 }
 
 impl Collection {
     pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
-        let collection_name = read_string_utf8(bytes, i, "collection name")?;
+        let collection_name = read_str_utf8(bytes, i, "collection name")?;
         let number_of_beatmaps = read_int(bytes, i)?;
         let mut md5_beatmap_hashes = Vec::with_capacity(number_of_beatmaps as usize);
         for _ in 0..number_of_beatmaps {

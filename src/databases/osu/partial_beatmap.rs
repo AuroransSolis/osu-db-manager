@@ -11,17 +11,17 @@ use crate::read_error::ParseFileResult;
 /// arbitrary fields. Skipped fields have a `None` value. The idea behind the `PartialBeatmap` is
 /// only parsing the data that the user requests through a query and/or show options.
 #[derive(Clone, Debug)]
-pub struct PartialBeatmap {
+pub struct PartialBeatmap<'a> {
     pub entry_size: Option<i32>,
-    pub artist_name: Option<String>,
-    pub artist_name_unicode: Option<String>,
-    pub song_title: Option<String>,
-    pub song_title_unicode: Option<String>,
-    pub creator_name: Option<String>,
-    pub difficulty: Option<String>,
-    pub audio_file_name: Option<String>,
-    pub md5_beatmap_hash: Option<String>,
-    pub dotosu_file_name: Option<String>,
+    pub artist_name: Option<&'a str>,
+    pub artist_name_unicode: Option<&'a str>,
+    pub song_title: Option<&'a str>,
+    pub song_title_unicode: Option<&'a str>,
+    pub creator_name: Option<&'a str>,
+    pub difficulty: Option<&'a str>,
+    pub audio_file_name: Option<&'a str>,
+    pub md5_beatmap_hash: Option<&'a str>,
+    pub dotosu_file_name: Option<&'a str>,
     pub ranked_status: Option<RankedStatus>,
     pub number_of_hitcircles: Option<i16>,
     pub number_of_sliders: Option<i16>,
@@ -55,14 +55,14 @@ pub struct PartialBeatmap {
     pub local_offset: Option<i16>,
     pub stack_leniency: Option<f32>,
     pub gameplay_mode: Option<GameplayMode>,
-    pub song_source: Option<String>,
-    pub song_tags: Option<String>,
+    pub song_source: Option<&'a str>,
+    pub song_tags: Option<&'a str>,
     pub online_offset: Option<i16>,
-    pub font_used_for_song_title: Option<String>,
+    pub font_used_for_song_title: Option<&'a str>,
     pub unplayed: Option<bool>,
     pub last_played: Option<NaiveDate>,
     pub is_osz2: Option<bool>,
-    pub beatmap_folder_name: Option<String>,
+    pub beatmap_folder_name: Option<&'a str>,
     pub last_checked_against_repo: Option<NaiveDate>,
     pub ignore_beatmap_sound: Option<bool>,
     pub ignore_beatmap_skin: Option<bool>,
@@ -82,28 +82,28 @@ impl PartialBeatmap {
     ) -> ParseFileResult<Self> {
         let mut skip = false;
         let entry_size = T::maybe_read_entry_size(settings.entry_size, &mut skip, bytes, i)?;
-        let artist_name = maybe_read_string_utf8(
+        let artist_name = maybe_read_str_utf8(
             &settings.artist_name,
             &mut skip,
             bytes,
             i,
             "non-Unicode artist name",
         )?;
-        let artist_name_unicode = maybe_read_string_utf8(
+        let artist_name_unicode = maybe_read_str_utf8(
             &settings.artist_name_unicode,
             &mut skip,
             bytes,
             i,
             "Unicode artist name",
         )?;
-        let song_title = maybe_read_string_utf8(
+        let song_title = maybe_read_str_utf8(
             &settings.song_title,
             &mut skip,
             bytes,
             i,
             "non-Unicode song title",
         )?;
-        let song_title_unicode = maybe_read_string_utf8(
+        let song_title_unicode = maybe_read_str_utf8(
             &settings.song_title_unicode,
             &mut skip,
             bytes,
@@ -111,10 +111,10 @@ impl PartialBeatmap {
             "Unicode song title",
         )?;
         let creator_name =
-            maybe_read_string_utf8(&settings.creator_name, &mut skip, bytes, i, "creator name")?;
+            maybe_read_str_utf8(&settings.creator_name, &mut skip, bytes, i, "creator name")?;
         let difficulty =
-            maybe_read_string_utf8(&settings.difficulty, &mut skip, bytes, i, "difficulty")?;
-        let audio_file_name = maybe_read_string_utf8(
+            maybe_read_str_utf8(&settings.difficulty, &mut skip, bytes, i, "difficulty")?;
+        let audio_file_name = maybe_read_str_utf8(
             &settings.audio_file_name,
             &mut skip,
             bytes,
@@ -122,7 +122,7 @@ impl PartialBeatmap {
             "audio file name",
         )?;
         let md5_beatmap_hash = maybe_read_md5_hash(&settings.md5_beatmap_hash, &mut skip, bytes, i)?;
-        let dotosu_file_name = maybe_read_string_utf8(
+        let dotosu_file_name = maybe_read_str_utf8(
             &settings.dotosu_file_name,
             &mut skip,
             bytes,
@@ -185,11 +185,10 @@ impl PartialBeatmap {
         let gameplay_mode =
             GameplayMode::maybe_read_from_bytes(settings.gameplay_mode, &mut skip, bytes, i)?;
         let song_source =
-            maybe_read_string_utf8(&settings.song_source, &mut skip, bytes, i, "song source")?;
-        let song_tags =
-            maybe_read_string_utf8(&settings.song_tags, &mut skip, bytes, i, "song tags")?;
+            maybe_read_str_utf8(&settings.song_source, &mut skip, bytes, i, "song source")?;
+        let song_tags = maybe_read_str_utf8(&settings.song_tags, &mut skip, bytes, i, "song tags")?;
         let online_offset = maybe_read_short(settings.online_offset, &mut skip, bytes, i)?;
-        let font_used_for_song_title = maybe_read_string_utf8(
+        let font_used_for_song_title = maybe_read_str_utf8(
             &settings.font_used_for_song_title,
             &mut skip,
             bytes,
@@ -199,7 +198,7 @@ impl PartialBeatmap {
         let unplayed = maybe_read_boolean(settings.unplayed, &mut skip, bytes, i)?;
         let last_played = maybe_read_datetime(settings.last_played, &mut skip, bytes, i)?;
         let is_osz2 = maybe_read_boolean(settings.is_osz2, &mut skip, bytes, i)?;
-        let beatmap_folder_name = maybe_read_string_utf8(
+        let beatmap_folder_name = maybe_read_str_utf8(
             &settings.beatmap_folder_name,
             &mut skip,
             bytes,

@@ -5,12 +5,12 @@ use crate::deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
-pub struct Score {
+pub struct Score<'a> {
     pub gameplay_mode: GameplayMode,
     pub score_version: i32,
-    pub md5_beatmap_hash: String,
-    pub player_name: Option<String>,
-    pub md5_replay_hash: String,
+    pub md5_beatmap_hash: &'a str,
+    pub player_name: Option<&'a str>,
+    pub md5_replay_hash: &'a str,
     pub number_of_300s: i16,
     pub number_of_100s: i16,  // 150s in Taiko, 100s in CTB, 200s in Mania
     pub number_of_50s: i16,   // small fruit in CTB, 50s in Mania
@@ -21,7 +21,7 @@ pub struct Score {
     pub max_combo: i16,
     pub perfect_combo: bool,
     pub mods_used: i32,
-    pub empty_string: Option<String>,
+    pub empty_string: Option<&'a str>,
     pub replay_timestamp: NaiveDate,
     pub negative_one: i32,
     pub online_score_id: i64,
@@ -32,7 +32,7 @@ impl Score {
         let gameplay_mode = GameplayMode::read_from_bytes(bytes, i)?;
         let score_version = read_int(bytes, i)?;
         let md5_beatmap_hash = read_md5_hash(bytes, i)?;
-        let player_name = read_string_utf8(bytes, i, "player name")?;
+        let player_name = read_str_utf8(bytes, i, "player name")?;
         let md5_replay_hash = read_md5_hash(bytes, i)?;
         let number_of_300s = read_short(bytes, i)?;
         let number_of_100s = read_short(bytes, i)?;
@@ -44,7 +44,7 @@ impl Score {
         let max_combo = read_short(bytes, i)?;
         let perfect_combo = read_boolean(bytes, i)?;
         let mods_used = read_int(bytes, i)?;
-        let empty_string = read_string_utf8(bytes, i, "empty string")?;
+        let empty_string = read_str_utf8(bytes, i, "empty string")?;
         let replay_timestamp = read_datetime(bytes, i)?;
         let negative_one = read_int(bytes, i)?;
         let online_score_id = read_long(bytes, i)?;

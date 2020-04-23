@@ -6,10 +6,10 @@ use crate::maybe_deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind::PrimitiveError, ParseFileResult};
 
 #[derive(Debug, Clone)]
-pub struct PartialCollection {
-    pub collection_name: Option<String>,
+pub struct PartialCollection<'a> {
+    pub collection_name: Option<&'a str>,
     pub number_of_beatmaps: Option<i32>,
-    pub md5_beatmap_hashes: Option<Vec<String>>,
+    pub md5_beatmap_hashes: Option<Vec<&'a str>>,
 }
 
 impl PartialCollection {
@@ -19,8 +19,8 @@ impl PartialCollection {
         i: &mut usize,
     ) -> ParseFileResult<Option<Self>> {
         let mut skip = false;
-        let collection_name = maybe_read_string_utf8(
-            settings.collection_name,
+        let collection_name = maybe_read_str_utf8(
+            &settings.collection_name,
             &mut skip,
             bytes,
             i,
@@ -38,7 +38,7 @@ impl PartialCollection {
                 for _ in 0..number_of_beatmaps {
                     // Only load in the hashes that match the one we care about. Ignore the others.
                     if let Some(hash) = maybe_read_md5_hash(
-                        settings.md5_beatmap_hash.clone(),
+                        &settings.md5_beatmap_hash.clone(),
                         &mut false,
                         bytes,
                         i,

@@ -1,3 +1,4 @@
+use std::slice;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
@@ -19,19 +20,19 @@ use crate::maybe_deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
 #[derive(Debug)]
-pub struct PartialOsuDb {
+pub struct PartialOsuDb<'a> {
     pub version: Option<i32>,
     pub folder_count: Option<i32>,
     pub account_unlocked: Option<bool>,
     pub account_unlock_date: Option<NaiveDate>,
-    pub player_name: Option<String>,
+    pub player_name: Option<&'a str>,
     pub number_of_beatmaps: i32,
-    pub beatmaps: Option<Vec<PartialBeatmap>>,
+    pub beatmaps: Option<Vec<PartialBeatmap<'a>>>,
     pub unknown_short: Option<i16>,
 }
 
 impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
-    fn read_single_thread(settings: OsuDbLoadSettings, bytes: Vec<u8>) -> ParseFileResult<Self> {
+    fn read_single_thread(settings: OsuDbLoadSettings, bytes: &[u8]) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
         let mut skip = false;
@@ -96,10 +97,10 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
         } else {
             ModernWithEntrySize::maybe_read_unknown_short(*s, &bytes, i)?
         };
-        let version = if settings.version.is_ignore() {
-            None
-        } else {
+        let version = if settings.version {
             Some(version)
+        } else {
+            None
         };
         Ok(PartialOsuDb {
             version,
@@ -116,7 +117,7 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
     fn read_multi_thread(
         settings: OsuDbLoadSettings,
         jobs: usize,
-        bytes: Vec<u8>,
+        bytes: &[u8],
     ) -> ParseFileResult<Self> {
         let mut skip = false;
         let s = &mut skip;
@@ -147,7 +148,8 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
                             num_beatmaps as usize,
                             counter.clone(),
                             start.clone(),
-                            &bytes,
+                            bytes.as_ptr(),
+                            bytes.len(),
                         )
                     })
                     .collect::<Vec<_>>();
@@ -194,11 +196,7 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
         } else {
             ModernWithEntrySize::maybe_read_unknown_short(*s, &bytes, i)?
         };
-        let version = if settings.version.is_ignore() {
-            None
-        } else {
-            Some(version)
-        };
+        let version = if mask.version { Some(version) } else { None };
         Ok(PartialOsuDb {
             version,
             folder_count,
@@ -213,28 +211,21 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
 }
 
 #[inline]
-fn spawn_partial_beatmap_loader_thread(
+fn spawn_partial_beatmap_loader_thread<'a>(
     settings: *const BeatmapLoadSettings,
     number: usize,
     counter: Arc<Mutex<usize>>,
     start: Arc<Mutex<usize>>,
-    bytes_pointer: *const Vec<u8>,
-) -> JoinHandle<ParseFileResult<Vec<(usize, PartialBeatmap)>>> {
-    // Cast the pointers to the file bytes and beatmap load settings to usizes so that we can pass
-    // them into the thread.
+    bytes_pointer: *const u8,
+    bytes_len: usize,
+) -> JoinHandle<ParseFileResult<Vec<(usize, PartialBeatmap<'a>)>>> {
     let tmp_bp = bytes_pointer as usize;
     let tmp_s = settings as usize;
     thread::spawn(move || {
-        // These pointer dereferences are *technically* safe. Rust just needs the guarantee that the
-        // data being referenced - the file data and beatmap load settings - will live longer than
-        // the reference to it, which is `bytes` and `settings` respectively. Since the threads are
-        // `join()`ed in the usage of this function above before the file bytes vector or beatmap
-        // load settings are dropped, this is technically safe to use. Just I'm the one upholding
-        // the reference lifetime invariant rather than rustc.
         let (settings, bytes) = unsafe {
             (
                 &*(tmp_s as *const BeatmapLoadSettings),
-                &*(tmp_bp as *const Vec<u8>),
+                slice::from_raw_parts(tmp_bp as *const u8, bytes_len),
             )
         };
         let mut beatmaps = Vec::new();
@@ -265,193 +256,197 @@ fn spawn_partial_beatmap_loader_thread(
             // `continue_if!()`s below do just that - they expand to an `if` statement where the
             // conditional block is just `continue;` and the condition is the expression passed to
             // the macro.
-            let entry_size = settings.entry_size.apply(entry_size);
-            continue_if!(entry_size.is_none());
+            let entry_size = if settings.entry_size.is_ignore() {
+                None
+            } else {
+                Some(entry_size)
+            };
+            if entry_size.is_none() {
+                continue;
+            }
             let i = &mut start;
             let mut skip = false;
             let s = &mut skip;
-            let artist_name = maybe_read_string_utf8(
-                &settings.artist_name,
-                s,
-                bytes,
-                i,
-                "non-Unicode artist name",
-            )?;
-            continue_if!(*s);
-            let artist_name_unicode = maybe_read_string_utf8(
+            let artist_name =
+                maybe_read_str_utf8(&settings.artist_name, s, bytes, i, "non-Unicode artist name")?;
+            continue_if!(skip);
+            let artist_name_unicode = maybe_read_str_utf8(
                 &settings.artist_name_unicode,
                 s,
                 bytes,
                 i,
                 "Unicode artist name",
             )?;
-            continue_if!(*s);
+            continue_if!(skip);
             let song_title =
-                maybe_read_string_utf8(&settings.song_title, s, bytes, i, "non-Unicode song title")?;
-            continue_if!(*s);
-            let song_title_unicode = maybe_read_string_utf8(
+                maybe_read_str_utf8(&settings.song_title, s, bytes, i, "non-Unicode song title")?;
+            continue_if!(skip);
+            let song_title_unicode = maybe_read_str_utf8(
                 &settings.song_title_unicode,
                 s,
                 bytes,
                 i,
                 "Unicode song title",
             )?;
-            continue_if!(*s);
+            continue_if!(skip);
             let creator_name =
-                maybe_read_string_utf8(&settings.creator_name, s, bytes, i, "creator name")?;
-            continue_if!(*s);
-            let difficulty =
-                maybe_read_string_utf8(&settings.difficulty, s, bytes, i, "difficulty")?;
-            continue_if!(*s);
+                maybe_read_str_utf8(&settings.creator_name, s, bytes, i, "creator name")?;
+            continue_if!(skip);
+            let difficulty = maybe_read_str_utf8(&settings.difficulty, s, bytes, i, "difficulty")?;
+            continue_if!(skip);
             let audio_file_name =
-                maybe_read_string_utf8(&settings.audio_file_name, s, bytes, i, "audio file name")?;
-            continue_if!(*s);
+                maybe_read_str_utf8(&settings.audio_file_name, s, bytes, i, "audio file name")?;
+            continue_if!(skip);
             let md5_beatmap_hash = maybe_read_md5_hash(&settings.md5_beatmap_hash, s, bytes, i)?;
-            continue_if!(*s);
-            let dotosu_file_name = maybe_read_string_utf8(
+            continue_if!(skip);
+            let dotosu_file_name = maybe_read_str_utf8(
                 &settings.dotosu_file_name,
                 s,
                 bytes,
                 i,
                 "corresponding .osu file name",
             )?;
-            continue_if!(*s);
+            continue_if!(skip);
             let ranked_status =
                 RankedStatus::maybe_read_from_bytes(settings.ranked_status, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let number_of_hitcircles =
                 maybe_read_short(settings.number_of_hitcircles, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let number_of_sliders = maybe_read_short(settings.number_of_sliders, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let number_of_spinners = maybe_read_short(settings.number_of_spinners, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let last_modification_time =
                 maybe_read_datetime(settings.last_modification_time, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let approach_rate =
                 ModernWithEntrySize::maybe_read_arcshpod(settings.approach_rate, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let circle_size =
                 ModernWithEntrySize::maybe_read_arcshpod(settings.circle_size, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let hp_drain =
                 ModernWithEntrySize::maybe_read_arcshpod(settings.hp_drain, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let overall_difficulty =
                 ModernWithEntrySize::maybe_read_arcshpod(settings.overall_difficulty, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let slider_velocity = maybe_read_double(settings.slider_velocity, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let (num_mcsr_standard, mcsr_standard) =
                 ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
-                    settings.mod_combo_star_ratings_standard.is_ignore(),
+                    !settings.mod_combo_star_ratings_standard,
                     bytes,
                     i,
                 )?;
             let (num_mcsr_taiko, mcsr_taiko) =
                 ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
-                    settings.mod_combo_star_ratings_standard.is_ignore(),
+                    !settings.mod_combo_star_ratings_standard,
                     bytes,
                     i,
                 )?;
             let (num_mcsr_ctb, mcsr_ctb) = ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
-                settings.mod_combo_star_ratings_standard.is_ignore(),
+                !settings.mod_combo_star_ratings_standard,
                 bytes,
                 i,
             )?;
             let (num_mcsr_mania, mcsr_mania) =
                 ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
-                    settings.mod_combo_star_ratings_standard.is_ignore(),
+                    !settings.mod_combo_star_ratings_standard,
                     bytes,
                     i,
                 )?;
             let drain_time = maybe_read_int(settings.drain_time, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let total_time = maybe_read_int(settings.total_time, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let preview_offset_from_start_ms =
                 maybe_read_int(settings.preview_offset_from_start_ms, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let num_timing_points = read_int(bytes, i)?;
-            let timing_points = if settings.timing_points.is_ignore() {
-                *i += num_timing_points as usize * 17;
-                None
-            } else {
+            let timing_points = if settings.timing_points {
                 let mut tmp = Vec::with_capacity(num_timing_points as usize);
                 for _ in 0..num_timing_points {
                     tmp.push(TimingPoint::read_from_bytes(bytes, i)?);
                 }
                 Some(tmp)
+            } else {
+                *i += num_timing_points as usize * 17;
+                None
             };
-            let num_timing_points = settings.num_timing_points.apply(num_timing_points);
+            let num_timing_points = if settings.num_timing_points.is_ignore() {
+                None
+            } else {
+                Some(num_timing_points)
+            };
             let beatmap_id = maybe_read_int(settings.beatmap_id, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let beatmap_set_id = maybe_read_int(settings.beatmap_set_id, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let thread_id = maybe_read_int(settings.thread_id, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let standard_grade = maybe_read_byte(settings.standard_grade, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let taiko_grade = maybe_read_byte(settings.taiko_grade, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let ctb_grade = maybe_read_byte(settings.ctb_grade, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let mania_grade = maybe_read_byte(settings.mania_grade, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let local_offset = maybe_read_short(settings.local_offset, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let stack_leniency = maybe_read_single(settings.stack_leniency, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let gameplay_mode =
                 GameplayMode::maybe_read_from_bytes(settings.gameplay_mode, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let song_source =
-                maybe_read_string_utf8(&settings.song_source, s, bytes, i, "song source")?;
-            continue_if!(*s);
-            let song_tags = maybe_read_string_utf8(&settings.song_tags, s, bytes, i, "song tags")?;
-            continue_if!(*s);
+                maybe_read_str_utf8(&settings.song_source, s, bytes, i, "song source")?;
+            continue_if!(skip);
+            let song_tags = maybe_read_str_utf8(&settings.song_tags, s, bytes, i, "song tags")?;
+            continue_if!(skip);
             let online_offset = maybe_read_short(settings.online_offset, s, bytes, i)?;
-            continue_if!(*s);
-            let font_used_for_song_title = maybe_read_string_utf8(
+            continue_if!(skip);
+            let font_used_for_song_title = maybe_read_str_utf8(
                 &settings.font_used_for_song_title,
                 s,
                 bytes,
                 i,
                 "font used for song title",
             )?;
-            continue_if!(*s);
+            continue_if!(skip);
             let unplayed = maybe_read_boolean(settings.unplayed, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let last_played = maybe_read_datetime(settings.last_played, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let is_osz2 = maybe_read_boolean(settings.is_osz2, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let beatmap_folder_name =
-                maybe_read_string_utf8(&settings.beatmap_folder_name, s, bytes, i, "folder name")?;
-            continue_if!(*s);
+                maybe_read_str_utf8(&settings.beatmap_folder_name, s, bytes, i, "folder name")?;
+            continue_if!(skip);
             let last_checked_against_repo =
                 maybe_read_datetime(settings.last_checked_against_repo, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let ignore_beatmap_sound =
                 maybe_read_boolean(settings.ignore_beatmap_sound, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let ignore_beatmap_skin =
                 maybe_read_boolean(settings.ignore_beatmap_skin, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let disable_storyboard = maybe_read_boolean(settings.disable_storyboard, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let disable_video = maybe_read_boolean(settings.disable_video, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let visual_override = maybe_read_boolean(settings.visual_override, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let unknown_short = ModernWithEntrySize::maybe_read_unknown_short(*s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let offset_from_song_start_in_editor_ms =
                 maybe_read_int(settings.offset_from_song_start_in_editor_ms, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             let mania_scroll_speed = maybe_read_byte(settings.mania_scroll_speed, s, bytes, i)?;
-            continue_if!(*s);
+            continue_if!(skip);
             beatmaps.push((
                 num,
                 PartialBeatmap {

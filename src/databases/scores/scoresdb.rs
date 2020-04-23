@@ -4,18 +4,20 @@ use crate::databases::{
 };
 use crate::deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
+use crossbeam_utils::thread::{self, ScopedJoinHandle};
+use std::slice;
 use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
+use std::thread::JoinHandle;
 
 #[derive(Debug, Clone)]
-pub struct ScoresDb {
+pub struct ScoresDb<'a> {
     pub version: i32,
     pub number_of_beatmaps: i32,
-    pub beatmaps: Vec<ScoreDbBeatmap>,
+    pub beatmaps: Vec<ScoreDbBeatmap<'a>>,
 }
 
-impl Load for ScoresDb {
-    fn read_single_thread(bytes: Vec<u8>) -> ParseFileResult<Self> {
+impl<'a> Load for ScoresDb<'a> {
+    fn read_single_thread(bytes: &'a [u8]) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
         let version = read_int(&bytes, i)?;
@@ -31,7 +33,7 @@ impl Load for ScoresDb {
         })
     }
 
-    fn read_multi_thread(jobs: usize, bytes: Vec<u8>) -> ParseFileResult<Self> {
+    fn read_multi_thread(jobs: usize, bytes: &[u8]) -> ParseFileResult<Self> {
         let (version, number_of_beatmaps) = {
             let mut index = 0;
             (read_int(&bytes, &mut index)?, read_int(&bytes, &mut index)?)
@@ -44,7 +46,8 @@ impl Load for ScoresDb {
                     number_of_beatmaps as usize,
                     counter.clone(),
                     start_read.clone(),
-                    &bytes,
+                    bytes.as_ptr(),
+                    bytes.len(),
                 )
             })
             .collect::<Vec<_>>();
@@ -69,110 +72,110 @@ impl Load for ScoresDb {
     }
 }
 
-fn spawn_scoredbbeatmap_loader(
+fn spawn_scoredbbeatmap_loader<'a>(
     number_of_scoredbbeatmaps: usize,
     counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>,
-    bytes_pointer: *const Vec<u8>,
-) -> JoinHandle<ParseFileResult<Vec<(usize, ScoreDbBeatmap)>>> {
-    let tmp = bytes_pointer as usize;
-    thread::spawn(move || {
-        let bytes = unsafe { &*(tmp as *const Vec<u8>) };
-        let mut score_db_beatmaps = Vec::new();
-        loop {
-            let (md5_beatmap_hash, number_of_scores, mut start_read, number) = {
-                let mut ctr = counter.lock().unwrap();
-                let number = if *ctr >= number_of_scoredbbeatmaps {
-                    return Ok(score_db_beatmaps);
-                } else {
-                    *ctr += 1;
-                    *ctr - 1
-                };
-                let mut s = start_read.lock().unwrap();
-                let md5_beatmap_hash = read_md5_hash(bytes, &mut *s)?;
-                let number_of_scores = read_int(bytes, &mut *s)?;
-                let start_from = *s;
-                for _ in 0..number_of_scores {
-                    // Skips:
-                    // 1 byte for gameplay_mode
-                    // 4 bytes for score_version
-                    // 34 bytes for MD5 beatmap hash/1 byte if indicator is 0
-                    *s += 39;
-                    // Assuming 32 characters max length for username, +2 for indicator and ULEB128
-                    let indicator = *bytes.get(*s).ok_or_else(|| {
-                        DbFileParseError::new(
-                            PrimitiveError,
-                            "Failed to read \
-                             indicator for player name.",
-                        )
-                    })?;
-                    let player_name_len = if indicator == 0x0b {
-                        *bytes.get(*s + 1).ok_or_else(|| {
+    bytes: &[u8],
+) -> Result<ScopedJoinHandle<'a, ParseFileResult<Vec<(usize, ScoreDbBeatmap<'a>)>>>, &str> {
+    thread::scope(|s| {
+        s.spawn(move |_| {
+            let mut score_db_beatmaps = Vec::new();
+            loop {
+                let (md5_beatmap_hash, number_of_scores, mut start_read, number) = {
+                    let mut ctr = counter.lock().unwrap();
+                    let number = if *ctr >= number_of_scoredbbeatmaps {
+                        return Ok(score_db_beatmaps);
+                    } else {
+                        *ctr += 1;
+                        *ctr - 1
+                    };
+                    let mut s = start_read.lock().unwrap();
+                    let md5_beatmap_hash = read_md5_hash(bytes, &mut *s)?;
+                    let number_of_scores = read_int(bytes, &mut *s)?;
+                    let start_from = *s;
+                    for _ in 0..number_of_scores {
+                        // Skips:
+                        // 1 byte for gameplay_mode
+                        // 4 bytes for score_version
+                        // 34 bytes for MD5 beatmap hash/1 byte if indicator is 0
+                        *s += 39;
+                        // Assuming 32 characters max length for username, +2 for indicator and ULEB128
+                        let indicator = *bytes.get(*s).ok_or_else(|| {
                             DbFileParseError::new(
                                 PrimitiveError,
-                                "Failed to read player name length.",
+                                "Failed to read \
+                             indicator for player name.",
                             )
-                        })?
-                    } else if indicator == 0 {
-                        0
-                    } else {
-                        return Err(DbFileParseError::new(
-                            PrimitiveError,
-                            "Read invalid indicator for score \
+                        })?;
+                        let player_name_len = if indicator == 0x0b {
+                            *bytes.get(*s + 1).ok_or_else(|| {
+                                DbFileParseError::new(
+                                    PrimitiveError,
+                                    "Failed to read player name length.",
+                                )
+                            })?
+                        } else if indicator == 0 {
+                            0
+                        } else {
+                            return Err(DbFileParseError::new(
+                                PrimitiveError,
+                                "Read invalid indicator for score \
                              player name.",
-                        ));
-                    };
-                    if player_name_len & 0b10000000 == 0b10000000 {
-                        return Err(DbFileParseError::new(
-                            PrimitiveError,
-                            "Read invalid player name \
+                            ));
+                        };
+                        if player_name_len & 0b10000000 == 0b10000000 {
+                            return Err(DbFileParseError::new(
+                                PrimitiveError,
+                                "Read invalid player name \
                              length.",
-                        ));
+                            ));
+                        }
+                        if indicator == 0 {
+                            *s += 1;
+                        } else {
+                            *s += 2;
+                        }
+                        *s += player_name_len as usize + 78;
+                        // Skips:
+                        // 34 bytes for replay MD5 hash
+                        // 2 bytes for number of 300s
+                        // 2 bytes for number of 100s
+                        // 2 bytes for number of 50s
+                        // 2 bytes for number of gekis
+                        // 2 bytes for number of katus
+                        // 2 bytes for number of misses
+                        // 4 bytes for score
+                        // 2 bytes for max combo
+                        // 1 byte for perfect combo
+                        // 4 bytes for mods used
+                        // 1 byte for empty string indicator
+                        // 8 bytes for replay timestamp
+                        // 4 bytes for 0xFFFFFFFF
+                        // 8 bytes for score ID
+                        // Total of 78
                     }
-                    if indicator == 0 {
-                        *s += 1;
-                    } else {
-                        *s += 2;
+                    (md5_beatmap_hash, number_of_scores, start_from, number)
+                };
+                let scores = if number_of_scores == 0 {
+                    None
+                } else {
+                    let mut scores = Vec::with_capacity(number_of_scores as usize);
+                    let i = &mut start_read;
+                    for _ in 0..number_of_scores {
+                        scores.push(Score::read_from_bytes(bytes, i)?);
                     }
-                    *s += player_name_len as usize + 78;
-                    // Skips:
-                    // 34 bytes for replay MD5 hash
-                    // 2 bytes for number of 300s
-                    // 2 bytes for number of 100s
-                    // 2 bytes for number of 50s
-                    // 2 bytes for number of gekis
-                    // 2 bytes for number of katus
-                    // 2 bytes for number of misses
-                    // 4 bytes for score
-                    // 2 bytes for max combo
-                    // 1 byte for perfect combo
-                    // 4 bytes for mods used
-                    // 1 byte for empty string indicator
-                    // 8 bytes for replay timestamp
-                    // 4 bytes for 0xFFFFFFFF
-                    // 8 bytes for score ID
-                    // Total of 78
-                }
-                (md5_beatmap_hash, number_of_scores, start_from, number)
-            };
-            let scores = if number_of_scores == 0 {
-                None
-            } else {
-                let mut scores = Vec::with_capacity(number_of_scores as usize);
-                let i = &mut start_read;
-                for _ in 0..number_of_scores {
-                    scores.push(Score::read_from_bytes(bytes, i)?);
-                }
-                Some(scores)
-            };
-            score_db_beatmaps.push((
-                number,
-                ScoreDbBeatmap {
-                    md5_beatmap_hash,
-                    number_of_scores,
-                    scores,
-                },
-            ));
-        }
-    })
+                    Some(scores)
+                };
+                score_db_beatmaps.push((
+                    number,
+                    ScoreDbBeatmap {
+                        md5_beatmap_hash,
+                        number_of_scores,
+                        scores,
+                    },
+                ));
+            }
+        })
+    }).map_err(|_| "scoredbbeatmap parsing thread panicked.")
 }

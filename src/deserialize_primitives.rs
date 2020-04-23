@@ -1,4 +1,5 @@
 use std::mem::size_of;
+use std::str;
 use std::time::Duration;
 
 use chrono::{naive::NaiveDate, Duration as ChronoDuration};
@@ -239,6 +240,46 @@ pub fn read_string_utf8(
 }
 
 #[inline]
+pub fn read_str_utf8<'a>(
+    bytes: &'a [u8],
+    i: &mut usize,
+    field: &str,
+) -> ParseFileResult<Option<&'a str>> {
+    if *i < bytes.len() {
+        let indicator = bytes[*i];
+        *i += 1;
+        if indicator == 0x0b {
+            let length = read_uleb128(bytes, i)?;
+            if *i + length <= bytes.len() {
+                let tmp = Ok(Some(str::from_utf8(&bytes[*i..*i + length]).map_err(
+                    |e| {
+                        let err_msg = format!("Error reading string for {} ({})", field, e);
+                        DbFileParseError::new(PrimitiveError, err_msg.as_str())
+                    },
+                )?));
+                *i += length;
+                tmp
+            } else {
+                Err(DbFileParseError::new(
+                    PrimitiveError,
+                    "String length goes past end of file.",
+                ))
+            }
+        } else if indicator == 0 {
+            Ok(None)
+        } else {
+            let err_msg = format!(
+                "Read invalid string indicator({}, index: {}).",
+                indicator, i
+            );
+            Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
+        }
+    } else {
+        Err(primitive!(STRING_ERR))
+    }
+}
+
+#[inline]
 pub fn read_string_utf8_with_len(
     bytes: &[u8],
     i: &mut usize,
@@ -258,6 +299,44 @@ pub fn read_string_utf8_with_len(
                             DbFileParseError::new(PrimitiveError, err_msg.as_str())
                         })?,
                     ),
+                ));
+                *i += length;
+                tmp
+            } else {
+                Err(DbFileParseError::new(
+                    PrimitiveError,
+                    "String length goes past end of file.",
+                ))
+            }
+        } else if indicator == 0 {
+            Ok((1, None))
+        } else {
+            let err_msg = format!("Read invalid string indicator ({}).", indicator);
+            Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
+        }
+    } else {
+        Err(primitive!(STRING_ERR))
+    }
+}
+
+#[inline]
+pub fn read_str_utf8_with_len<'a>(
+    bytes: &'a [u8],
+    i: &mut usize,
+    field: &str,
+) -> ParseFileResult<(usize, Option<&'a str>)> {
+    if *i < bytes.len() {
+        let indicator = bytes[*i];
+        *i += 1;
+        if indicator == 0x0b {
+            let (length, length_bytes) = read_uleb128_with_len(bytes, i)?;
+            if *i + length <= bytes.len() {
+                let tmp = Ok((
+                    1 + length_bytes + length,
+                    Some(str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
+                        let err_msg = format!("Error reading string for {} ({})", field, e);
+                        DbFileParseError::new(PrimitiveError, err_msg.as_str())
+                    })?),
                 ));
                 *i += length;
                 tmp
@@ -299,7 +378,7 @@ pub fn read_datetime(bytes: &[u8], i: &mut usize) -> ParseFileResult<NaiveDate> 
 }
 
 #[inline]
-pub fn read_md5_hash(bytes: &[u8], i: &mut usize) -> ParseFileResult<String> {
+pub fn read_md5_hash<'a>(bytes: &'a [u8], i: &mut usize) -> ParseFileResult<&'a str> {
     let indicator = read_byte(bytes, i)?;
     if indicator == 0 {
         Err(DbFileParseError::new(
@@ -310,9 +389,10 @@ pub fn read_md5_hash(bytes: &[u8], i: &mut usize) -> ParseFileResult<String> {
         if *i + 32 < bytes.len() {
             // first byte will be 32 every time
             let hash_bytes = (bytes[*i + 1..*i + 33]).to_vec();
+            let hash = Ok(str::from_utf8(&bytes[*i + 1..*i + 33])
+                .map_err(|_| DbFileParseError::new(PrimitiveError, "Error reading MD5 hash."))?);
             *i += 33;
-            Ok(String::from_utf8(hash_bytes)
-                .map_err(|_| DbFileParseError::new(PrimitiveError, "Error reading MD5 hash."))?)
+            hash
         } else {
             Err(DbFileParseError::new(
                 PrimitiveError,
@@ -326,7 +406,7 @@ pub fn read_md5_hash(bytes: &[u8], i: &mut usize) -> ParseFileResult<String> {
 }
 
 #[inline]
-pub fn read_player_name(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<String>> {
+pub fn read_player_name<'a>(bytes: &'a [u8], i: &mut usize) -> ParseFileResult<Option<&'a str>> {
     let indicator = read_byte(bytes, i)?;
     if indicator == 0 {
         Ok(None)
@@ -346,15 +426,9 @@ pub fn read_player_name(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<S
             ));
         } else if *i + player_name_len as usize <= bytes.len() {
             let tmp = Ok(Some(
-                String::from_utf8(bytes[*i..*i + player_name_len as usize].to_vec()).map_err(
-                    |_| {
-                        DbFileParseError::new(
-                            PrimitiveError,
-                            "Bytes made invalid UTF-8 \
-                             string!",
-                        )
-                    },
-                )?,
+                str::from_utf8(&bytes[*i..*i + player_name_len as usize]).map_err(|_| {
+                    DbFileParseError::new(PrimitiveError, "Bytes made invalid UTF-8 string!")
+                })?,
             ));
             *i += player_name_len as usize;
             tmp
@@ -372,10 +446,10 @@ pub fn read_player_name(bytes: &[u8], i: &mut usize) -> ParseFileResult<Option<S
 }
 
 #[inline]
-pub fn read_player_name_with_len(
-    bytes: &[u8],
+pub fn read_player_name_with_len<'a>(
+    bytes: &'a [u8],
     i: &mut usize,
-) -> ParseFileResult<(usize, Option<String>)> {
+) -> ParseFileResult<(usize, Option<&'a str>)> {
     let indicator = read_byte(bytes, i)?;
     if indicator == 0 {
         Ok((1, None))
@@ -397,15 +471,9 @@ pub fn read_player_name_with_len(
             let tmp = Ok((
                 2 + player_name_len as usize,
                 Some(
-                    String::from_utf8(bytes[*i..*i + player_name_len as usize].to_vec()).map_err(
-                        |_| {
-                            DbFileParseError::new(
-                                PrimitiveError,
-                                "Bytes made invalid \
-                                 UTF-8 string!",
-                            )
-                        },
-                    )?,
+                    str::from_utf8(&bytes[*i..*i + player_name_len as usize]).map_err(|_| {
+                        DbFileParseError::new(PrimitiveError, "Bytes made invalid UTF-8 string!")
+                    })?,
                 ),
             ));
             *i += 2 + player_name_len as usize;

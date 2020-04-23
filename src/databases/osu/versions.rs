@@ -139,13 +139,13 @@ impl ReadVersionSpecificData for ModernWithEntrySize {
 /// or may not be subject to load settings.
 pub trait ReadPartialVersionSpecificData {
     fn maybe_read_entry_size(
-        setting: LoadSetting<Relational<i32>>,
+        setting: Relational<i32>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<i32>>;
     fn maybe_read_arcshpod(
-        setting: LoadSetting<Relational<ByteSingle>>,
+        setting: Relational<ByteSingle>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
@@ -165,7 +165,7 @@ pub trait ReadPartialVersionSpecificData {
 impl ReadPartialVersionSpecificData for Legacy {
     #[inline]
     fn maybe_read_entry_size(
-        setting: LoadSetting<Relational<i32>>,
+        setting: Relational<i32>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
@@ -175,12 +175,12 @@ impl ReadPartialVersionSpecificData for Legacy {
 
     #[inline]
     fn maybe_read_arcshpod(
-        setting: LoadSetting<Relational<ByteSingle>>,
+        setting: Relational<ByteSingle>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>> {
-        if let Some(byte) = maybe_read_byte(setting.into(), skip, bytes, i)? {
+        if let Some(byte) = maybe_read_byte_bs(setting, skip, bytes, i)? {
             Ok(Some(Byte(byte)))
         } else {
             Ok(None)
@@ -220,7 +220,7 @@ impl ReadPartialVersionSpecificData for Legacy {
 impl ReadPartialVersionSpecificData for Modern {
     #[inline]
     fn maybe_read_entry_size(
-        setting: LoadSetting<Relational<i32>>,
+        setting: Relational<i32>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
@@ -230,12 +230,12 @@ impl ReadPartialVersionSpecificData for Modern {
 
     #[inline]
     fn maybe_read_arcshpod(
-        setting: LoadSetting<Relational<ByteSingle>>,
+        setting: Relational<ByteSingle>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>> {
-        if let Some(single) = maybe_read_single(setting.into(), skip, bytes, i)? {
+        if let Some(single) = maybe_read_single_bs(setting, skip, bytes, i)? {
             Ok(Some(Single(single)))
         } else {
             Ok(None)
@@ -274,7 +274,7 @@ impl ReadPartialVersionSpecificData for Modern {
 impl ReadPartialVersionSpecificData for ModernWithEntrySize {
     #[inline]
     fn maybe_read_entry_size(
-        setting: LoadSetting<Relational<i32>>,
+        setting: Relational<i32>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
@@ -284,12 +284,12 @@ impl ReadPartialVersionSpecificData for ModernWithEntrySize {
 
     #[inline]
     fn maybe_read_arcshpod(
-        setting: LoadSetting<Relational<ByteSingle>>,
+        setting: Relational<ByteSingle>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>> {
-        if let Some(single) = maybe_read_single(setting.into(), skip, bytes, i)? {
+        if let Some(single) = maybe_read_single_bs(setting, skip, bytes, i)? {
             Ok(Some(Single(single)))
         } else {
             Ok(None)

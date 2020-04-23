@@ -31,6 +31,10 @@ impl Default for CollectionMask {
 }
 
 impl CollectionMask {
+    fn ignore_all(&self) -> bool {
+        !self.collection_name && !self.number_of_beatmaps && !self.md5_beatmap_hashes
+    }
+
     fn is_complete(&self) -> bool {
         self.collection_name && self.number_of_beatmaps && self.md5_beatmap_hashes
     }
@@ -125,6 +129,10 @@ impl CollectionDbMask {
 }
 
 impl Mask for CollectionDbMask {
+    fn ignore_all(&self) -> bool {
+        !self.version && !self.number_of_collections && self.collections_mask.ignore_all()
+    }
+
     fn is_complete(&self) -> bool {
         self.version && self.number_of_collections && self.collections_mask.is_complete()
     }

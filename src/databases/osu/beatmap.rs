@@ -6,17 +6,17 @@ use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
 /// Beatmap struct according to documentation linked in README.
 #[derive(Clone, Debug)]
-pub struct Beatmap {
+pub struct Beatmap<'a> {
     pub entry_size: Option<i32>,
-    pub artist_name: Option<String>,
-    pub artist_name_unicode: Option<String>,
-    pub song_title: Option<String>,
-    pub song_title_unicode: Option<String>,
-    pub creator_name: Option<String>,
-    pub difficulty: Option<String>,
-    pub audio_file_name: Option<String>,
-    pub md5_beatmap_hash: String,
-    pub dotosu_file_name: Option<String>,
+    pub artist_name: Option<&'a str>,
+    pub artist_name_unicode: Option<&'a str>,
+    pub song_title: Option<&'a str>,
+    pub song_title_unicode: Option<&'a str>,
+    pub creator_name: Option<&'a str>,
+    pub difficulty: Option<&'a str>,
+    pub audio_file_name: Option<&'a str>,
+    pub md5_beatmap_hash: &'a str,
+    pub dotosu_file_name: Option<&'a str>,
     pub ranked_status: RankedStatus,
     pub number_of_hitcircles: i16,
     pub number_of_sliders: i16,
@@ -50,14 +50,14 @@ pub struct Beatmap {
     pub local_offset: i16,
     pub stack_leniency: f32,
     pub gameplay_mode: GameplayMode,
-    pub song_source: Option<String>,
-    pub song_tags: Option<String>,
+    pub song_source: Option<&'a str>,
+    pub song_tags: Option<&'a str>,
     pub online_offset: i16,
-    pub font_used_for_song_title: Option<String>,
+    pub font_used_for_song_title: Option<&'a str>,
     pub unplayed: bool,
     pub last_played: NaiveDate,
     pub is_osz2: bool,
-    pub beatmap_folder_name: Option<String>,
+    pub beatmap_folder_name: Option<&'a str>,
     pub last_checked_against_repo: NaiveDate,
     pub ignore_beatmap_sound: bool,
     pub ignore_beatmap_skin: bool,
@@ -75,18 +75,18 @@ impl Beatmap {
         i: &mut usize,
     ) -> ParseFileResult<Self> {
         let entry_size = T::read_entry_size(bytes, i)?;
-        let artist_name = read_string_utf8(bytes, i, "non-Unicode artist name")?;
-        let artist_name_unicode = read_string_utf8(bytes, i, "Unicode artist name")?;
-        let song_title = read_string_utf8(bytes, i, "non-Unicode song title")?;
-        let song_title_unicode = read_string_utf8(bytes, i, "Unicode song title")?;
+        let artist_name = read_str_utf8(bytes, i, "non-Unicode artist name")?;
+        let artist_name_unicode = read_str_utf8(bytes, i, "Unicode artist name")?;
+        let song_title = read_str_utf8(bytes, i, "non-Unicode song title")?;
+        let song_title_unicode = read_str_utf8(bytes, i, "Unicode song title")?;
         let creator_name = read_player_name(bytes, i).map_err(|_| {
             let msg = format!("Error reading creator name.");
             DbFileParseError::new(PrimitiveError, msg.as_str())
         })?;
-        let difficulty = read_string_utf8(bytes, i, "difficulty")?;
-        let audio_file_name = read_string_utf8(bytes, i, "audio file name")?;
+        let difficulty = read_str_utf8(bytes, i, "difficulty")?;
+        let audio_file_name = read_str_utf8(bytes, i, "audio file name")?;
         let md5_beatmap_hash = read_md5_hash(bytes, i)?;
-        let dotosu_file_name = read_string_utf8(bytes, i, "corresponding .osu file name")?;
+        let dotosu_file_name = read_str_utf8(bytes, i, "corresponding .osu file name")?;
         let ranked_status = RankedStatus::read_from_bytes(bytes, i)?;
         let number_of_hitcircles = read_short(bytes, i)?;
         let number_of_sliders = read_short(bytes, i)?;
@@ -119,14 +119,14 @@ impl Beatmap {
         let local_offset = read_short(bytes, i)?;
         let stack_leniency = read_single(bytes, i)?;
         let gameplay_mode = GameplayMode::read_from_bytes(bytes, i)?;
-        let song_source = read_string_utf8(bytes, i, "song source")?;
-        let song_tags = read_string_utf8(bytes, i, "song tags")?;
+        let song_source = read_str_utf8(bytes, i, "song source")?;
+        let song_tags = read_str_utf8(bytes, i, "song tags")?;
         let online_offset = read_short(bytes, i)?;
-        let font_used_for_song_title = read_string_utf8(bytes, i, "font used for song title")?;
+        let font_used_for_song_title = read_str_utf8(bytes, i, "font used for song title")?;
         let unplayed = read_boolean(bytes, i)?;
         let last_played = read_datetime(bytes, i)?;
         let is_osz2 = read_boolean(bytes, i)?;
-        let beatmap_folder_name = read_string_utf8(bytes, i, "folder name")?;
+        let beatmap_folder_name = read_str_utf8(bytes, i, "folder name")?;
         let last_checked_against_repo = read_datetime(bytes, i)?;
         let ignore_beatmap_sound = read_boolean(bytes, i)?;
         let ignore_beatmap_skin = read_boolean(bytes, i)?;

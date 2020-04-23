@@ -1,7 +1,7 @@
-use std::cmp::PartialEq;
+use std::cmp::{Ordering, PartialEq, PartialOrd};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io::{Error as IoError, ErrorKind::InvalidInput, Result as IoResult};
-use std::ops::{Range, RangeInclusive};
+use std::ops::Range;
 use std::str::FromStr;
 
 use crate::deserialize_primitives::*;
@@ -28,7 +28,6 @@ pub fn read_int_double_pair(bytes: &[u8], i: &mut usize) -> ParseFileResult<(i32
     Ok((int, double))
 }
 
-
 /// Conditionally read an int-double pair from a slice. The integer represents the mods used and the
 /// double represents the star rating.
 pub fn maybe_read_int_double_pair(
@@ -48,7 +47,7 @@ pub fn maybe_read_int_double_pair(
 }
 
 /// `TimingPoint`s indicate the BPM of a beatmap at and after a certain offset from the start.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct TimingPoint {
     bpm: f64,
     offset: f64,
@@ -212,7 +211,7 @@ impl RankedStatus {
 
     #[inline]
     pub fn maybe_read_from_bytes(
-        setting: LoadSetting<EqualCopy<RankedStatus>>,
+        setting: EqualCopy<RankedStatus>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
@@ -238,15 +237,11 @@ impl RankedStatus {
                         Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
                     }
                 }?;
-                if let LoadSetting::Filter(cmp) = setting {
-                    if cmp.compare(ranked_status) {
-                        Ok(Some(ranked_status))
-                    } else {
-                        *skip = true;
-                        Ok(None)
-                    }
-                } else {
+                if setting.compare(ranked_status) {
                     Ok(Some(ranked_status))
+                } else {
+                    *skip = true;
+                    Ok(None)
                 }
             }
         } else {
@@ -283,11 +278,22 @@ impl Display for ByteSingle {
 
 impl PartialEq for ByteSingle {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
+        match (*self, *other) {
             (Byte(b0), Byte(b1)) => b0 == b1,
             (Byte(b), Single(s)) => s.floor() as u64 == b as u64 || s.ceil() as u64 == b as u64,
             (Single(s), Byte(b)) => s.floor() as u64 == b as u64 || s.ceil() as u64 == b as u64,
             (Single(s0), Single(s1)) => s0 == s1,
+        }
+    }
+}
+
+impl PartialOrd for ByteSingle {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (&Byte(b0), Byte(b1)) => Some(b0.cmp(b1)),
+            (&Byte(b), Single(s)) => (b as f32).partial_cmp(s),
+            (Single(s), &Byte(b)) => (b as f32).partial_cmp(s),
+            (&Single(s0), Single(s1)) => s0.partial_cmp(s1),
         }
     }
 }
@@ -330,8 +336,8 @@ impl ByteSingle {
         }
     }
 
-    fn is_in_range_inclusive(&self, range: RangeInclusive<ByteSingle>) -> bool {
-        let RangeInclusive { start, end } = range;
+    fn is_in_range_inclusive(&self, range: Range<ByteSingle>) -> bool {
+        let Range { start, end } = range;
         match (*self, start, end) {
             (Byte(n), Byte(s), Byte(e)) => n >= s && n <= e,
             (Byte(n), Byte(s), Single(e)) => n >= s && (n as f32) <= e,
@@ -411,12 +417,12 @@ impl GameplayMode {
     /// Conditionally parse a `GameplayMode` from a slice of bytes.
     #[inline]
     pub fn maybe_read_from_bytes(
-        setting: LoadSetting<EqualCopy<GameplayMode>>,
+        setting: EqualCopy<GameplayMode>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<Self>> {
-        if i < bytes.len() {
+        if *i < bytes.len() {
             if setting.is_ignore() || *skip {
                 *i += 1;
                 Ok(None)

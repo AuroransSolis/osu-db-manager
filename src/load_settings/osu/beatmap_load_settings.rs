@@ -9,66 +9,66 @@ use crate::masks::osu_mask::BeatmapMask;
 
 #[derive(Clone)]
 pub struct BeatmapLoadSettings {
-    pub entry_size: LoadSetting<Relational<i32>>,
-    pub artist_name: LoadSetting<EqualClone<String>>,
-    pub artist_name_unicode: LoadSetting<EqualClone<String>>,
-    pub song_title: LoadSetting<EqualClone<String>>,
-    pub song_title_unicode: LoadSetting<EqualClone<String>>,
-    pub creator_name: LoadSetting<EqualClone<String>>,
-    pub difficulty: LoadSetting<EqualClone<String>>,
-    pub audio_file_name: LoadSetting<EqualClone<String>>,
-    pub md5_beatmap_hash: LoadSetting<EqualClone<String>>,
-    pub dotosu_file_name: LoadSetting<EqualClone<String>>,
-    pub ranked_status: LoadSetting<EqualCopy<RankedStatus>>,
-    pub number_of_hitcircles: LoadSetting<Relational<i16>>,
-    pub number_of_sliders: LoadSetting<Relational<i16>>,
-    pub number_of_spinners: LoadSetting<Relational<i16>>,
-    pub last_modification_time: LoadSetting<Relational<NaiveDate>>,
-    pub approach_rate: LoadSetting<Relational<ByteSingle>>,
-    pub circle_size: LoadSetting<Relational<ByteSingle>>,
-    pub hp_drain: LoadSetting<Relational<ByteSingle>>,
-    pub overall_difficulty: LoadSetting<Relational<ByteSingle>>,
-    pub slider_velocity: LoadSetting<Relational<f64>>,
-    pub num_mod_combo_star_ratings_standard: LoadSetting<Relational<i32>>,
-    pub mod_combo_star_ratings_standard: LoadSetting<()>,
-    pub num_mod_combo_star_ratings_taiko: LoadSetting<Relational<i32>>,
-    pub mod_combo_star_ratings_taiko: LoadSetting<()>,
-    pub num_mod_combo_star_ratings_ctb: LoadSetting<Relational<i32>>,
-    pub mod_combo_star_ratings_ctb: LoadSetting<()>,
-    pub num_mod_combo_star_ratings_mania: LoadSetting<Relational<i32>>,
-    pub mod_combo_star_ratings_mania: LoadSetting<()>,
-    pub drain_time: LoadSetting<Relational<i32>>,
-    pub total_time: LoadSetting<Relational<i32>>,
-    pub preview_offset_from_start_ms: LoadSetting<Relational<i32>>,
-    pub num_timing_points: LoadSetting<Relational<i32>>,
-    pub timing_points: LoadSetting<()>,
-    pub beatmap_id: LoadSetting<Relational<i32>>,
-    pub beatmap_set_id: LoadSetting<Relational<i32>>,
-    pub thread_id: LoadSetting<Relational<i32>>,
-    pub standard_grade: LoadSetting<Relational<u8>>,
-    pub taiko_grade: LoadSetting<Relational<u8>>,
-    pub ctb_grade: LoadSetting<Relational<u8>>,
-    pub mania_grade: LoadSetting<Relational<u8>>,
-    pub local_offset: LoadSetting<Relational<i16>>,
-    pub stack_leniency: LoadSetting<Relational<f32>>,
-    pub gameplay_mode: LoadSetting<EqualCopy<GameplayMode>>,
-    pub song_source: LoadSetting<EqualClone<String>>,
-    pub song_tags: LoadSetting<EqualClone<String>>,
-    pub online_offset: LoadSetting<Relational<i16>>,
-    pub font_used_for_song_title: LoadSetting<EqualClone<String>>,
-    pub unplayed: LoadSetting<EqualCopy<bool>>,
-    pub last_played: LoadSetting<Relational<NaiveDate>>,
-    pub is_osz2: LoadSetting<EqualCopy<bool>>,
-    pub beatmap_folder_name: LoadSetting<EqualClone<String>>,
-    pub last_checked_against_repo: LoadSetting<Relational<NaiveDate>>,
-    pub ignore_beatmap_sound: LoadSetting<EqualCopy<bool>>,
-    pub ignore_beatmap_skin: LoadSetting<EqualCopy<bool>>,
-    pub disable_storyboard: LoadSetting<EqualCopy<bool>>,
-    pub disable_video: LoadSetting<EqualCopy<bool>>,
-    pub visual_override: LoadSetting<EqualCopy<bool>>,
-    pub unknown_short: LoadSetting<Option<i16>>,
-    pub offset_from_song_start_in_editor_ms: LoadSetting<Relational<i32>>,
-    pub mania_scroll_speed: LoadSetting<Relational<u8>>,
+    pub entry_size: Relational<i32>,
+    pub artist_name: EqualClone<String>,
+    pub artist_name_unicode: EqualClone<String>,
+    pub song_title: EqualClone<String>,
+    pub song_title_unicode: EqualClone<String>,
+    pub creator_name: EqualClone<String>,
+    pub difficulty: EqualClone<String>,
+    pub audio_file_name: EqualClone<String>,
+    pub md5_beatmap_hash: EqualClone<String>,
+    pub dotosu_file_name: EqualClone<String>,
+    pub ranked_status: EqualCopy<RankedStatus>,
+    pub number_of_hitcircles: Relational<i16>,
+    pub number_of_sliders: Relational<i16>,
+    pub number_of_spinners: Relational<i16>,
+    pub last_modification_time: Relational<NaiveDate>,
+    pub approach_rate: Relational<ByteSingle>,
+    pub circle_size: Relational<ByteSingle>,
+    pub hp_drain: Relational<ByteSingle>,
+    pub overall_difficulty: Relational<ByteSingle>,
+    pub slider_velocity: Relational<f64>,
+    pub num_mod_combo_star_ratings_standard: Relational<i32>,
+    pub mod_combo_star_ratings_standard: bool,
+    pub num_mod_combo_star_ratings_taiko: Relational<i32>,
+    pub mod_combo_star_ratings_taiko: bool,
+    pub num_mod_combo_star_ratings_ctb: Relational<i32>,
+    pub mod_combo_star_ratings_ctb: bool,
+    pub num_mod_combo_star_ratings_mania: Relational<i32>,
+    pub mod_combo_star_ratings_mania: bool,
+    pub drain_time: Relational<i32>,
+    pub total_time: Relational<i32>,
+    pub preview_offset_from_start_ms: Relational<i32>,
+    pub num_timing_points: Relational<i32>,
+    pub timing_points: bool,
+    pub beatmap_id: Relational<i32>,
+    pub beatmap_set_id: Relational<i32>,
+    pub thread_id: Relational<i32>,
+    pub standard_grade: Relational<u8>,
+    pub taiko_grade: Relational<u8>,
+    pub ctb_grade: Relational<u8>,
+    pub mania_grade: Relational<u8>,
+    pub local_offset: Relational<i16>,
+    pub stack_leniency: Relational<f32>,
+    pub gameplay_mode: EqualCopy<GameplayMode>,
+    pub song_source: EqualClone<String>,
+    pub song_tags: EqualClone<String>,
+    pub online_offset: Relational<i16>,
+    pub font_used_for_song_title: EqualClone<String>,
+    pub unplayed: EqualCopy<bool>,
+    pub last_played: Relational<NaiveDate>,
+    pub is_osz2: EqualCopy<bool>,
+    pub beatmap_folder_name: EqualClone<String>,
+    pub last_checked_against_repo: Relational<NaiveDate>,
+    pub ignore_beatmap_sound: EqualCopy<bool>,
+    pub ignore_beatmap_skin: EqualCopy<bool>,
+    pub disable_storyboard: EqualCopy<bool>,
+    pub disable_video: EqualCopy<bool>,
+    pub visual_override: EqualCopy<bool>,
+    pub unknown_short: bool,
+    pub offset_from_song_start_in_editor_ms: Relational<i32>,
+    pub mania_scroll_speed: Relational<u8>,
 }
 
 impl Default for BeatmapLoadSettings {
@@ -161,18 +161,18 @@ impl BeatmapLoadSettings {
             && self.overall_difficulty.is_load()
             && self.slider_velocity.is_load()
             && self.num_mod_combo_star_ratings_standard.is_load()
-            && self.mod_combo_star_ratings_standard.is_load()
+            && self.mod_combo_star_ratings_standard
             && self.num_mod_combo_star_ratings_taiko.is_load()
-            && self.mod_combo_star_ratings_taiko.is_load()
+            && self.mod_combo_star_ratings_taiko
             && self.num_mod_combo_star_ratings_ctb.is_load()
-            && self.mod_combo_star_ratings_ctb.is_load()
+            && self.mod_combo_star_ratings_ctb
             && self.num_mod_combo_star_ratings_mania.is_load()
-            && self.mod_combo_star_ratings_mania.is_load()
+            && self.mod_combo_star_ratings_mania
             && self.drain_time.is_load()
             && self.total_time.is_load()
             && self.preview_offset_from_start_ms.is_load()
             && self.num_timing_points.is_load()
-            && self.timing_points.is_load()
+            && self.timing_points
             && self.beatmap_id.is_load()
             && self.beatmap_set_id.is_load()
             && self.thread_id.is_load()
@@ -197,6 +197,7 @@ impl BeatmapLoadSettings {
             && self.disable_storyboard.is_load()
             && self.disable_video.is_load()
             && self.visual_override.is_load()
+            && self.unknown_short
             && self.offset_from_song_start_in_editor_ms.is_load()
             && self.mania_scroll_speed.is_load()
     }
@@ -223,18 +224,18 @@ impl BeatmapLoadSettings {
             && self.overall_difficulty.is_ignore()
             && self.slider_velocity.is_ignore()
             && self.num_mod_combo_star_ratings_standard.is_ignore()
-            && self.mod_combo_star_ratings_standard.is_ignore()
+            && !self.mod_combo_star_ratings_standard
             && self.num_mod_combo_star_ratings_taiko.is_ignore()
-            && self.mod_combo_star_ratings_taiko.is_ignore()
+            && !self.mod_combo_star_ratings_taiko
             && self.num_mod_combo_star_ratings_ctb.is_ignore()
-            && self.mod_combo_star_ratings_ctb.is_ignore()
+            && !self.mod_combo_star_ratings_ctb
             && self.num_mod_combo_star_ratings_mania.is_ignore()
-            && self.mod_combo_star_ratings_mania.is_ignore()
+            && !self.mod_combo_star_ratings_mania
             && self.drain_time.is_ignore()
             && self.total_time.is_ignore()
             && self.preview_offset_from_start_ms.is_ignore()
             && self.num_timing_points.is_ignore()
-            && self.timing_points.is_ignore()
+            && !self.timing_points
             && self.beatmap_id.is_ignore()
             && self.beatmap_set_id.is_ignore()
             && self.thread_id.is_ignore()
@@ -259,6 +260,7 @@ impl BeatmapLoadSettings {
             && self.disable_storyboard.is_ignore()
             && self.disable_video.is_ignore()
             && self.visual_override.is_ignore()
+            && !self.unknown_short
             && self.offset_from_song_start_in_editor_ms.is_ignore()
             && self.mania_scroll_speed.is_ignore()
     }
@@ -285,18 +287,18 @@ impl BeatmapLoadSettings {
             || self.overall_difficulty.is_ignore()
             || self.slider_velocity.is_ignore()
             || self.num_mod_combo_star_ratings_standard.is_ignore()
-            || self.mod_combo_star_ratings_standard.is_ignore()
+            || !self.mod_combo_star_ratings_standard
             || self.num_mod_combo_star_ratings_taiko.is_ignore()
-            || self.mod_combo_star_ratings_taiko.is_ignore()
+            || !self.mod_combo_star_ratings_taiko
             || self.num_mod_combo_star_ratings_ctb.is_ignore()
-            || self.mod_combo_star_ratings_ctb.is_ignore()
+            || !self.mod_combo_star_ratings_ctb
             || self.num_mod_combo_star_ratings_mania.is_ignore()
-            || self.mod_combo_star_ratings_mania.is_ignore()
+            || !self.mod_combo_star_ratings_mania
             || self.drain_time.is_ignore()
             || self.total_time.is_ignore()
             || self.preview_offset_from_start_ms.is_ignore()
             || self.num_timing_points.is_ignore()
-            || self.timing_points.is_ignore()
+            || !self.timing_points
             || self.beatmap_id.is_ignore()
             || self.beatmap_set_id.is_ignore()
             || self.thread_id.is_ignore()
@@ -321,6 +323,7 @@ impl BeatmapLoadSettings {
             || self.disable_storyboard.is_ignore()
             || self.disable_video.is_ignore()
             || self.visual_override.is_ignore()
+            || !self.unknown_short
             || self.offset_from_song_start_in_editor_ms.is_ignore()
             || self.mania_scroll_speed.is_ignore()
     }
@@ -879,279 +882,157 @@ impl BeatmapLoadSettings {
                     .takes_value(false),
             )
             .get_matches_from(args.into_iter());
-        self.entry_size = EqualCopy::from_matches(&matches, "Entry size")?.into();
-        self.artist_name = EqualClone::from_matches(&matches, "Artist name").into();
-        self.artist_name_unicode = EqualClone::from_matches(&matches, "Artist name unicode").into();
-        self.song_title = EqualClone::from_matches(&matches, "Song title").into();
-        self.song_title_unicode = EqualClone::from_matches(&matches, "Song title unicode").into();
-        self.creator_name = EqualClone::from_matches(&matches, "Creator name").into();
-        self.difficulty = EqualClone::from_matches(&matches, "Difficulty").into();
-        self.audio_file_name = EqualClone::from_matches(&matches, "Audio file name").into();
-        self.md5_beatmap_hash = EqualClone::from_matches(&matches, "MD5 beatmap hash").into();
-        self.dotosu_file_name = EqualClone::from_matches(&matches, ".osu file name").into();
-        self.ranked_status = EqualCopy::from_matches(&matches, "Ranked status")?.into();
-        self.number_of_hitcircles =
-            Relational::from_matches(&matches, "Number of hitcircles")?.into();
-        self.number_of_sliders = Relational::from_matches(&matches, "Number of sliders")?.into();
-        self.number_of_spinners = Relational::from_matches(&matches, "Number of spinners")?.into();
+        self.entry_size = Relational::from_matches(&matches, "Entry size")?;
+        self.artist_name = EqualClone::from_matches(&matches, "Artist name")?;
+        self.artist_name_unicode = EqualClone::from_matches(&matches, "Artist name unicode")?;
+        self.song_title = EqualClone::from_matches(&matches, "Song title")?;
+        self.song_title_unicode = EqualClone::from_matches(&matches, "Song title unicode")?;
+        self.creator_name = EqualClone::from_matches(&matches, "Creator name")?;
+        self.difficulty = EqualClone::from_matches(&matches, "Difficulty")?;
+        self.audio_file_name = EqualClone::from_matches(&matches, "Audio file name")?;
+        self.md5_beatmap_hash = EqualClone::from_matches(&matches, "MD5 beatmap hash")?;
+        self.dotosu_file_name = EqualClone::from_matches(&matches, ".osu file name")?;
+        self.ranked_status = EqualCopy::from_matches(&matches, "Ranked status")?;
+        self.number_of_hitcircles = Relational::from_matches(&matches, "Number of hitcircles")?;
+        self.number_of_sliders = Relational::from_matches(&matches, "Number of sliders")?;
+        self.number_of_spinners = Relational::from_matches(&matches, "Number of spinners")?;
         self.last_modification_time =
-            Relational::date_from_matches(&matches, "Last modification time")?.into();
-        self.approach_rate = Relational::from_matches(&matches, "Approach rate")?.into();
+            Relational::date_from_matches(&matches, "Last modification time")?;
+        self.approach_rate = Relational::from_matches(&matches, "Approach rate")?;
         self.circle_size = Relational::from_matches(&matches, "Circle size")?;
         self.hp_drain = Relational::from_matches(&matches, "HP drain")?;
         self.overall_difficulty = Relational::from_matches(&matches, "Overall difficulty")?;
-        self.slider_velocity = Relational::from_matches(&matches, "Slider velocity")?.into();
+        self.slider_velocity = Relational::from_matches(&matches, "Slider velocity")?;
         self.num_mod_combo_star_ratings_standard = Relational::from_matches(
             &matches,
             "Number of precalculated mod combo star ratings (standard)",
-        )?
-        .into();
+        )?;
         self.num_mod_combo_star_ratings_taiko = Relational::from_matches(
             &matches,
             "Number of precalculated mod combo star ratings (taiko)",
-        )?
-        .into();
+        )?;
         self.num_mod_combo_star_ratings_ctb = Relational::from_matches(
             &matches,
             "Number of precalculated mod combo star ratings (CTB)",
-        )?
-        .into();
+        )?;
         self.num_mod_combo_star_ratings_mania = Relational::from_matches(
             &matches,
             "Number of precalculated mod combo star ratings (mania)",
-        )?
-        .into();
-        self.drain_time = Relational::from_matches(&matches, "Drain time")?.into();
-        self.total_time = Relational::from_matches(&matches, "Total time")?.into();
+        )?;
+        self.drain_time = Relational::from_matches(&matches, "Drain time")?;
+        self.total_time = Relational::from_matches(&matches, "Total time")?;
         self.preview_offset_from_start_ms =
-            Relational::from_matches(&matches, "Preview offset from start (ms)")?.into();
-        self.num_timing_points =
-            Relational::from_matches(&matches, "Number of timing points")?.into();
-        self.beatmap_id = Relational::from_matches(&matches, "Beatmap ID")?.into();
-        self.beatmap_set_id = Relational::from_matches(&matches, "Beatmap set ID")?.into();
-        self.thread_id = Relational::from_matches(&matches, "Thread ID")?.into();
-        self.standard_grade = Relational::from_matches(&matches, "Standard grade")?.into();
-        self.taiko_grade = Relational::from_matches(&matches, "Taiko grade")?.into();
-        self.ctb_grade = Relational::from_matches(&matches, "CTB grade")?.into();
-        self.mania_grade = Relational::from_matches(&matches, "Mania grade")?.into();
-        self.local_offset = Relational::from_matches(&matches, "Local offset")?.into();
-        self.stack_leniency = Relational::from_matches(&matches, "Stack leniency")?.into();
-        self.gameplay_mode = EqualCopy::from_matches(&matches, "Gameplay mode")?.into();
-        self.song_source = EqualClone::from_matches(&matches, "Song source")?.into();
-        self.song_tags = EqualClone::from_matches(&matches, "Song tags")?.into();
-        self.online_offset = Relational::from_matches(&matches, "Online offset")?.into();
+            Relational::from_matches(&matches, "Preview offset from start (ms)")?;
+        self.num_timing_points = Relational::from_matches(&matches, "Number of timing points")?;
+        self.beatmap_id = Relational::from_matches(&matches, "Beatmap ID")?;
+        self.beatmap_set_id = Relational::from_matches(&matches, "Beatmap set ID")?;
+        self.thread_id = Relational::from_matches(&matches, "Thread ID")?;
+        self.standard_grade = Relational::from_matches(&matches, "Standard grade")?;
+        self.taiko_grade = Relational::from_matches(&matches, "Taiko grade")?;
+        self.ctb_grade = Relational::from_matches(&matches, "CTB grade")?;
+        self.mania_grade = Relational::from_matches(&matches, "Mania grade")?;
+        self.local_offset = Relational::from_matches(&matches, "Local offset")?;
+        self.stack_leniency = Relational::from_matches(&matches, "Stack leniency")?;
+        self.gameplay_mode = EqualCopy::from_matches(&matches, "Gameplay mode")?;
+        self.song_source = EqualClone::from_matches(&matches, "Song source")?;
+        self.song_tags = EqualClone::from_matches(&matches, "Song tags")?;
+        self.online_offset = Relational::from_matches(&matches, "Online offset")?;
         self.font_used_for_song_title =
-            EqualClone::from_matches(&matches, "Font used for song title")?.into();
-        self.unplayed = EqualCopy::bool_from_matches(&matches, "Unplayed")?.into();
-        self.last_played = Relational::date_from_matches(&matches, "Last played")?.into();
-        self.is_osz2 = EqualCopy::bool_from_matches(&matches, "Is OSZ2")?.into();
-        self.beatmap_folder_name =
-            EqualClone::from_matches(&matches, "Beatmap folder name")?.into();
+            EqualClone::from_matches(&matches, "Font used for song title")?;
+        self.unplayed = EqualCopy::bool_from_matches(&matches, "Unplayed")?;
+        self.last_played = Relational::date_from_matches(&matches, "Last played")?;
+        self.is_osz2 = EqualCopy::bool_from_matches(&matches, "Is OSZ2")?;
+        self.beatmap_folder_name = EqualClone::from_matches(&matches, "Beatmap folder name")?;
         self.last_checked_against_repo =
-            Relational::date_from_matches(&matches, "Last checked against repo")?.into();
-        self.ignore_beatmap_sound =
-            EqualCopy::bool_from_matches(&matches, "Ignore beatmap sound")?.into();
-        self.ignore_beatmap_skin =
-            EqualCopy::bool_from_matches(&matches, "Ignore beatmap skin")?.into();
-        self.disable_storyboard =
-            EqualCopy::bool_from_matches(&matches, "Disable storyboard")?.into();
-        self.disable_video = EqualCopy::bool_from_matches(&matches, "Disable video")?.into();
-        self.visual_override = EqualCopy::bool_from_matches(&matches, "Visual override")?.into();
+            Relational::date_from_matches(&matches, "Last checked against repo")?;
+        self.ignore_beatmap_sound = EqualCopy::bool_from_matches(&matches, "Ignore beatmap sound")?;
+        self.ignore_beatmap_skin = EqualCopy::bool_from_matches(&matches, "Ignore beatmap skin")?;
+        self.disable_storyboard = EqualCopy::bool_from_matches(&matches, "Disable storyboard")?;
+        self.disable_video = EqualCopy::bool_from_matches(&matches, "Disable video")?;
+        self.visual_override = EqualCopy::bool_from_matches(&matches, "Visual override")?;
         self.offset_from_song_start_in_editor_ms =
-            Relational::from_matches(&matches, "Offset from song start in editor (ms)")?.into();
-        self.mania_scroll_speed = Relational::from_matches(&matches, "Mania scroll speed")?.into();
+            Relational::from_matches(&matches, "Offset from song start in editor (ms)")?;
+        self.mania_scroll_speed = Relational::from_matches(&matches, "Mania scroll speed")?;
         Ok(())
     }
 
     pub fn set_from_mask(&mut self, mask: &BeatmapMask) {
-        if self.entry_size.is_ignore() && mask.entry_size {
-            self.entry_size = LoadSetting::Load;
-        }
-        if self.artist_name.is_ignore() && mask.artist_name {
-            self.artist_name = LoadSetting::Load;
-        }
-        if self.artist_name_unicode.is_ignore() && mask.artist_name_unicode {
-            self.artist_name_unicode = LoadSetting::Load;
-        }
-        if self.song_title.is_ignore() && mask.song_title {
-            self.song_title = LoadSetting::Load;
-        }
-        if self.song_title_unicode.is_ignore() && mask.song_title_unicode {
-            self.song_title_unicode = LoadSetting::Load;
-        }
-        if self.creator_name.is_ignore() && mask.creator_name {
-            self.creator_name = LoadSetting::Load;
-        }
-        if self.difficulty.is_ignore() && mask.difficulty {
-            self.difficulty = LoadSetting::Load;
-        }
-        if self.audio_file_name.is_ignore() && mask.audio_file_name {
-            self.audio_file_name = LoadSetting::Load;
-        }
-        if self.md5_beatmap_hash.is_ignore() && mask.md5_beatmap_hash {
-            self.md5_beatmap_hash = LoadSetting::Load;
-        }
-        if self.dotosu_file_name.is_ignore() && mask.dotosu_file_name {
-            self.dotosu_file_name = LoadSetting::Load;
-        }
-        if self.ranked_status.is_ignore() && mask.ranked_status {
-            self.ranked_status = LoadSetting::Load;
-        }
-        if self.number_of_hitcircles.is_ignore() && mask.number_of_hitcircles {
-            self.number_of_hitcircles = LoadSetting::Load;
-        }
-        if self.number_of_sliders.is_ignore() && mask.number_of_sliders {
-            self.number_of_sliders = LoadSetting::Load;
-        }
-        if self.number_of_spinners.is_ignore() && mask.number_of_spinners {
-            self.number_of_spinners = LoadSetting::Load;
-        }
-        if self.last_modification_time.is_ignore() && mask.last_modification_time {
-            self.last_modification_time = LoadSetting::Load;
-        }
-        if self.approach_rate.is_ignore() && mask.approach_rate {
-            self.approach_rate = LoadSetting::Load;
-        }
-        if self.circle_size.is_ignore() && mask.circle_size {
-            self.circle_size = LoadSetting::Load;
-        }
-        if self.hp_drain.is_ignore() && mask.hp_drain {
-            self.hp_drain = LoadSetting::Load;
-        }
-        if self.overall_difficulty.is_ignore() && mask.overall_difficulty {
-            self.overall_difficulty = LoadSetting::Load;
-        }
-        if self.slider_velocity.is_ignore() && mask.slider_velocity {
-            self.slider_velocity = LoadSetting::Load;
-        }
-        if self.num_mod_combo_star_ratings_standard.is_ignore()
-            && mask.num_mod_combo_star_ratings_standard
-        {
-            self.num_mod_combo_star_ratings_standard = LoadSetting::Load;
-        }
-        if self.mod_combo_star_ratings_standard.is_ignore() && mask.mod_combo_star_ratings_standard
-        {
-            self.mod_combo_star_ratings_standard = LoadSetting::Load;
-        }
-        if self.num_mod_combo_star_ratings_taiko.is_ignore()
-            && mask.num_mod_combo_star_ratings_taiko
-        {
-            self.num_mod_combo_star_ratings_taiko = LoadSetting::Load;
-        }
-        if self.mod_combo_star_ratings_taiko.is_ignore() && mask.mod_combo_star_ratings_taiko {
-            self.mod_combo_star_ratings_taiko = LoadSetting::Load;
-        }
-        if self.num_mod_combo_star_ratings_ctb.is_ignore() && mask.num_mod_combo_star_ratings_ctb {
-            self.num_mod_combo_star_ratings_ctb = LoadSetting::Load;
-        }
-        if self.mod_combo_star_ratings_ctb.is_ignore() && mask.mod_combo_star_ratings_ctb {
-            self.mod_combo_star_ratings_ctb = LoadSetting::Load;
-        }
-        if self.num_mod_combo_star_ratings_mania.is_ignore()
-            && mask.num_mod_combo_star_ratings_mania
-        {
-            self.num_mod_combo_star_ratings_mania = LoadSetting::Load;
-        }
-        if self.mod_combo_star_ratings_mania.is_ignore() && mask.mod_combo_star_ratings_mania {
-            self.mod_combo_star_ratings_mania = LoadSetting::Load;
-        }
-        if self.drain_time.is_ignore() && mask.drain_time {
-            self.drain_time = LoadSetting::Load;
-        }
-        if self.total_time.is_ignore() && mask.total_time {
-            self.total_time = LoadSetting::Load;
-        }
-        if self.preview_offset_from_start_ms.is_ignore() && mask.preview_offset_from_start_ms {
-            self.preview_offset_from_start_ms = LoadSetting::Load;
-        }
-        if self.num_timing_points.is_ignore() && mask.num_timing_points {
-            self.num_timing_points = LoadSetting::Load;
-        }
-        if self.timing_points.is_ignore() && mask.timing_points {
-            self.timing_points = LoadSetting::Load;
-        }
-        if self.beatmap_id.is_ignore() && mask.beatmap_id {
-            self.beatmap_id = LoadSetting::Load;
-        }
-        if self.beatmap_set_id.is_ignore() && mask.beatmap_set_id {
-            self.beatmap_set_id = LoadSetting::Load;
-        }
-        if self.thread_id.is_ignore() && mask.thread_id {
-            self.thread_id = LoadSetting::Load;
-        }
-        if self.standard_grade.is_ignore() && mask.standard_grade {
-            self.standard_grade = LoadSetting::Load;
-        }
-        if self.taiko_grade.is_ignore() && mask.taiko_grade {
-            self.taiko_grade = LoadSetting::Load;
-        }
-        if self.ctb_grade.is_ignore() && mask.ctb_grade {
-            self.ctb_grade = LoadSetting::Load;
-        }
-        if self.mania_grade.is_ignore() && mask.mania_grade {
-            self.mania_grade = LoadSetting::Load;
-        }
-        if self.local_offset.is_ignore() && mask.local_offset {
-            self.local_offset = LoadSetting::Load;
-        }
-        if self.stack_leniency.is_ignore() && mask.stack_leniency {
-            self.stack_leniency = LoadSetting::Load;
-        }
-        if self.gameplay_mode.is_ignore() && mask.gameplay_mode {
-            self.gameplay_mode = LoadSetting::Load;
-        }
-        if self.song_source.is_ignore() && mask.song_source {
-            self.song_source = LoadSetting::Load;
-        }
-        if self.song_tags.is_ignore() && mask.song_tags {
-            self.song_tags = LoadSetting::Load;
-        }
-        if self.online_offset.is_ignore() && mask.online_offset {
-            self.online_offset = LoadSetting::Load;
-        }
-        if self.font_used_for_song_title.is_ignore() && mask.font_used_for_song_title {
-            self.font_used_for_song_title = LoadSetting::Load;
-        }
-        if self.unplayed.is_ignore() && mask.unplayed {
-            self.unplayed = LoadSetting::Load;
-        }
-        if self.last_played.is_ignore() && mask.last_played {
-            self.last_played = LoadSetting::Load;
-        }
-        if self.is_osz2.is_ignore() && mask.is_osz2 {
-            self.is_osz2 = LoadSetting::Load;
-        }
-        if self.beatmap_folder_name.is_ignore() && mask.beatmap_folder_name {
-            self.beatmap_folder_name = LoadSetting::Load;
-        }
-        if self.last_checked_against_repo.is_ignore() && mask.last_checked_against_repo {
-            self.last_checked_against_repo = LoadSetting::Load;
-        }
-        if self.ignore_beatmap_sound.is_ignore() && mask.ignore_beatmap_sound {
-            self.ignore_beatmap_sound = LoadSetting::Load;
-        }
-        if self.ignore_beatmap_skin.is_ignore() && mask.ignore_beatmap_skin {
-            self.ignore_beatmap_skin = LoadSetting::Load;
-        }
-        if self.disable_storyboard.is_ignore() && mask.disable_storyboard {
-            self.disable_storyboard = LoadSetting::Load;
-        }
-        if self.disable_video.is_ignore() && mask.disable_video {
-            self.disable_video = LoadSetting::Load;
-        }
-        if self.visual_override.is_ignore() && mask.visual_override {
-            self.visual_override = LoadSetting::Load;
-        }
-        if self.unknown_short.is_ignore() && mask.unknown_short {
-            self.unknown_short = LoadSetting::Load;
-        }
+        self.entry_size.apply_mask(mask.entry_size);
+        self.artist_name.apply_mask(mask.artist_name);
+        self.artist_name_unicode
+            .apply_mask(mask.artist_name_unicode);
+        self.song_title.apply_mask(mask.song_title);
+        self.song_title_unicode.apply_mask(mask.song_title_unicode);
+        self.creator_name.apply_mask(mask.creator_name);
+        self.difficulty.apply_mask(mask.difficulty);
+        self.audio_file_name.apply_mask(mask.audio_file_name);
+        self.md5_beatmap_hash.apply_mask(mask.md5_beatmap_hash);
+        self.dotosu_file_name.apply_mask(mask.dotosu_file_name);
+        self.ranked_status.apply_mask(mask.ranked_status);
+        self.number_of_hitcircles
+            .apply_mask(mask.number_of_hitcircles);
+        self.number_of_sliders.apply_mask(mask.number_of_sliders);
+        self.number_of_spinners.apply_mask(mask.number_of_spinners);
+        self.last_modification_time
+            .apply_mask(mask.last_modification_time);
+        self.approach_rate.apply_mask(mask.approach_rate);
+        self.circle_size.apply_mask(mask.circle_size);
+        self.hp_drain.apply_mask(mask.hp_drain);
+        self.overall_difficulty.apply_mask(mask.overall_difficulty);
+        self.slider_velocity.apply_mask(mask.slider_velocity);
+        self.num_mod_combo_star_ratings_standard
+            .apply_mask(mask.num_mod_combo_star_ratings_standard);
+        self.mod_combo_star_ratings_standard |= mask.mod_combo_star_ratings_standard;
+        self.num_mod_combo_star_ratings_taiko
+            .apply_mask(mask.num_mod_combo_star_ratings_taiko);
+        self.mod_combo_star_ratings_taiko |= mask.mod_combo_star_ratings_taiko;
+        self.num_mod_combo_star_ratings_ctb
+            .apply_mask(mask.num_mod_combo_star_ratings_ctb);
+        self.mod_combo_star_ratings_ctb |= mask.mod_combo_star_ratings_ctb;
+        self.num_mod_combo_star_ratings_mania
+            .apply_mask(mask.num_mod_combo_star_ratings_mania);
+        self.mod_combo_star_ratings_mania |= mask.mod_combo_star_ratings_mania;
+        self.drain_time.apply_mask(mask.drain_time);
+        self.total_time.apply_mask(mask.total_time);
+        self.preview_offset_from_start_ms
+            .apply_mask(mask.preview_offset_from_start_ms);
+        self.num_timing_points.apply_mask(mask.num_timing_points);
+        self.timing_points |= mask.timing_points;
+        self.beatmap_id.apply_mask(mask.beatmap_id);
+        self.beatmap_set_id.apply_mask(mask.beatmap_set_id);
+        self.thread_id.apply_mask(mask.thread_id);
+        self.standard_grade.apply_mask(mask.standard_grade);
+        self.taiko_grade.apply_mask(mask.taiko_grade);
+        self.ctb_grade.apply_mask(mask.ctb_grade);
+        self.mania_grade.apply_mask(mask.mania_grade);
+        self.local_offset.apply_mask(mask.local_offset);
+        self.stack_leniency.apply_mask(mask.stack_leniency);
+        self.gameplay_mode.apply_mask(mask.gameplay_mode);
+        self.song_source.apply_mask(mask.song_source);
+        self.song_tags.apply_mask(mask.song_tags);
+        self.online_offset.apply_mask(mask.online_offset);
+        self.font_used_for_song_title
+            .apply_mask(mask.font_used_for_song_title);
+        self.unplayed.apply_mask(mask.unplayed);
+        self.last_played.apply_mask(mask.last_played);
+        self.is_osz2.apply_mask(mask.is_osz2);
+        self.beatmap_folder_name
+            .apply_mask(mask.beatmap_folder_name);
+        self.last_checked_against_repo
+            .apply_mask(mask.last_checked_against_repo);
+        self.ignore_beatmap_sound
+            .apply_mask(mask.ignore_beatmap_sound);
+        self.ignore_beatmap_skin
+            .apply_mask(mask.ignore_beatmap_skin);
+        self.disable_storyboard.apply_mask(mask.disable_storyboard);
+        self.disable_video.apply_mask(mask.disable_video);
+        self.visual_override.apply_mask(mask.visual_override);
+        self.unknown_short |= mask.unknown_short;
         if self.offset_from_song_start_in_editor_ms.is_ignore()
             && mask.offset_from_song_start_in_editor_ms
         {
             self.offset_from_song_start_in_editor_ms = LoadSetting::Load;
         }
-        if self.mania_scroll_speed.is_ignore() && mask.mania_scroll_speed {
-            self.mania_scroll_speed = LoadSetting::Load;
-        }
+        self.mania_scroll_speed.apply_mask(mask.mania_scroll_speed);
     }
 }

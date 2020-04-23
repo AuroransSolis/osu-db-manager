@@ -6,12 +6,12 @@ use crate::maybe_deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
-pub struct PartialScore {
+pub struct PartialScore<'a> {
     pub gameplay_mode: Option<GameplayMode>,
     pub score_version: Option<i32>,
-    pub md5_beatmap_hash: Option<String>,
-    pub player_name: Option<String>,
-    pub md5_replay_hash: Option<String>,
+    pub md5_beatmap_hash: Option<&'a str>,
+    pub player_name: Option<&'a str>,
+    pub md5_replay_hash: Option<&'a str>,
     pub number_of_300s: Option<i16>,
     pub number_of_100s: Option<i16>, // 150s in Taiko, 100s in CTB, 200s in Mania
     pub number_of_50s: Option<i16>,  // small fruit in CTB, 50s in Mania
@@ -22,7 +22,7 @@ pub struct PartialScore {
     pub max_combo: Option<i16>,
     pub perfect_combo: Option<bool>,
     pub mods_used: Option<i32>,
-    pub empty_string: Option<String>,
+    pub empty_string: Option<&'a str>,
     pub replay_timestamp: Option<NaiveDate>,
     pub negative_one: Option<i32>,
     pub online_score_id: Option<i64>,
@@ -40,8 +40,7 @@ impl PartialScore {
             GameplayMode::maybe_read_from_bytes(settings.gameplay_mode, s, bytes, i)?;
         let score_version = maybe_read_int(settings.score_version, s, bytes, i)?;
         let md5_beatmap_hash = maybe_read_md5_hash(&settings.md5_beatmap_hash, s, bytes, i)?;
-        let player_name =
-            maybe_read_string_utf8(&settings.player_name, s, bytes, i, "player name")?;
+        let player_name = maybe_read_str_utf8(&settings.player_name, s, bytes, i, "player name")?;
         let md5_replay_hash = maybe_read_md5_hash(&settings.md5_replay_hash, s, bytes, i)?;
         let number_of_300s = maybe_read_short(settings.number_of_300s, s, bytes, i)?;
         let number_of_100s = maybe_read_short(settings.number_of_100s, s, bytes, i)?;
@@ -54,7 +53,7 @@ impl PartialScore {
         let perfect_combo = maybe_read_boolean(settings.perfect_combo, s, bytes, i)?;
         let mods_used = maybe_read_int(settings.mods_used, s, bytes, i)?;
         let empty_string =
-            maybe_read_string_utf8_nocomp(settings.empty_string, s, bytes, i, "empty string")?;
+            maybe_read_str_utf8_nocomp(settings.empty_string, s, bytes, i, "empty string")?;
         let replay_timestamp = maybe_read_datetime(settings.replay_timestamp, s, bytes, i)?;
         let negative_one = maybe_read_int_nocomp(settings.negative_one, s, bytes, i)?;
         let online_score_id = maybe_read_long(settings.online_score_id, s, bytes, i)?;

@@ -3,6 +3,7 @@ use crate::masks::{
 };
 
 pub trait Mask {
+    fn ignore_all(&self) -> bool;
     fn is_complete(&self) -> bool;
     fn from_input(input: &str) -> Self;
 }

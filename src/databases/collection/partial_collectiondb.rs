@@ -1,3 +1,4 @@
+use std::slice;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
@@ -12,16 +13,16 @@ use crate::maybe_deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
-pub struct PartialCollectionDb {
+pub struct PartialCollectionDb<'a> {
     pub version: Option<i32>,
     pub number_of_collections: Option<i32>,
-    pub collections: Option<Vec<PartialCollection>>,
+    pub collections: Option<Vec<PartialCollection<'a>>>,
 }
 
 impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollectionDb {
     fn read_single_thread(
         settings: CollectionDbLoadSettings,
-        bytes: Vec<u8>,
+        bytes: &[u8],
     ) -> ParseFileResult<Self> {
         let mut skip = false;
         let mut index = 0;
@@ -56,7 +57,7 @@ impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollecti
     fn read_multi_thread(
         settings: CollectionDbLoadSettings,
         jobs: usize,
-        bytes: Vec<u8>,
+        bytes: &[u8],
     ) -> ParseFileResult<Self> {
         let mut ind = 0;
         let version = maybe_read_int_nocomp(settings.version, &mut false, &bytes, &mut ind)?;
@@ -73,7 +74,8 @@ impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollecti
                         number_of_collections as usize,
                         counter.clone(),
                         start_read.clone(),
-                        &bytes,
+                        bytes.as_ptr(),
+                        bytes.len(),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -106,20 +108,21 @@ impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollecti
     }
 }
 
-fn spawn_partial_collection_loader_thread(
+fn spawn_partial_collection_loader_thread<'a>(
     settings: *const CollectionLoadSettings,
     number: usize,
     counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>,
-    bytes_pointer: *const Vec<u8>,
-) -> JoinHandle<ParseFileResult<Vec<(usize, PartialCollection)>>> {
+    bytes_pointer: *const u8,
+    bytes_len: usize,
+) -> JoinHandle<ParseFileResult<Vec<(usize, PartialCollection<'a>)>>> {
     let tmp_b = bytes_pointer as usize;
     let tmp_s = settings as usize;
     thread::spawn(move || {
         let (bytes, settings) = unsafe {
             (
-                &*(tmp_b as *const Vec<u8>),
-                &*(tmp as *const CollectionLoadSettings),
+                slice::from_raw_parts(tmp_b as *const u8, bytes_len),
+                &*(tmp_s as *const CollectionLoadSettings),
             )
         };
         let mut collections = Vec::new();
@@ -134,7 +137,7 @@ fn spawn_partial_collection_loader_thread(
                 }
                 let num = *ctr - 1;
                 let mut start = start_read.lock().unwrap();
-                let collection_name = maybe_read_string_utf8(
+                let collection_name = maybe_read_str_utf8(
                     &settings.collection_name,
                     &mut skip,
                     bytes,
