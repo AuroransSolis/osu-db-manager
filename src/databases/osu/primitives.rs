@@ -1,7 +1,7 @@
 use std::cmp::PartialEq;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io::{Error as IoError, ErrorKind::InvalidInput, Result as IoResult};
-use std::ops::Range;
+use std::ops::{Range, RangeInclusive};
 use std::str::FromStr;
 
 use crate::deserialize_primitives::*;
@@ -18,6 +18,8 @@ macro_rules! primitive {
     }};
 }
 
+/// Read an int-double pair from a slice. The integer represents the mods used and the double
+/// represents the star rating.
 #[inline]
 pub fn read_int_double_pair(bytes: &[u8], i: &mut usize) -> ParseFileResult<(i32, f64)> {
     let int = read_int(&bytes[*i + 1..*i + 5], &mut 0)?;
@@ -26,6 +28,9 @@ pub fn read_int_double_pair(bytes: &[u8], i: &mut usize) -> ParseFileResult<(i32
     Ok((int, double))
 }
 
+
+/// Conditionally read an int-double pair from a slice. The integer represents the mods used and the
+/// double represents the star rating.
 pub fn maybe_read_int_double_pair(
     c: bool,
     bytes: &[u8],
@@ -42,6 +47,7 @@ pub fn maybe_read_int_double_pair(
     }
 }
 
+/// `TimingPoint`s indicate the BPM of a beatmap at and after a certain offset from the start.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct TimingPoint {
     bpm: f64,
@@ -50,6 +56,7 @@ pub struct TimingPoint {
 }
 
 impl TimingPoint {
+    /// Parse a `TimingPoint` from a slice of bytes.
     #[inline]
     pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
         if *i + 17 < bytes.len() {
@@ -73,6 +80,7 @@ impl TimingPoint {
         }
     }
 
+    /// Conditionally parse a `TimingPoint` from a slice of bytes.
     pub fn maybe_read_from_bytes(
         c: bool,
         bytes: &[u8],
@@ -105,6 +113,17 @@ impl TimingPoint {
     }
 }
 
+/// Shows the ranking status of a particular beatmap. A beatmap can have a status of any of the
+/// following:
+/// - Unknown
+/// - Unsubmitted
+/// - Pending/WIP/Graveyard
+/// - Ranked
+/// - Approved
+/// - Qualified
+/// - Loved
+/// The enum itself has a variant named `Unused`, though this, as the name suggests, should remain
+/// unused, and its appearance would indicate either improper parsing or corruption of the database.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum RankedStatus {
     Unknown,
@@ -239,6 +258,8 @@ impl RankedStatus {
     }
 }
 
+/// Some database fields will be a byte or a single depending on the version. Since I don't want to
+/// have different structs for each database version, I instead use the `ByteSingle` enum.
 #[derive(Copy, Clone, Debug)]
 pub enum ByteSingle {
     Byte(u8),
@@ -309,8 +330,8 @@ impl ByteSingle {
         }
     }
 
-    fn is_in_range_inclusive(&self, range: Range<ByteSingle>) -> bool {
-        let Range { start, end } = range;
+    fn is_in_range_inclusive(&self, range: RangeInclusive<ByteSingle>) -> bool {
+        let RangeInclusive { start, end } = range;
         match (*self, start, end) {
             (Byte(n), Byte(s), Byte(e)) => n >= s && n <= e,
             (Byte(n), Byte(s), Single(e)) => n >= s && (n as f32) <= e,
@@ -342,6 +363,7 @@ impl From<ByteSingle> for f32 {
     }
 }
 
+/// Fairly self-explanatory - indicates which gameplay mode each beatmap is for.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum GameplayMode {
     Standard,
@@ -370,6 +392,7 @@ impl FromStr for GameplayMode {
 }
 
 impl GameplayMode {
+    /// Parse a `GameplayMode` from a slice of bytes.
     #[inline]
     pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
         let b = read_byte(bytes, i).map_err(|_| primitive!(GAMEPLAY_MODE_ERR))?;
@@ -385,6 +408,7 @@ impl GameplayMode {
         }
     }
 
+    /// Conditionally parse a `GameplayMode` from a slice of bytes.
     #[inline]
     pub fn maybe_read_from_bytes(
         setting: LoadSetting<EqualCopy<GameplayMode>>,

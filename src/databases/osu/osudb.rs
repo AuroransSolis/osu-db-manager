@@ -14,6 +14,7 @@ use crate::databases::{
 use crate::deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
+/// osu!.db struct according to documentation linked in README.
 #[derive(Debug, Clone)]
 pub struct OsuDb {
     pub version: i32,
@@ -41,15 +42,18 @@ impl Load for OsuDb {
         let player_name = read_string_utf8(&bytes, &mut index, "player name")?;
         let num_beatmaps = read_int(&bytes, &mut index)?;
         let mut beatmaps = Vec::with_capacity(num_beatmaps as usize);
+        // The following version numbers were graciously provided by OMKelderman#8113, excepting the
+        // most recent which was provided by tdeo#6188 (20191107 as of time of writing this). See
+        // versions.rs in this directory for more information on osu!.db versions.
         if version < 20140609 {
             for _ in 0..num_beatmaps {
                 beatmaps.push(Beatmap::read_from_bytes::<Legacy>(&bytes, &mut index)?);
             }
-        } else if version >= 20140609 && version < 20160408 {
+        } else if version >= 20140609 && version < 20160408 || version >= 20191107 {
             for _ in 0..num_beatmaps {
                 beatmaps.push(Beatmap::read_from_bytes::<Modern>(&bytes, &mut index)?);
             }
-        } else if version >= 20160408 {
+        } else if version >= 20160408 && version < 20191107 {
             for _ in 0..num_beatmaps {
                 beatmaps.push(Beatmap::read_from_bytes::<ModernWithEntrySize>(
                     &bytes, &mut index,
@@ -62,7 +66,7 @@ impl Load for OsuDb {
             );
             return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
         }
-        let unknown_short = read_int(&bytes, &mut index)?;
+        let unknown_short = read_short(&bytes, &mut index)?;
         Ok(OsuDb {
             version,
             folder_count,
@@ -76,45 +80,23 @@ impl Load for OsuDb {
     }
 
     fn read_multi_thread(jobs: usize, bytes: Vec<u8>) -> ParseFileResult<Self> {
-        let (
-            version,
-            folder_count,
-            account_unlocked,
-            account_unlock_date,
-            player_name,
-            mut bytes_used,
-        ) = {
-            let mut index = 0;
-            let i = &mut index;
-            let version = read_int(&bytes, i)?;
-            let folder_count = read_int(&bytes, i)?;
-            let account_unlocked = read_boolean(&bytes, i)?;
-            let account_unlock_date = if !account_unlocked {
-                Some(read_datetime(&bytes, i)?)
-            } else {
-                let _ = read_datetime(&bytes, i)?;
-                None
-            };
-            let (player_name_len, player_name) = read_player_name_with_len(&bytes, i)?;
-            // version: 4
-            // folder_count: 4
-            // account_unlocked: 1
-            // account_unlock_date: 8
-            // player_name_string: player_name_len
-            let bytes_used = 4 + 4 + 1 + 8 + player_name_len;
-            (
-                version,
-                folder_count,
-                account_unlocked,
-                account_unlock_date,
-                player_name,
-                bytes_used,
-            )
+        let mut index = 0;
+        let i = &mut index;
+        let version = read_int(&bytes, i)?;
+        let folder_count = read_int(&bytes, i)?;
+        let account_unlocked = read_boolean(&bytes, i)?;
+        let account_unlock_date = if !account_unlocked {
+            Some(read_datetime(&bytes, i)?)
+        } else {
+            let _ = read_datetime(&bytes, i)?;
+            None
         };
+        let player_name = read_player_name(&bytes, i)?;
         let num_beatmaps = read_int(&bytes, &mut bytes_used)?;
         let counter = Arc::new(Mutex::new(0));
         let start = Arc::new(Mutex::new(bytes_used));
-        let beatmaps = if version >= 20160408 {
+        let beatmaps = if version >= 20160408 && version < 20191107 {
+            // Spawn a thread for each requested job, collect handles into a vec.
             let threads = (0..jobs)
                 .map(|_| {
                     spawn_beatmap_loader_thread(
@@ -125,25 +107,32 @@ impl Load for OsuDb {
                     )
                 })
                 .collect::<Vec<_>>();
+            // Pull results from each thread.
             let mut results = threads
                 .into_iter()
                 .map(|joinhandle| joinhandle.join().unwrap())
                 .collect::<Vec<_>>();
             let mut beatmaps = results.pop().unwrap()?;
             for beatmap_result in results {
+                // I'm using a `for` loop here with the `pop` above instead of `into_iter()` and
+                // `for_each()` or `fold()` because of the `?`. `?` only returns from the most
+                // immediate function closure, and I want the `?` to return out of this method call.
                 beatmaps.append(&mut beatmap_result?);
             }
+            // Sort by their number so that the parsed data is in the same order as it appears in
+            // the database file.
             beatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
+            // Keep only the beatmaps - drop the counting number.
             beatmaps
                 .into_iter()
                 .map(|(_, beatmap)| beatmap)
                 .collect::<Vec<_>>()
-        } else if version / 1000 <= 2016 && version / 1000 >= 2007 {
-            // catch valid versions
+        } else if version / 1000 <= 2016 && version / 1000 >= 2007 || version / 1000 == 2019 {
+            // Catch valid versions.
             return Err(DbFileParseError::new(
                 OsuDbError,
-                "osu!.db versions older than 20160408 do \
-                 not support multithreaded loading.",
+                "osu!.db versions older than 20160408 and newer than and including \
+                 20191107 do not support multithreaded loading.",
             ));
         } else {
             let err_msg = format!(
@@ -152,7 +141,7 @@ impl Load for OsuDb {
             );
             return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
         };
-        let unknown_short = read_int(&bytes, &mut *start.lock().unwrap())?;
+        let unknown_short = read_short(&bytes, &mut *start.lock().unwrap())?;
         Ok(OsuDb {
             version,
             folder_count,
@@ -173,23 +162,37 @@ fn spawn_beatmap_loader_thread(
     start: Arc<Mutex<usize>>,
     bytes_pointer: *const Vec<u8>,
 ) -> JoinHandle<ParseFileResult<Vec<(usize, Beatmap)>>> {
+    // Cast the pointer to the file bytes to a usize so that we can pass it into the thread.
     let tmp = bytes_pointer as usize;
     thread::spawn(move || {
+        // This pointer dereference is *technically* safe. Rust just needs the guarantee that the
+        // data being referenced - the file data - will live longer than the reference to it, which
+        // is `bytes`. Since the threads are `join()`ed in the usage of this function above before
+        // the file bytes vector is dropped, this is technically safe to use. Just I'm the one
+        // upholding the reference lifetime invariant rather than rustc.
         let bytes = unsafe { &*(tmp as *const Vec<u8>) };
         let mut beatmaps = Vec::new();
         loop {
             let (entry_size, mut start, num) = {
+                // Lock the counter.
                 let mut ctr = counter.lock().unwrap();
                 if *ctr >= number {
+                    // Return the collected beatmaps if the requisite number have been parsed.
                     return Ok(beatmaps);
                 } else {
+                    // Otherwise, increment the counter and carry on.
                     *ctr += 1;
                 }
+                // Lock the start index.
                 let mut s = start.lock().unwrap();
+                // Keep track of where the rest of the beatmap entry actually begins.
                 let start_at = *s + 4;
                 let entry_size = read_int(bytes, &mut *s)?;
+                // Increase the start index by the size of this entry.
                 *s += entry_size as usize;
                 (entry_size, start_at, *ctr - 1)
+                // Drop the lock on the counter and start index so other threads can get started on
+                // parsing.
             };
             let i = &mut start;
             let artist_name = read_string_utf8(bytes, i, "non-Unicode artist name")?;

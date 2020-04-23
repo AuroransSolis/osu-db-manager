@@ -4,6 +4,7 @@ use crate::databases::osu::{primitives::*, versions::ReadVersionSpecificData};
 use crate::deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
+/// Beatmap struct according to documentation linked in README.
 #[derive(Clone, Debug)]
 pub struct Beatmap {
     pub entry_size: Option<i32>,
