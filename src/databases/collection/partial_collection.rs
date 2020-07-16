@@ -1,9 +1,7 @@
 use crate::deserialize_primitives::*;
-use crate::load_settings::{
-    collection::collection_load_settings::CollectionLoadSettings, FilterResult,
-};
+use crate::load_settings::collection::collection_load_settings::CollectionLoadSettings;
 use crate::maybe_deserialize_primitives::*;
-use crate::read_error::{DbFileParseError, ParseErrorKind::PrimitiveError, ParseFileResult};
+use crate::read_error::ParseFileResult;
 
 #[derive(Debug, Clone)]
 pub struct PartialCollection<'a> {
@@ -12,10 +10,10 @@ pub struct PartialCollection<'a> {
     pub md5_beatmap_hashes: Option<Vec<&'a str>>,
 }
 
-impl PartialCollection {
+impl<'a> PartialCollection<'a> {
     pub fn read_from_bytes(
         settings: CollectionLoadSettings,
-        bytes: &[u8],
+        bytes: &'a [u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<Self>> {
         let mut skip = false;

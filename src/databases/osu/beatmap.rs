@@ -69,9 +69,9 @@ pub struct Beatmap<'a> {
     pub mania_scroll_speed: u8,
 }
 
-impl Beatmap {
+impl<'a> Beatmap<'a> {
     pub fn read_from_bytes<T: ReadVersionSpecificData>(
-        bytes: &[u8],
+        bytes: &'a [u8],
         i: &mut usize,
     ) -> ParseFileResult<Self> {
         let entry_size = T::read_entry_size(bytes, i)?;

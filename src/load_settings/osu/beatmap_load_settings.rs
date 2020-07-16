@@ -1,11 +1,9 @@
-use std::io::{Error as IoError, ErrorKind::InvalidInput, Result as IoResult};
-
-use chrono::naive::NaiveDate;
-use clap::{App, AppSettings, Arg, ArgGroup, SubCommand};
-
 use crate::databases::osu::primitives::{ByteSingle, GameplayMode, RankedStatus};
-use crate::load_settings::{query::QueryStruct, EqualClone, EqualCopy, LoadSetting, Relational};
+use crate::load_settings::{EqualClone, EqualCopy, Relational};
 use crate::masks::osu_mask::BeatmapMask;
+use chrono::naive::NaiveDate;
+use clap::{App, Arg};
+use std::io::Result as IoResult;
 
 #[derive(Clone)]
 pub struct BeatmapLoadSettings {
@@ -29,13 +27,13 @@ pub struct BeatmapLoadSettings {
     pub hp_drain: Relational<ByteSingle>,
     pub overall_difficulty: Relational<ByteSingle>,
     pub slider_velocity: Relational<f64>,
-    pub num_mod_combo_star_ratings_standard: Relational<i32>,
+    pub num_mod_combo_star_ratings_standard: bool,
     pub mod_combo_star_ratings_standard: bool,
-    pub num_mod_combo_star_ratings_taiko: Relational<i32>,
+    pub num_mod_combo_star_ratings_taiko: bool,
     pub mod_combo_star_ratings_taiko: bool,
-    pub num_mod_combo_star_ratings_ctb: Relational<i32>,
+    pub num_mod_combo_star_ratings_ctb: bool,
     pub mod_combo_star_ratings_ctb: bool,
-    pub num_mod_combo_star_ratings_mania: Relational<i32>,
+    pub num_mod_combo_star_ratings_mania: bool,
     pub mod_combo_star_ratings_mania: bool,
     pub drain_time: Relational<i32>,
     pub total_time: Relational<i32>,
@@ -71,73 +69,6 @@ pub struct BeatmapLoadSettings {
     pub mania_scroll_speed: Relational<u8>,
 }
 
-impl Default for BeatmapLoadSettings {
-    fn default() -> Self {
-        BeatmapLoadSettings {
-            entry_size: LoadSetting::Ignore,
-            artist_name: LoadSetting::Ignore,
-            artist_name_unicode: LoadSetting::Ignore,
-            song_title: LoadSetting::Ignore,
-            song_title_unicode: LoadSetting::Ignore,
-            creator_name: LoadSetting::Ignore,
-            difficulty: LoadSetting::Ignore,
-            audio_file_name: LoadSetting::Ignore,
-            md5_beatmap_hash: LoadSetting::Ignore,
-            dotosu_file_name: LoadSetting::Ignore,
-            ranked_status: LoadSetting::Ignore,
-            number_of_hitcircles: LoadSetting::Ignore,
-            number_of_sliders: LoadSetting::Ignore,
-            number_of_spinners: LoadSetting::Ignore,
-            last_modification_time: LoadSetting::Ignore,
-            approach_rate: LoadSetting::Ignore,
-            circle_size: LoadSetting::Ignore,
-            hp_drain: LoadSetting::Ignore,
-            overall_difficulty: LoadSetting::Ignore,
-            slider_velocity: LoadSetting::Ignore,
-            num_mod_combo_star_ratings_standard: LoadSetting::Ignore,
-            mod_combo_star_ratings_standard: LoadSetting::Ignore,
-            num_mod_combo_star_ratings_taiko: LoadSetting::Ignore,
-            mod_combo_star_ratings_taiko: LoadSetting::Ignore,
-            num_mod_combo_star_ratings_ctb: LoadSetting::Ignore,
-            mod_combo_star_ratings_ctb: LoadSetting::Ignore,
-            num_mod_combo_star_ratings_mania: LoadSetting::Ignore,
-            mod_combo_star_ratings_mania: LoadSetting::Ignore,
-            drain_time: LoadSetting::Ignore,
-            total_time: LoadSetting::Ignore,
-            preview_offset_from_start_ms: LoadSetting::Ignore,
-            num_timing_points: LoadSetting::Ignore,
-            timing_points: LoadSetting::Ignore,
-            beatmap_id: LoadSetting::Ignore,
-            beatmap_set_id: LoadSetting::Ignore,
-            thread_id: LoadSetting::Ignore,
-            standard_grade: LoadSetting::Ignore,
-            taiko_grade: LoadSetting::Ignore,
-            ctb_grade: LoadSetting::Ignore,
-            mania_grade: LoadSetting::Ignore,
-            local_offset: LoadSetting::Ignore,
-            stack_leniency: LoadSetting::Ignore,
-            gameplay_mode: LoadSetting::Ignore,
-            song_source: LoadSetting::Ignore,
-            song_tags: LoadSetting::Ignore,
-            online_offset: LoadSetting::Ignore,
-            font_used_for_song_title: LoadSetting::Ignore,
-            unplayed: LoadSetting::Ignore,
-            last_played: LoadSetting::Ignore,
-            is_osz2: LoadSetting::Ignore,
-            beatmap_folder_name: LoadSetting::Ignore,
-            last_checked_against_repo: LoadSetting::Ignore,
-            ignore_beatmap_sound: LoadSetting::Ignore,
-            ignore_beatmap_skin: LoadSetting::Ignore,
-            disable_storyboard: LoadSetting::Ignore,
-            disable_video: LoadSetting::Ignore,
-            visual_override: LoadSetting::Ignore,
-            unknown_short: LoadSetting::Ignore,
-            offset_from_song_start_in_editor_ms: LoadSetting::Ignore,
-            mania_scroll_speed: LoadSetting::Ignore,
-        }
-    }
-}
-
 impl BeatmapLoadSettings {
     pub fn load_all(&self) -> bool {
         self.entry_size.is_load()
@@ -160,13 +91,13 @@ impl BeatmapLoadSettings {
             && self.hp_drain.is_load()
             && self.overall_difficulty.is_load()
             && self.slider_velocity.is_load()
-            && self.num_mod_combo_star_ratings_standard.is_load()
+            && self.num_mod_combo_star_ratings_standard
             && self.mod_combo_star_ratings_standard
-            && self.num_mod_combo_star_ratings_taiko.is_load()
+            && self.num_mod_combo_star_ratings_taiko
             && self.mod_combo_star_ratings_taiko
-            && self.num_mod_combo_star_ratings_ctb.is_load()
+            && self.num_mod_combo_star_ratings_ctb
             && self.mod_combo_star_ratings_ctb
-            && self.num_mod_combo_star_ratings_mania.is_load()
+            && self.num_mod_combo_star_ratings_mania
             && self.mod_combo_star_ratings_mania
             && self.drain_time.is_load()
             && self.total_time.is_load()
@@ -223,13 +154,13 @@ impl BeatmapLoadSettings {
             && self.hp_drain.is_ignore()
             && self.overall_difficulty.is_ignore()
             && self.slider_velocity.is_ignore()
-            && self.num_mod_combo_star_ratings_standard.is_ignore()
+            && !self.num_mod_combo_star_ratings_standard
             && !self.mod_combo_star_ratings_standard
-            && self.num_mod_combo_star_ratings_taiko.is_ignore()
+            && !self.num_mod_combo_star_ratings_taiko
             && !self.mod_combo_star_ratings_taiko
-            && self.num_mod_combo_star_ratings_ctb.is_ignore()
+            && !self.num_mod_combo_star_ratings_ctb
             && !self.mod_combo_star_ratings_ctb
-            && self.num_mod_combo_star_ratings_mania.is_ignore()
+            && !self.num_mod_combo_star_ratings_mania
             && !self.mod_combo_star_ratings_mania
             && self.drain_time.is_ignore()
             && self.total_time.is_ignore()
@@ -286,13 +217,13 @@ impl BeatmapLoadSettings {
             || self.hp_drain.is_ignore()
             || self.overall_difficulty.is_ignore()
             || self.slider_velocity.is_ignore()
-            || self.num_mod_combo_star_ratings_standard.is_ignore()
+            || !self.num_mod_combo_star_ratings_standard
             || !self.mod_combo_star_ratings_standard
-            || self.num_mod_combo_star_ratings_taiko.is_ignore()
+            || !self.num_mod_combo_star_ratings_taiko
             || !self.mod_combo_star_ratings_taiko
-            || self.num_mod_combo_star_ratings_ctb.is_ignore()
+            || !self.num_mod_combo_star_ratings_ctb
             || !self.mod_combo_star_ratings_ctb
-            || self.num_mod_combo_star_ratings_mania.is_ignore()
+            || !self.num_mod_combo_star_ratings_mania
             || !self.mod_combo_star_ratings_mania
             || self.drain_time.is_ignore()
             || self.total_time.is_ignore()
@@ -394,8 +325,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NAME")
-                    .takes_value(false),
+                    .value_name("NAME"),
             )
             .arg(
                 Arg::with_name("Audio file name")
@@ -404,8 +334,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("FILENAME")
-                    .takes_value(false),
+                    .value_name("FILENAME"),
             )
             .arg(
                 Arg::with_name("MD5 beatmap hash")
@@ -414,8 +343,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("HASH")
-                    .takes_value(false),
+                    .value_name("HASH"),
             )
             .arg(
                 Arg::with_name(".osu file name")
@@ -424,8 +352,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("FILENAME")
-                    .takes_value(false),
+                    .value_name("FILENAME"),
             )
             .arg(
                 Arg::with_name("Ranked status")
@@ -434,8 +361,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("STATUS")
-                    .takes_value(false),
+                    .value_name("STATUS"),
             )
             .arg(
                 Arg::with_name("Number of hitcircles")
@@ -444,8 +370,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Number of sliders")
@@ -454,8 +379,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Number of spinners")
@@ -464,8 +388,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Last modification time")
@@ -474,8 +397,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("DATE")
-                    .takes_value(false),
+                    .value_name("DATE"),
             )
             .arg(
                 Arg::with_name("Approach rate")
@@ -485,8 +407,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Circle size")
@@ -496,8 +417,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("HP drain")
@@ -507,8 +427,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Overall difficulty")
@@ -518,8 +437,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Slider velocity")
@@ -528,17 +446,13 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Number of precalculated mod combo star ratings (standard)")
                     .long("NUM-MOD-COMBO-STAR-RATINGS-STANDARD")
                     .multiple(false)
                     .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
                     .takes_value(false),
             )
             .arg(
@@ -546,9 +460,6 @@ impl BeatmapLoadSettings {
                     .long("NUM-MOD-COMBO-STAR-RATINGS-TAIKO")
                     .multiple(false)
                     .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
                     .takes_value(false),
             )
             .arg(
@@ -556,9 +467,6 @@ impl BeatmapLoadSettings {
                     .long("NUM-MOD-COMBO-STAR-RATINGS-CTB")
                     .multiple(false)
                     .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("")
                     .takes_value(false),
             )
             .arg(
@@ -566,9 +474,6 @@ impl BeatmapLoadSettings {
                     .long("NUM-MOD-COMBO-STAR-RATINGS-MANIA")
                     .multiple(false)
                     .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
                     .takes_value(false),
             )
             .arg(
@@ -578,8 +483,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Total time")
@@ -588,8 +492,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Preview offset from start (ms)")
@@ -598,8 +501,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Number of timing points")
@@ -608,8 +510,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Beatmap ID")
@@ -618,8 +519,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Beatmap set ID")
@@ -628,8 +528,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Thread ID")
@@ -638,8 +537,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Standard grade")
@@ -648,8 +546,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("GRADE"),
             )
             .arg(
                 Arg::with_name("Taiko grade")
@@ -658,8 +555,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("GRADE"),
             )
             .arg(
                 Arg::with_name("CTB grade")
@@ -668,8 +564,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("GRADE"),
             )
             .arg(
                 Arg::with_name("Mania grade")
@@ -678,8 +573,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("GRADE"),
             )
             .arg(
                 Arg::with_name("Local offset")
@@ -688,8 +582,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Stack leniency")
@@ -698,8 +591,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Gameplay mode")
@@ -708,8 +600,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("MODE")
-                    .takes_value(false),
+                    .value_name("MODE"),
             )
             .arg(
                 Arg::with_name("Song source")
@@ -718,8 +609,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("SOURCE")
-                    .takes_value(false),
+                    .value_name("SOURCE"),
             )
             .arg(
                 Arg::with_name("Song tags")
@@ -728,8 +618,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("TAGS")
-                    .takes_value(false),
+                    .value_name("'TAG1,TAG2,...'"),
             )
             .arg(
                 Arg::with_name("Online offset")
@@ -738,8 +627,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Font used for song title")
@@ -748,8 +636,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("FONT")
-                    .takes_value(false),
+                    .value_name("FONT"),
             )
             .arg(
                 Arg::with_name("Unplayed")
@@ -758,8 +645,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("")
-                    .takes_value(false),
+                    .value_name("T/F"),
             )
             .arg(
                 Arg::with_name("Last played")
@@ -768,8 +654,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("DATE")
-                    .takes_value(false),
+                    .value_name("DATE"),
             )
             .arg(
                 Arg::with_name("Is OSZ2")
@@ -778,8 +663,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("T/F")
-                    .takes_value(false),
+                    .value_name("T/F"),
             )
             .arg(
                 Arg::with_name("Beatmap folder name")
@@ -788,8 +672,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NAME")
-                    .takes_value(false),
+                    .value_name("NAME"),
             )
             .arg(
                 Arg::with_name("Last checked against repo")
@@ -798,8 +681,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("DATE")
-                    .takes_value(false),
+                    .value_name("DATE"),
             )
             .arg(
                 Arg::with_name("Ignore beatmap sound")
@@ -808,8 +690,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("T/F")
-                    .takes_value(false),
+                    .value_name("T/F"),
             )
             .arg(
                 Arg::with_name("Ignore beatmap skin")
@@ -818,8 +699,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("T/F")
-                    .takes_value(false),
+                    .value_name("T/F"),
             )
             .arg(
                 Arg::with_name("Disable storyboard")
@@ -828,8 +708,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("T/F")
-                    .takes_value(false),
+                    .value_name("T/F"),
             )
             .arg(
                 Arg::with_name("Disable video")
@@ -838,8 +717,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("T/F")
-                    .takes_value(false),
+                    .value_name("T/F"),
             )
             .arg(
                 Arg::with_name("Visual override")
@@ -848,17 +726,13 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("T/F")
-                    .takes_value(false),
+                    .value_name("T/F"),
             )
             .arg(
                 Arg::with_name("Unknown short")
                     .long("UNKNOWN-SHORT")
                     .multiple(false)
                     .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
                     .takes_value(false),
             )
             .arg(
@@ -868,8 +742,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .arg(
                 Arg::with_name("Mania scroll speed")
@@ -878,8 +751,7 @@ impl BeatmapLoadSettings {
                     .required(false)
                     .takes_value(true)
                     .number_of_values(1)
-                    .value_name("NUMBER/RANGE")
-                    .takes_value(false),
+                    .value_name("NUMBER/RANGE"),
             )
             .get_matches_from(args.into_iter());
         self.entry_size = Relational::from_matches(&matches, "Entry size")?;
@@ -903,22 +775,6 @@ impl BeatmapLoadSettings {
         self.hp_drain = Relational::from_matches(&matches, "HP drain")?;
         self.overall_difficulty = Relational::from_matches(&matches, "Overall difficulty")?;
         self.slider_velocity = Relational::from_matches(&matches, "Slider velocity")?;
-        self.num_mod_combo_star_ratings_standard = Relational::from_matches(
-            &matches,
-            "Number of precalculated mod combo star ratings (standard)",
-        )?;
-        self.num_mod_combo_star_ratings_taiko = Relational::from_matches(
-            &matches,
-            "Number of precalculated mod combo star ratings (taiko)",
-        )?;
-        self.num_mod_combo_star_ratings_ctb = Relational::from_matches(
-            &matches,
-            "Number of precalculated mod combo star ratings (CTB)",
-        )?;
-        self.num_mod_combo_star_ratings_mania = Relational::from_matches(
-            &matches,
-            "Number of precalculated mod combo star ratings (mania)",
-        )?;
         self.drain_time = Relational::from_matches(&matches, "Drain time")?;
         self.total_time = Relational::from_matches(&matches, "Total time")?;
         self.preview_offset_from_start_ms =
@@ -980,17 +836,13 @@ impl BeatmapLoadSettings {
         self.hp_drain.apply_mask(mask.hp_drain);
         self.overall_difficulty.apply_mask(mask.overall_difficulty);
         self.slider_velocity.apply_mask(mask.slider_velocity);
-        self.num_mod_combo_star_ratings_standard
-            .apply_mask(mask.num_mod_combo_star_ratings_standard);
+        self.num_mod_combo_star_ratings_standard |= mask.num_mod_combo_star_ratings_standard;
         self.mod_combo_star_ratings_standard |= mask.mod_combo_star_ratings_standard;
-        self.num_mod_combo_star_ratings_taiko
-            .apply_mask(mask.num_mod_combo_star_ratings_taiko);
+        self.num_mod_combo_star_ratings_taiko |= mask.num_mod_combo_star_ratings_taiko;
         self.mod_combo_star_ratings_taiko |= mask.mod_combo_star_ratings_taiko;
-        self.num_mod_combo_star_ratings_ctb
-            .apply_mask(mask.num_mod_combo_star_ratings_ctb);
+        self.num_mod_combo_star_ratings_ctb |= mask.num_mod_combo_star_ratings_ctb;
         self.mod_combo_star_ratings_ctb |= mask.mod_combo_star_ratings_ctb;
-        self.num_mod_combo_star_ratings_mania
-            .apply_mask(mask.num_mod_combo_star_ratings_mania);
+        self.num_mod_combo_star_ratings_mania |= mask.num_mod_combo_star_ratings_mania;
         self.mod_combo_star_ratings_mania |= mask.mod_combo_star_ratings_mania;
         self.drain_time.apply_mask(mask.drain_time);
         self.total_time.apply_mask(mask.total_time);
@@ -1031,7 +883,7 @@ impl BeatmapLoadSettings {
         if self.offset_from_song_start_in_editor_ms.is_ignore()
             && mask.offset_from_song_start_in_editor_ms
         {
-            self.offset_from_song_start_in_editor_ms = LoadSetting::Load;
+            self.offset_from_song_start_in_editor_ms = Relational::Load;
         }
         self.mania_scroll_speed.apply_mask(mask.mania_scroll_speed);
     }

@@ -5,7 +5,7 @@ use crate::databases::{
     osu::{osudb::OsuDb, partial_osudb::PartialOsuDb},
     scores::{partial_scoresdb::PartialScoresDb, scoresdb::ScoresDb},
 };
-use crate::masks::mask::DbMask::{self, *};
+use crate::load_settings::DbSettings::{self, *};
 use crate::read_error::ParseFileResult;
 
 #[derive(Debug)]
@@ -21,7 +21,7 @@ pub enum OsuDatabase<'a> {
 use self::OsuDatabase::*;
 
 impl<'a> OsuDatabase<'a> {
-    pub fn read_from_bytes(jobs: usize, db: Database) -> ParseFileResult<Self> {
+    pub fn read_from_bytes(jobs: usize, db: &'a Database) -> ParseFileResult<Self> {
         Ok(match db {
             OsuDb(b) => Osu(OsuDb::read_from_bytes(jobs, b)?),
             CollectionDb(b) => Collection(CollectionDb::read_from_bytes(jobs, b)?),
@@ -31,16 +31,16 @@ impl<'a> OsuDatabase<'a> {
 
     pub fn read_partial_from_bytes(
         jobs: usize,
-        db: Database,
-        mask: DbMask,
+        db: &'a Database,
+        settings: DbSettings,
     ) -> ParseFileResult<Self> {
-        Ok(match (db, mask) {
-            (OsuDb(b), OsuMask(m)) => PartialOsu(PartialOsuDb::read_from_bytes(m, jobs, b)?),
-            (CollectionDb(b), CollectionMask(m)) => {
-                PartialCollection(PartialCollectionDb::read_from_bytes(m, jobs, b)?)
+        Ok(match (db, settings) {
+            (OsuDb(b), OsuSettings(s)) => PartialOsu(PartialOsuDb::read_from_bytes(s, jobs, b)?),
+            (CollectionDb(b), CollectionSettings(s)) => {
+                PartialCollection(PartialCollectionDb::read_from_bytes(s, jobs, b)?)
             }
-            (ScoresDb(b), ScoresMask(m)) => {
-                PartialScores(PartialScoresDb::read_from_bytes(m, jobs, b)?)
+            (ScoresDb(b), ScoresSettings(s)) => {
+                PartialScores(PartialScoresDb::read_from_bytes(s, jobs, b)?)
             }
             _ => unreachable!(),
         })

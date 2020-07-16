@@ -1,12 +1,9 @@
-use std::io::Result as IoResult;
-
-use clap::{App, AppSettings, Arg, SubCommand};
-
 use crate::load_settings::{
-    query::QueryStruct, scores::score_load_settings::ScoreLoadSettings, EqualClone, LoadSetting,
-    Relational,
+    scores::score_load_settings::ScoreLoadSettings, EqualClone, Relational,
 };
 use crate::masks::scores_mask::ScoresDbBeatmapMask;
+use clap::{App, Arg, SubCommand};
+use std::io::Result as IoResult;
 
 pub struct ScoresDbBeatmapLoadSettings {
     pub md5_beatmap_hash: EqualClone<String>,
@@ -221,10 +218,10 @@ impl ScoresDbBeatmapLoadSettings {
 
     pub fn set_from_mask(&mut self, mask: &ScoresDbBeatmapMask) {
         if self.md5_beatmap_hash.is_ignore() && mask.md5_beatmap_hash {
-            self.md5_beatmap_hash = LoadSetting::Load;
+            self.md5_beatmap_hash = EqualClone::Load;
         }
         if self.number_of_scores.is_ignore() && mask.number_of_scores {
-            self.number_of_scores = LoadSetting::Load;
+            self.number_of_scores = Relational::Load;
         }
         self.score_load_settings.set_from_mask(&mask.scores_mask);
     }

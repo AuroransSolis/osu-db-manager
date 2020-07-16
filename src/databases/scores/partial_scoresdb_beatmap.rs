@@ -11,10 +11,10 @@ pub struct PartialScoresDbBeatmap<'a> {
     pub scores: Option<Vec<PartialScore<'a>>>,
 }
 
-impl PartialScoresDbBeatmap {
+impl<'a> PartialScoresDbBeatmap<'a> {
     pub fn read_from_bytes(
-        settings: ScoresDbBeatmapLoadSettings,
-        bytes: &[u8],
+        settings: &ScoresDbBeatmapLoadSettings,
+        bytes: &'a [u8],
         i: &mut usize,
     ) -> ParseFileResult<Self> {
         let mut skip = false;

@@ -3,16 +3,18 @@ pub mod osu;
 pub mod query;
 pub mod scores;
 
+use chrono::NaiveDate;
+use clap::ArgMatches;
 use std::cmp::{PartialEq, PartialOrd};
 use std::fmt::Display;
 use std::io::{Error as IoError, ErrorKind::InvalidInput, Result as IoResult};
-use std::ops::Range;
 use std::str::FromStr;
 
-use chrono::NaiveDate;
-use clap::ArgMatches;
-
-use crate::databases::osu::primitives::{ByteSingle, GameplayMode, RankedStatus};
+pub enum DbSettings {
+    OsuSettings(osu::osudb_load_settings::OsuDbLoadSettings),
+    CollectionSettings(collection::collectiondb_load_settings::CollectionDbLoadSettings),
+    ScoresSettings(scores::scoresdb_load_settings::ScoresDbLoadSettings),
+}
 
 // Equality checking struct for `Copy` types
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -28,11 +30,11 @@ impl<T: Copy + Clone + PartialEq + FromStr> EqualCopy<T> {
         <T as FromStr>::Err: Display,
     {
         if let Some(m) = matches.value_of(field) {
-            Ok(EqualCopy {
-                value: m.parse::<T>().map_err(|e| {
+            Ok(EqualCopy::Eq({
+                m.parse::<T>().map_err(|e| {
                     IoError::new(InvalidInput, format!("Error parsing value: {}", e))
-                })?,
-            })
+                })?
+            }))
         } else {
             Ok(EqualCopy::Ignore)
         }

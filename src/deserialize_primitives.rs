@@ -372,7 +372,7 @@ pub fn read_datetime(bytes: &[u8], i: &mut usize) -> ParseFileResult<NaiveDate> 
              {}",
             e
         );
-        DbFileParseError(PrimitiveError, msg)
+        DbFileParseError::new(PrimitiveError, msg)
     })?;
     Ok(NaiveDate::from_ymd(1970, 0, 0) + chrono_duration)
 }

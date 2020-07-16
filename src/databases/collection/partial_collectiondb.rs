@@ -1,16 +1,14 @@
-use std::slice;
-use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
-
 use crate::databases::{collection::partial_collection::PartialCollection, load::PartialLoad};
 use crate::deserialize_primitives::*;
 use crate::load_settings::collection::{
     collection_load_settings::CollectionLoadSettings,
     collectiondb_load_settings::CollectionDbLoadSettings,
 };
-use crate::masks::collection_mask::{CollectionDbMask, CollectionMask};
+use crate::masks::collection_mask::CollectionDbMask;
 use crate::maybe_deserialize_primitives::*;
-use crate::read_error::ParseFileResult;
+use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
+use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct PartialCollectionDb<'a> {
@@ -19,30 +17,33 @@ pub struct PartialCollectionDb<'a> {
     pub collections: Option<Vec<PartialCollection<'a>>>,
 }
 
-impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollectionDb {
+impl<'a> PartialLoad<'a, CollectionDbMask, CollectionDbLoadSettings> for PartialCollectionDb<'a> {
     fn read_single_thread(
         settings: CollectionDbLoadSettings,
-        bytes: &[u8],
+        bytes: &'a [u8],
     ) -> ParseFileResult<Self> {
         let mut skip = false;
         let mut index = 0;
         let i = &mut index;
         let version = maybe_read_int_nocomp(settings.version, &mut false, &bytes, i)?;
         let number_of_collections = read_int(&bytes, i)?;
-        let collections = if settings.collections_query.ignore_all() || number_of_collections == 0 {
-            None
-        } else {
-            let mut tmp = Vec::with_capacity(number_of_collections as usize);
-            for _ in 0..number_of_collections {
-                if let Some(collection) =
-                    PartialCollection::read_from_bytes(settings.collections_query, &bytes, i)?
-                {
-                    tmp.push(collection);
+        let collections =
+            if settings.collection_load_settings.ignore_all() || number_of_collections == 0 {
+                None
+            } else {
+                let mut tmp = Vec::with_capacity(number_of_collections as usize);
+                for _ in 0..number_of_collections {
+                    if let Some(collection) = PartialCollection::read_from_bytes(
+                        settings.collection_load_settings,
+                        &bytes,
+                        i,
+                    )? {
+                        tmp.push(collection);
+                    }
                 }
-            }
-            Some(tmp)
-        };
-        let number_of_collections = if mask.number_of_collections {
+                Some(tmp)
+            };
+        let number_of_collections = if settings.number_of_collections {
             Some(number_of_collections)
         } else {
             None
@@ -57,45 +58,62 @@ impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollecti
     fn read_multi_thread(
         settings: CollectionDbLoadSettings,
         jobs: usize,
-        bytes: &[u8],
+        bytes: &'a [u8],
     ) -> ParseFileResult<Self> {
         let mut ind = 0;
         let version = maybe_read_int_nocomp(settings.version, &mut false, &bytes, &mut ind)?;
         let number_of_collections = read_int(&bytes, &mut ind)?;
-        let collections = if settings.collections_query.ignore_all() || number_of_collections == 0 {
-            None
-        } else {
-            let counter = Arc::new(Mutex::new(0));
-            let start_read = Arc::new(Mutex::new(8));
-            let threads = (0..jobs)
-                .map(|_| {
-                    spawn_partial_collection_loader_thread(
-                        &settings.collections_query,
-                        number_of_collections as usize,
-                        counter.clone(),
-                        start_read.clone(),
-                        bytes.as_ptr(),
-                        bytes.len(),
-                    )
+        let collections =
+            if settings.collection_load_settings.ignore_all() || number_of_collections == 0 {
+                None
+            } else {
+                let counter = Arc::new(Mutex::new(0));
+                let start_read = Arc::new(Mutex::new(8));
+                let mut results = thread::scope(|s| {
+                    let threads = (0..jobs)
+                        .map(|_| {
+                            spawn_partial_collection_loader_thread(
+                                s,
+                                number_of_collections as usize,
+                                counter.clone(),
+                                start_read.clone(),
+                                bytes,
+                                &settings.collection_load_settings,
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    threads
+                        .into_iter()
+                        .map(|joinhandle| {
+                            joinhandle.join().map_err(|_| {
+                                DbFileParseError::new(
+                                ParseErrorKind::CollectionDbError,
+                                "Failed to join collection.db partial collection parsing thread.",
+                            )
+                            })?
+                        })
+                        .collect::<Vec<_>>()
                 })
-                .collect::<Vec<_>>();
-            let mut results = threads
-                .into_iter()
-                .map(|joinhandle| joinhandle.join().unwrap())
-                .collect::<Vec<_>>();
-            let mut partial_collections = results.pop().unwrap()?;
-            for partial_collection_result in results {
-                partial_collections.append(&mut partial_collection_result?);
-            }
-            partial_collections.sort_by(|(a, _), (b, _)| a.cmp(b));
-            Some(
-                partial_collections
-                    .into_iter()
-                    .map(|(_, partial_collection)| partial_collection)
-                    .collect::<Vec<PartialCollection>>(),
-            )
-        };
-        let number_of_collections = if mask.number_of_collections {
+                .map_err(|_| {
+                    DbFileParseError::new(
+                        ParseErrorKind::CollectionDbError,
+                        "Failed to retrieve result from collection.db partial collection parsing \
+                        scope.",
+                    )
+                })?;
+                let mut partial_collections = results.pop().unwrap()?;
+                for partial_collection_result in results {
+                    partial_collections.append(&mut partial_collection_result?);
+                }
+                partial_collections.sort_by(|(a, _), (b, _)| a.cmp(b));
+                Some(
+                    partial_collections
+                        .into_iter()
+                        .map(|(_, partial_collection)| partial_collection)
+                        .collect::<Vec<PartialCollection>>(),
+                )
+            };
+        let number_of_collections = if settings.number_of_collections {
             Some(number_of_collections)
         } else {
             None
@@ -108,23 +126,15 @@ impl PartialLoad<CollectionDbMask, CollectionDbLoadSettings> for PartialCollecti
     }
 }
 
-fn spawn_partial_collection_loader_thread<'a>(
-    settings: *const CollectionLoadSettings,
+fn spawn_partial_collection_loader_thread<'a, 'scope>(
+    scope: &'scope Scope<'a>,
     number: usize,
     counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>,
-    bytes_pointer: *const u8,
-    bytes_len: usize,
-) -> JoinHandle<ParseFileResult<Vec<(usize, PartialCollection<'a>)>>> {
-    let tmp_b = bytes_pointer as usize;
-    let tmp_s = settings as usize;
-    thread::spawn(move || {
-        let (bytes, settings) = unsafe {
-            (
-                slice::from_raw_parts(tmp_b as *const u8, bytes_len),
-                &*(tmp_s as *const CollectionLoadSettings),
-            )
-        };
+    bytes: &'a [u8],
+    settings: &'a CollectionLoadSettings,
+) -> ScopedJoinHandle<'scope, ParseFileResult<Vec<(usize, PartialCollection<'a>)>>> {
+    scope.spawn(|_| {
         let mut collections = Vec::new();
         loop {
             let mut skip = false;
@@ -165,7 +175,7 @@ fn spawn_partial_collection_loader_thread<'a>(
                     }
                     Some(tmp)
                 };
-            let number_of_beatmaps = if mask.number_of_beatmaps {
+            let number_of_beatmaps = if settings.number_of_beatmaps.compare(&number_of_beatmaps) {
                 Some(number_of_beatmaps)
             } else {
                 None

@@ -28,10 +28,10 @@ pub struct PartialScore<'a> {
     pub online_score_id: Option<i64>,
 }
 
-impl PartialScore {
+impl<'a> PartialScore<'a> {
     pub fn read_from_bytes(
         settings: &ScoreLoadSettings,
-        bytes: &[u8],
+        bytes: &'a [u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<Self>> {
         let mut skip = false;

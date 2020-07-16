@@ -1,9 +1,9 @@
 use crate::databases::osu::primitives::{
-    read_int_double_pair,
+    maybe_read_int_double_pair, read_int_double_pair,
     ByteSingle::{self, *},
 };
 use crate::deserialize_primitives::*;
-use crate::load_settings::{Compare, LoadSetting, Relational};
+use crate::load_settings::Relational;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
 
@@ -138,31 +138,6 @@ impl ReadVersionSpecificData for ModernWithEntrySize {
 /// Identical to `ReadVersionSpecificData`, except all the parsing methods are conditional and may
 /// or may not be subject to load settings.
 pub trait ReadPartialVersionSpecificData {
-    fn maybe_read_entry_size(
-        setting: Relational<i32>,
-        skip: &mut bool,
-        bytes: &[u8],
-        i: &mut usize,
-    ) -> ParseFileResult<Option<i32>>;
-    fn maybe_read_arcshpod(
-        setting: Relational<ByteSingle>,
-        skip: &mut bool,
-        bytes: &[u8],
-        i: &mut usize,
-    ) -> ParseFileResult<Option<ByteSingle>>;
-    fn maybe_read_mod_combo_star_ratings(
-        skip: bool,
-        bytes: &[u8],
-        i: &mut usize,
-    ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)>;
-    fn maybe_read_unknown_short(
-        skip: bool,
-        bytes: &[u8],
-        i: &mut usize,
-    ) -> ParseFileResult<Option<i16>>;
-}
-
-impl ReadPartialVersionSpecificData for Legacy {
     #[inline]
     fn maybe_read_entry_size(
         setting: Relational<i32>,
@@ -180,99 +155,122 @@ impl ReadPartialVersionSpecificData for Legacy {
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>> {
-        if let Some(byte) = maybe_read_byte_bs(setting, skip, bytes, i)? {
-            Ok(Some(Byte(byte)))
-        } else {
-            Ok(None)
-        }
+        Ok(None)
     }
 
     #[inline]
     fn maybe_read_mod_combo_star_ratings(
-        _skip: &mut bool,
-        _bytes: &[u8],
-        _i: &mut usize,
+        num_setting: bool,
+        mcsr_setting: bool,
+        skip: &mut bool,
+        bytes: &[u8],
+        i: &mut usize,
     ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         Ok((None, None))
     }
 
     #[inline]
     fn maybe_read_unknown_short(
-        skip: bool,
-        bytes: &[u8],
-        i: &mut usize,
-    ) -> ParseFileResult<Option<i16>> {
-        if skip {
-            if *i + 1 < bytes.len() {
-                Ok(None)
-            } else {
-                Err(DbFileParseError::new(
-                    ParseErrorKind::OsuDbError,
-                    "Insufficient bytes to read unknown short.",
-                ))
-            }
-        } else {
-            Ok(Some(read_short(bytes, i)?))
-        }
-    }
-}
-
-impl ReadPartialVersionSpecificData for Modern {
-    #[inline]
-    fn maybe_read_entry_size(
-        setting: Relational<i32>,
+        setting: bool,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
-    ) -> ParseFileResult<Option<i32>> {
+    ) -> ParseFileResult<Option<i16>> {
         Ok(None)
     }
+}
 
-    #[inline]
+impl ReadPartialVersionSpecificData for Legacy {
     fn maybe_read_arcshpod(
         setting: Relational<ByteSingle>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>> {
-        if let Some(single) = maybe_read_single_bs(setting, skip, bytes, i)? {
-            Ok(Some(Single(single)))
-        } else {
-            Ok(None)
-        }
+        maybe_read_byte_bs(setting, skip, bytes, i)
+            .map(|maybe_byte| maybe_byte.map(|byte| Byte(byte)))
     }
 
-    #[inline]
+    fn maybe_read_unknown_short(
+        setting: bool,
+        skip: &mut bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<i16>> {
+        if *i + 1 < bytes.len() {
+            if *skip || !setting {
+                *i += 2;
+                Ok(None)
+            } else {
+                Ok(Some(read_short(bytes, i)?))
+            }
+        } else {
+            Err(DbFileParseError::new(
+                ParseErrorKind::OsuDbError,
+                "Insufficient bytes to read unknown short.",
+            ))
+        }
+    }
+}
+
+impl ReadPartialVersionSpecificData for Modern {
+    fn maybe_read_arcshpod(
+        setting: Relational<ByteSingle>,
+        skip: &mut bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<ByteSingle>> {
+        maybe_read_single_bs(setting, skip, bytes, i)
+            .map(|maybe_single| maybe_single.map(|single| Single(single)))
+    }
+
     fn maybe_read_mod_combo_star_ratings(
-        skip: bool,
+        num_setting: bool,
+        mcsr_setting: bool,
+        skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         let num_int_doubles = read_int(bytes, i)?;
-        if skip {
-            let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
-            for _ in 0..num_int_doubles {
-                int_double_pairs.push(read_int_double_pair(bytes, i)?);
+        if *i + num_int_doubles as usize * 14 < bytes.len() {
+            if *skip {
+                *i += num_int_doubles as usize * 14;
+                Ok((None, None))
+            } else {
+                let mod_combo_star_ratings = if mcsr_setting {
+                    let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
+                    for _ in 0..num_int_doubles {
+                        if let Some(idp) = maybe_read_int_double_pair(mcsr_setting, bytes, i)? {
+                            if !*skip {
+                                int_double_pairs.push(idp);
+                            }
+                        }
+                    }
+                    if *skip {
+                        return Ok((None, None));
+                    } else {
+                        Some(int_double_pairs)
+                    }
+                } else {
+                    None
+                };
+                let num_mod_combo_star_ratings = if num_setting {
+                    Some(num_int_doubles)
+                } else {
+                    None
+                };
+                Ok((num_mod_combo_star_ratings, mod_combo_star_ratings))
             }
-            Ok((Some(num_int_doubles), Some(int_double_pairs)))
         } else {
-            *i += num_int_doubles as usize * 14;
-            Ok((None, None))
+            Err(DbFileParseError::new(
+                ParseErrorKind::OsuDbError,
+                "Insufficient bytes to read mod combo star ratings.",
+            ))
         }
-    }
-
-    #[inline]
-    fn maybe_read_unknown_short(
-        _skip: bool,
-        _bytes: &[u8],
-        _i: &mut usize,
-    ) -> ParseFileResult<Option<i16>> {
-        Ok(None)
     }
 }
 
 impl ReadPartialVersionSpecificData for ModernWithEntrySize {
-    #[inline]
     fn maybe_read_entry_size(
         setting: Relational<i32>,
         skip: &mut bool,
@@ -282,45 +280,58 @@ impl ReadPartialVersionSpecificData for ModernWithEntrySize {
         maybe_read_int(setting, skip, bytes, i)
     }
 
-    #[inline]
     fn maybe_read_arcshpod(
         setting: Relational<ByteSingle>,
         skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>> {
-        if let Some(single) = maybe_read_single_bs(setting, skip, bytes, i)? {
-            Ok(Some(Single(single)))
-        } else {
-            Ok(None)
-        }
+        maybe_read_single_bs(setting, skip, bytes, i)
+            .map(|maybe_single| maybe_single.map(|single| Single(single)))
     }
 
-    #[inline]
     fn maybe_read_mod_combo_star_ratings(
-        skip: bool,
+        num_setting: bool,
+        mcsr_setting: bool,
+        skip: &mut bool,
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         let num_int_doubles = read_int(bytes, i)?;
-        if skip {
-            let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
-            for _ in 0..num_int_doubles {
-                int_double_pairs.push(read_int_double_pair(bytes, i)?);
+        if *i + num_int_doubles as usize * 14 < bytes.len() {
+            if *skip {
+                *i += num_int_doubles as usize * 14;
+                Ok((None, None))
+            } else {
+                let mod_combo_star_ratings = if mcsr_setting {
+                    let mut int_double_pairs = Vec::with_capacity(num_int_doubles as usize);
+                    for _ in 0..num_int_doubles {
+                        if let Some(idp) = maybe_read_int_double_pair(mcsr_setting, bytes, i)? {
+                            if !*skip {
+                                int_double_pairs.push(idp);
+                            }
+                        }
+                    }
+                    if *skip {
+                        return Ok((None, None));
+                    } else {
+                        Some(int_double_pairs)
+                    }
+                } else {
+                    None
+                };
+                let num_mod_combo_star_ratings = if num_setting {
+                    Some(num_int_doubles)
+                } else {
+                    None
+                };
+                Ok((num_mod_combo_star_ratings, mod_combo_star_ratings))
             }
-            Ok((Some(num_int_doubles), Some(int_double_pairs)))
         } else {
-            *i += num_int_doubles as usize * 14;
-            Ok((None, None))
+            Err(DbFileParseError::new(
+                ParseErrorKind::OsuDbError,
+                "Insufficient bytes to read mod combo star ratings.",
+            ))
         }
-    }
-
-    #[inline]
-    fn maybe_read_unknown_short(
-        _skip: bool,
-        _bytes: &[u8],
-        _i: &mut usize,
-    ) -> ParseFileResult<Option<i16>> {
-        Ok(None)
     }
 }

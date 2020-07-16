@@ -1,12 +1,8 @@
-use std::io::Result as IoResult;
-
-use chrono::NaiveDate;
-
 use crate::load_settings::{
-    osu::beatmap_load_settings::BeatmapLoadSettings, query::QueryStruct, LoadSetting,
+    osu::beatmap_load_settings::BeatmapLoadSettings, query::QueryStruct
 };
 use crate::masks::osu_mask::OsuDbMask;
-use crate::read_error::{DbFileParseError, ParseErrorKind::QueryError, ParseFileResult};
+use std::io::Result as IoResult;
 
 pub struct OsuDbLoadSettings {
     pub version: bool,
@@ -17,21 +13,6 @@ pub struct OsuDbLoadSettings {
     pub number_of_beatmaps: bool,
     pub beatmap_load_settings: BeatmapLoadSettings,
     pub unknown_short: bool,
-}
-
-impl Default for OsuDbLoadSettings {
-    fn default() -> Self {
-        OsuDbLoadSettings {
-            version: LoadSetting::Ignore,
-            folder_count: LoadSetting::Ignore,
-            account_unlocked: LoadSetting::Ignore,
-            account_unlock_date: LoadSetting::Ignore,
-            player_name: LoadSetting::Ignore,
-            number_of_beatmaps: LoadSetting::Ignore,
-            beatmap_load_settings: BeatmapLoadSettings::default(),
-            unknown_short: LoadSetting::Ignore,
-        }
-    }
 }
 
 impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {

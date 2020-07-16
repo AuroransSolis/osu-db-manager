@@ -1,11 +1,9 @@
-use std::io::Result as IoResult;
-
-use chrono::NaiveDate;
-use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
-
 use crate::databases::osu::primitives::GameplayMode;
-use crate::load_settings::{query::QueryStruct, EqualClone, EqualCopy, LoadSetting, Relational};
+use crate::load_settings::{EqualClone, EqualCopy, Relational};
 use crate::masks::scores_mask::ScoreMask;
+use chrono::NaiveDate;
+use clap::ArgMatches;
+use std::io::Result as IoResult;
 
 pub struct ScoreLoadSettings {
     pub gameplay_mode: EqualCopy<GameplayMode>,

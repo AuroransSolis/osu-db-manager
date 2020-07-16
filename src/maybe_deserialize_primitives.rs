@@ -1,13 +1,11 @@
-use std::mem::size_of;
-use std::str;
-use std::time::Duration;
-
-use chrono::{naive::NaiveDate, Duration as ChronoDuration};
-
+use crate::databases::osu::primitives::ByteSingle;
 use crate::deserialize_primitives::*;
 use crate::load_settings::{EqualClone, EqualCopy, Relational};
 use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
-use crate::databases::osu::primitives::ByteSingle;
+use chrono::{naive::NaiveDate, Duration as ChronoDuration};
+use std::str;
+use std::time::Duration;
+
 // Primitive types we need to read from databases:
 // Byte
 // Short

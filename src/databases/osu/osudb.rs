@@ -1,9 +1,3 @@
-use std::slice;
-use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
-
-use chrono::NaiveDate;
-
 use crate::databases::{
     load::Load,
     osu::{
@@ -13,7 +7,10 @@ use crate::databases::{
     },
 };
 use crate::deserialize_primitives::*;
-use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
+use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
+use chrono::NaiveDate;
+use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
+use std::sync::{Arc, Mutex};
 
 /// osu!.db struct according to documentation linked in README.
 #[derive(Debug, Clone)]
@@ -28,8 +25,8 @@ pub struct OsuDb<'a> {
     pub unknown_short: i16,
 }
 
-impl Load for OsuDb {
-    fn read_single_thread(bytes: &[u8]) -> ParseFileResult<Self> {
+impl<'a> Load<'a> for OsuDb<'a> {
+    fn read_single_thread(bytes: &'a [u8]) -> ParseFileResult<Self> {
         let mut index = 0;
         let version = read_int(&bytes, &mut index)?;
         let folder_count = read_int(&bytes, &mut index)?;
@@ -65,7 +62,10 @@ impl Load for OsuDb {
                 "Read version with no associated beatmap loading method {}",
                 version
             );
-            return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
+            return Err(DbFileParseError::new(
+                ParseErrorKind::OsuDbError,
+                err_msg.as_str(),
+            ));
         }
         let unknown_short = read_short(&bytes, &mut index)?;
         Ok(OsuDb {
@@ -80,7 +80,7 @@ impl Load for OsuDb {
         })
     }
 
-    fn read_multi_thread(jobs: usize, bytes: Vec<u8>) -> ParseFileResult<Self> {
+    fn read_multi_thread(jobs: usize, bytes: &'a [u8]) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
         let version = read_int(&bytes, i)?;
@@ -93,27 +93,40 @@ impl Load for OsuDb {
             None
         };
         let player_name = read_player_name(&bytes, i)?;
-        let num_beatmaps = read_int(&bytes, &mut bytes_used)?;
+        let num_beatmaps = read_int(&bytes, i)?;
         let counter = Arc::new(Mutex::new(0));
-        let start = Arc::new(Mutex::new(bytes_used));
+        let start = Arc::new(Mutex::new(*i));
         let beatmaps = if version >= 20160408 && version < 20191107 {
-            // Spawn a thread for each requested job, collect handles into a vec.
-            let threads = (0..jobs)
-                .map(|_| {
-                    spawn_beatmap_loader_thread(
-                        num_beatmaps as usize,
-                        counter.clone(),
-                        start.clone(),
-                        bytes.as_ptr(),
-                        bytes.len(),
-                    )
-                })
-                .collect::<Vec<_>>();
-            // Pull results from each thread.
-            let mut results = threads
-                .into_iter()
-                .map(|joinhandle| joinhandle.join().unwrap())
-                .collect::<Vec<_>>();
+            let mut results = thread::scope(|s| {
+                let threads = (0..jobs)
+                    .map(|_| {
+                        spawn_beatmap_loader_thread(
+                            s,
+                            num_beatmaps as usize,
+                            counter.clone(),
+                            start.clone(),
+                            bytes,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                threads
+                    .into_iter()
+                    .map(|mut joinhandle| {
+                        joinhandle.join().map_err(|_| {
+                            DbFileParseError::new(
+                                ParseErrorKind::OsuDbError,
+                                "Failed to join osu!.db beatmap parsing thread.",
+                            )
+                        })?
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .map_err(|_| {
+                DbFileParseError::new(
+                    ParseErrorKind::OsuDbError,
+                    "Failed to retrieve result from osu!.db beatmap parsing scope.",
+                )
+            })?;
             let mut beatmaps = results.pop().unwrap()?;
             for beatmap_result in results {
                 // I'm using a `for` loop here with the `pop` above instead of `into_iter()` and
@@ -132,7 +145,7 @@ impl Load for OsuDb {
         } else if version / 1000 <= 2016 && version / 1000 >= 2007 || version / 1000 == 2019 {
             // Catch valid versions.
             return Err(DbFileParseError::new(
-                OsuDbError,
+                ParseErrorKind::OsuDbError,
                 "osu!.db versions older than 20160408 and newer than and including \
                  20191107 do not support multithreaded loading.",
             ));
@@ -141,7 +154,10 @@ impl Load for OsuDb {
                 "Read version with no associated beatmap loading method: {}",
                 version
             );
-            return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
+            return Err(DbFileParseError::new(
+                ParseErrorKind::OsuDbError,
+                err_msg.as_str(),
+            ));
         };
         let unknown_short = read_short(&bytes, &mut *start.lock().unwrap())?;
         Ok(OsuDb {
@@ -157,17 +173,14 @@ impl Load for OsuDb {
     }
 }
 
-#[inline]
-fn spawn_beatmap_loader_thread<'a>(
+fn spawn_beatmap_loader_thread<'a, 'scope>(
+    scope: &'scope Scope<'a>,
     number: usize,
     counter: Arc<Mutex<usize>>,
     start: Arc<Mutex<usize>>,
-    bytes_pointer: *const u8,
-    bytes_len: usize,
-) -> JoinHandle<ParseFileResult<Vec<(usize, Beatmap<'a>)>>> {
-    let tmp = bytes_pointer as usize;
-    thread::spawn(move || {
-        let bytes = unsafe { slice::from_raw_parts(tmp as *const u8, bytes_len) };
+    bytes: &'a [u8],
+) -> ScopedJoinHandle<'scope, ParseFileResult<Vec<(usize, Beatmap<'a>)>>> {
+    scope.spawn(|_| {
         let mut beatmaps = Vec::new();
         loop {
             let (entry_size, mut start, num) = {

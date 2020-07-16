@@ -1,9 +1,6 @@
-use std::slice;
-use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
-
 use crate::databases::{
     load::PartialLoad,
+    osu::primitives::GameplayMode,
     scores::{partial_score::PartialScore, partial_scoresdb_beatmap::PartialScoresDbBeatmap},
 };
 use crate::deserialize_primitives::*;
@@ -11,9 +8,14 @@ use crate::load_settings::scores::{
     scoresdb_beatmap_load_settings::ScoresDbBeatmapLoadSettings,
     scoresdb_load_settings::ScoresDbLoadSettings,
 };
-use crate::masks::scores_mask::{ScoresDbBeatmapMask, ScoresDbMask};
+use crate::masks::scores_mask::ScoresDbMask;
 use crate::maybe_deserialize_primitives::*;
-use crate::read_error::{DbFileParseError, ParseErrorKind::PrimitiveError, ParseFileResult};
+use crate::read_error::{
+    DbFileParseError, ParseErrorKind, ParseErrorKind::PrimitiveError, ParseFileResult,
+};
+use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
+use std::ops::DerefMut;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct PartialScoresDb<'a> {
@@ -22,24 +24,31 @@ pub struct PartialScoresDb<'a> {
     pub beatmaps: Option<Vec<PartialScoresDbBeatmap<'a>>>,
 }
 
-impl PartialLoad<ScoresDbMask, ScoresDbLoadSettings> for PartialScoresDb {
-    fn read_single_thread(settings: ScoresDbLoadSettings, bytes: &[u8]) -> ParseFileResult<Self> {
+impl<'a> PartialLoad<'a, ScoresDbMask, ScoresDbLoadSettings> for PartialScoresDb<'a> {
+    fn read_single_thread(
+        settings: ScoresDbLoadSettings,
+        bytes: &'a [u8],
+    ) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
-        let version = if mask.version {
+        let version = if settings.version {
             Some(read_int(&bytes, i)?)
         } else {
             *i += 4;
             None
         };
         let number_of_beatmaps = read_int(&bytes, i)?;
-        let beatmaps = if let Some(m) = mask.beatmaps_mask {
+        let beatmaps = if settings.beatmap_load_settings.is_partial() {
             if number_of_beatmaps == 0 {
                 None
             } else {
                 let mut tmp = Vec::with_capacity(number_of_beatmaps as usize);
                 for _ in 0..number_of_beatmaps {
-                    tmp.push(PartialScoresDbBeatmap::read_from_bytes(m, &bytes, i)?);
+                    tmp.push(PartialScoresDbBeatmap::read_from_bytes(
+                        &settings.beatmap_load_settings,
+                        &bytes,
+                        i,
+                    )?);
                 }
                 Some(tmp)
             }
@@ -53,11 +62,15 @@ impl PartialLoad<ScoresDbMask, ScoresDbLoadSettings> for PartialScoresDb {
         })
     }
 
-    fn read_multi_thread(mask: ScoresDbMask, jobs: usize, bytes: &[u8]) -> ParseFileResult<Self> {
+    fn read_multi_thread(
+        settings: ScoresDbLoadSettings,
+        jobs: usize,
+        bytes: &'a [u8],
+    ) -> ParseFileResult<Self> {
         let (version, number_of_beatmaps) = {
             let mut index = 0;
             (
-                if mask.version {
+                if settings.version {
                     Some(read_int(&bytes, &mut index)?)
                 } else {
                     index += 4;
@@ -66,27 +79,42 @@ impl PartialLoad<ScoresDbMask, ScoresDbLoadSettings> for PartialScoresDb {
                 read_int(&bytes, &mut index)?,
             )
         };
-        let beatmaps = if mask.beatmaps_mask.ignore_all() {
+        let beatmaps = if settings.beatmap_load_settings.ignore_all() {
             None
         } else {
             let counter = Arc::new(Mutex::new(0));
             let start_read = Arc::new(Mutex::new(8));
-            let threads = (0..jobs)
-                .map(|i| {
-                    spawn_partial_scoredb_beatmap_loader(
-                        m,
-                        number_of_beatmaps as usize,
-                        counter.clone(),
-                        start_read.clone(),
-                        bytes.as_ptr(),
-                        bytes.len(),
-                    )
-                })
-                .collect::<Vec<_>>();
-            let mut results = threads
-                .into_iter()
-                .map(|joinhandle| joinhandle.join().unwrap())
-                .collect::<Vec<_>>();
+            let mut results = thread::scope(move |s| {
+                let threads = (0..jobs)
+                    .map(|n| {
+                        spawn_partial_scoresdb_beatmap_loader_thread(
+                            s,
+                            number_of_beatmaps as usize,
+                            counter.clone(),
+                            start_read.clone(),
+                            bytes,
+                            &settings.beatmap_load_settings,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                threads
+                    .into_iter()
+                    .map(|joinhandle| {
+                        joinhandle.join().map_err(|_| {
+                            DbFileParseError::new(
+                                ParseErrorKind::ScoresDbError,
+                                "Failed to join scores.db partial beatmap parsing thread.",
+                            )
+                        })?
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .map_err(|_| {
+                DbFileParseError::new(
+                    ParseErrorKind::ScoresDbError,
+                    "Failed to retrieve result from scores.db partial beatmap parsing scope.",
+                )
+            })?;
             let mut partial_scoredb_beatmaps = results.pop().unwrap()?;
             for partial_scoredb_beatmap_result in results {
                 partial_scoredb_beatmaps.append(&mut partial_scoredb_beatmap_result?);
@@ -107,58 +135,48 @@ impl PartialLoad<ScoresDbMask, ScoresDbLoadSettings> for PartialScoresDb {
     }
 }
 
-fn spawn_partial_scoredb_beatmap_loader<'a>(
-    settings_ptr: *const ScoresDbBeatmapLoadSettings,
-    number_of_scoredb_beatmaps: usize,
+fn spawn_partial_scoresdb_beatmap_loader_thread<'a, 'scope>(
+    scope: &'scope Scope<'a>,
+    number_of_scoresdb_beatmaps: usize,
     counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>,
-    bytes_pointer: *const u8,
-    bytes_len: usize,
-) -> JoinHandle<ParseFileResult<Vec<(usize, PartialScoresDbBeatmap<'a>)>>> {
-    let tmp_bp = bytes_pointer as usize;
-    let tmp_sp = settings_ptr as usize;
-    thread::spawn(move || {
-        let (bytes, settings) = unsafe {
-            (
-                slice::from_raw_parts(tmp_bp as *const u8, bytes_len),
-                &*(tmp_sp as *const ScoresDbBeatmapLoadSettings),
-            )
-        };
+    bytes: &'a [u8],
+    settings: &'a ScoresDbBeatmapLoadSettings,
+) -> ScopedJoinHandle<'scope, ParseFileResult<Vec<(usize, PartialScoresDbBeatmap<'a>)>>> {
+    scope.spawn(move |_| {
         let mut partial_scoresdb_beatmaps = Vec::new();
         loop {
             let mut skip = false;
             let s = &mut skip;
             let (md5_beatmap_hash, number_of_scores, mut start_read, end, number) = {
                 let mut ctr = counter.lock().unwrap();
-                let number = if *ctr >= number_of_scoredb_beatmaps {
+                let number = if *ctr >= number_of_scoresdb_beatmaps {
                     return Ok(partial_scoresdb_beatmaps);
                 } else {
                     *ctr += 1;
                     *ctr - 1
                 };
                 let mut start = start_read.lock().unwrap();
-                let mut section_length = 0;
-                let sl = &mut section_length;
                 let md5_beatmap_hash =
-                    maybe_read_md5_hash(&settings.md5_beatmap_hash, s, bytes, sl)?;
-                let number_of_scores = read_int(bytes, sl)?;
-                let start_from = *ctr + *sl;
-                for i in 0..number_of_scores {
+                    maybe_read_md5_hash(&settings.md5_beatmap_hash, s, bytes, start.deref_mut())?;
+                let number_of_scores = read_int(bytes, start.deref_mut())?;
+                let section_start = *start;
+                for _ in 0..number_of_scores {
                     // Skips:
                     // 1 byte for gameplay_mode
                     // 4 bytes for score_version
                     // 34 bytes for MD5 beatmap hash (assumed never to be missing)
-                    *sl += 39;
+                    *start += 39;
                     // Assuming 32 characters max length for username, +2 for indicator and ULEB128
-                    let indicator = *bytes.get(*ctr + *sl).ok_or_else(|| {
+                    let indicator = *bytes.get(*start).ok_or_else(|| {
                         DbFileParseError::new(
                             PrimitiveError,
                             "Failed to read \
-                             indicator for player name.",
+                                                indicator for player name.",
                         )
                     })?;
                     let player_name_len = if indicator == 0x0b {
-                        Ok(*bytes.get(*ctr + *sl + 1).ok_or_else(|| {
+                        Ok(*bytes.get(*start + 1).ok_or_else(|| {
                             DbFileParseError::new(
                                 PrimitiveError,
                                 "Failed to read player name length.",
@@ -170,7 +188,7 @@ fn spawn_partial_scoredb_beatmap_loader<'a>(
                         Err(DbFileParseError::new(
                             PrimitiveError,
                             "Read invalid indicator for score \
-                             player name.",
+                                                player name.",
                         ))
                     }?;
                     // Check if greater than or equal to 32.
@@ -178,15 +196,15 @@ fn spawn_partial_scoredb_beatmap_loader<'a>(
                         return Err(DbFileParseError::new(
                             PrimitiveError,
                             "Read invalid player name \
-                             length.",
+                                                length.",
                         ));
                     }
                     if indicator == 0 {
-                        *sl += 1;
+                        *start += 1;
                     } else {
-                        *sl += 2;
+                        *start += 2;
                     }
-                    *sl += player_name_len as usize + 78;
+                    *start += player_name_len as usize + 78;
                     // Skips:
                     // 34 bytes for replay MD5 hash
                     // 2 bytes for number of 300s
@@ -205,50 +223,99 @@ fn spawn_partial_scoredb_beatmap_loader<'a>(
                     // 8 bytes for score ID
                     // Total of 78
                 }
-                *ctr += *sl;
-                (md5_beatmap_hash, number_of_scores, start_from, *s, number)
+                (
+                    md5_beatmap_hash,
+                    number_of_scores,
+                    section_start,
+                    *s,
+                    number,
+                )
             };
             continue_if!(*s);
             let scores = if settings.score_load_settings.ignore_all() || number_of_scores == 0 {
                 None
             } else {
                 let mut tmp = Vec::with_capacity(number_of_scores as usize);
+                let i = &mut start_read;
                 for _ in 0..number_of_scores {
                     let mut skip = false;
                     let s = &mut skip;
-                    let gameplay_mode =
-                        GameplayMode::maybe_read_from_bytes(settings.score_load_settings.gameplay_mode, s, bytes, i)?;
+                    let gameplay_mode = GameplayMode::maybe_read_from_bytes(
+                        settings.score_load_settings.gameplay_mode,
+                        s,
+                        bytes,
+                        i,
+                    )?;
                     continue_if!(*s);
-                    let score_version = maybe_read_int(settings.score_load_settings.score_version, s, bytes, i)?;
+                    let score_version =
+                        maybe_read_int(settings.score_load_settings.score_version, s, bytes, i)?;
                     continue_if!(*s);
-                    let md5_beatmap_hash =
-                        maybe_read_md5_hash(&settings.score_load_settings.md5_beatmap_hash, s, bytes, i)?;
+                    let md5_beatmap_hash = maybe_read_md5_hash(
+                        &settings.score_load_settings.md5_beatmap_hash,
+                        s,
+                        bytes,
+                        i,
+                    )?;
                     continue_if!(*s);
-                    let player_name =
-                        maybe_read_str_utf8(&settings.score_load_settings.player_name, s, bytes, i, "player name")?;
-                    let md5_replay_hash =
-                        maybe_read_md5_hash(&settings.score_load_settings.md5_replay_hash, s, bytes, i)?;
+                    let player_name = maybe_read_str_utf8(
+                        &settings.score_load_settings.player_name,
+                        s,
+                        bytes,
+                        i,
+                        "player name",
+                    )?;
+                    let md5_replay_hash = maybe_read_md5_hash(
+                        &settings.score_load_settings.md5_replay_hash,
+                        s,
+                        bytes,
+                        i,
+                    )?;
                     continue_if!(*s);
-                    let number_of_300s = maybe_read_short(settings.score_load_settings.number_of_300s, s, bytes, i)?;
+                    let number_of_300s =
+                        maybe_read_short(settings.score_load_settings.number_of_300s, s, bytes, i)?;
                     continue_if!(*s);
-                    let number_of_100s = maybe_read_short(settings.score_load_settings.number_of_100s, s, bytes, i)?;
+                    let number_of_100s =
+                        maybe_read_short(settings.score_load_settings.number_of_100s, s, bytes, i)?;
                     continue_if!(*s);
-                    let number_of_50s = maybe_read_short(settings.score_load_settings.number_of_50s, s, bytes, i)?;
+                    let number_of_50s =
+                        maybe_read_short(settings.score_load_settings.number_of_50s, s, bytes, i)?;
                     continue_if!(*s);
-                    let number_of_gekis = maybe_read_short(settings.score_load_settings.number_of_gekis, s, bytes, i)?;
+                    let number_of_gekis = maybe_read_short(
+                        settings.score_load_settings.number_of_gekis,
+                        s,
+                        bytes,
+                        i,
+                    )?;
                     continue_if!(*s);
-                    let number_of_katus = maybe_read_short(settings.score_load_settings.number_of_katus, s, bytes, i)?;
+                    let number_of_katus = maybe_read_short(
+                        settings.score_load_settings.number_of_katus,
+                        s,
+                        bytes,
+                        i,
+                    )?;
                     continue_if!(*s);
-                    let number_of_misses =
-                        maybe_read_short(settings.score_load_settings.number_of_misses, s, bytes, i)?;
+                    let number_of_misses = maybe_read_short(
+                        settings.score_load_settings.number_of_misses,
+                        s,
+                        bytes,
+                        i,
+                    )?;
                     continue_if!(*s);
-                    let replay_score = maybe_read_int(settings.score_load_settings.replay_score, s, bytes, i)?;
+                    let replay_score =
+                        maybe_read_int(settings.score_load_settings.replay_score, s, bytes, i)?;
                     continue_if!(*s);
-                    let max_combo = maybe_read_short(settings.score_load_settings.max_combo, s, bytes, i)?;
+                    let max_combo =
+                        maybe_read_short(settings.score_load_settings.max_combo, s, bytes, i)?;
                     continue_if!(*s);
-                    let perfect_combo = maybe_read_boolean(settings.score_load_settings.perfect_combo, s, bytes, i)?;
+                    let perfect_combo = maybe_read_boolean(
+                        settings.score_load_settings.perfect_combo,
+                        s,
+                        bytes,
+                        i,
+                    )?;
                     continue_if!(*s);
-                    let mods_used = maybe_read_int(settings.score_load_settings.mods_used, s, bytes, i)?;
+                    let mods_used =
+                        maybe_read_int(settings.score_load_settings.mods_used, s, bytes, i)?;
                     continue_if!(*s);
                     let empty_string = maybe_read_str_utf8_nocomp(
                         settings.score_load_settings.empty_string,
@@ -258,13 +325,44 @@ fn spawn_partial_scoredb_beatmap_loader<'a>(
                         "empty string",
                     )?;
                     continue_if!(*s);
-                    let replay_timestamp =
-                        maybe_read_datetime(settings.score_load_settings.replay_timestamp, s, bytes, i)?;
+                    let replay_timestamp = maybe_read_datetime(
+                        settings.score_load_settings.replay_timestamp,
+                        s,
+                        bytes,
+                        i,
+                    )?;
                     continue_if!(*s);
-                    let negative_one = maybe_read_int_nocomp(settings.score_load_settings.negative_one, s, bytes, i)?;
+                    let negative_one = maybe_read_int_nocomp(
+                        settings.score_load_settings.negative_one,
+                        s,
+                        bytes,
+                        i,
+                    )?;
                     continue_if!(*s);
-                    let online_score_id = maybe_read_long(settings.score_load_settings.online_score_id, s, bytes, i)?;
+                    let online_score_id =
+                        maybe_read_long(settings.score_load_settings.online_score_id, s, bytes, i)?;
                     continue_if!(*s);
+                    tmp.push(PartialScore {
+                        gameplay_mode,
+                        score_version,
+                        md5_beatmap_hash,
+                        player_name,
+                        md5_replay_hash,
+                        number_of_300s,
+                        number_of_100s,
+                        number_of_50s,
+                        number_of_gekis,
+                        number_of_katus,
+                        number_of_misses,
+                        replay_score,
+                        max_combo,
+                        perfect_combo,
+                        mods_used,
+                        empty_string,
+                        replay_timestamp,
+                        negative_one,
+                        online_score_id,
+                    })
                 }
                 Some(tmp)
             };

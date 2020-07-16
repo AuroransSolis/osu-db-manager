@@ -1,10 +1,8 @@
-use std::slice;
-use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
-
 use crate::databases::{collection::collection::Collection, load::Load};
 use crate::deserialize_primitives::*;
-use crate::read_error::ParseFileResult;
+use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
+use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
+use std::sync::{Arc, Mutex};
 
 /// Contains collections of beatmaps defined by the user, typically in the game. This can be used
 /// to, say, group together practice maps for streams or jumps, or maybe a user's favourite maps.
@@ -15,8 +13,8 @@ pub struct CollectionDb<'a> {
     pub collections: Vec<Collection<'a>>,
 }
 
-impl Load for CollectionDb {
-    fn read_single_thread(bytes: &[u8]) -> ParseFileResult<Self> {
+impl<'a> Load<'a> for CollectionDb<'a> {
+    fn read_single_thread(bytes: &'a [u8]) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
         let version = read_int(&bytes, i)?;
@@ -32,7 +30,7 @@ impl Load for CollectionDb {
         })
     }
 
-    fn read_multi_thread(jobs: usize, bytes: &[u8]) -> ParseFileResult<Self> {
+    fn read_multi_thread(jobs: usize, bytes: &'a [u8]) -> ParseFileResult<Self> {
         let version = read_int(&bytes, &mut 0)?;
         let number_of_collections = read_int(&bytes, &mut 4)?;
         // Keeps track of how many collections we've parsed.
@@ -40,30 +38,40 @@ impl Load for CollectionDb {
         // Keeps track of the offset into the file bytes from which to start parsing a new
         // collection.
         let start_read = Arc::new(Mutex::new(8));
-        // Start a thread for each job requested and collect the handles into a vector.
-        let threads = (0..jobs)
-            .map(|_| {
-                spawn_collection_loader_thread(
-                    number_of_collections as usize,
-                    counter.clone(),
-                    start_read.clone(),
-                    bytes.as_ptr(),
-                    bytes.len(),
-                )
-            })
-            .collect::<Vec<_>>();
-        // Join the threads and collect from them the result of the collections they've tried to
-        // parse. If a thread failed to parse one, it'll return an error, which will then be handled
-        // as described in the comment after the next.
-        let mut results = threads
-            .into_iter()
-            .map(|joinhandle| {
-                joinhandle
-                    .join()
-                    .expect("Failed to join collection parsing thread.")
-            })
-            .collect::<Vec<_>>();
-        // Take the first collection out of the parser thread results
+        let mut results = thread::scope(|s| {
+            let threads = (0..jobs)
+                .map(|n| {
+                    spawn_collection_loader_thread(
+                        s,
+                        number_of_collections as usize,
+                        counter.clone(),
+                        start_read.clone(),
+                        bytes,
+                    )
+                })
+                .collect::<Vec<_>>();
+            // Join the threads and collect from them the result of the collections they've tried to
+            // parse. If a thread failed to parse one, it'll return an error, which will then be
+            // handled as described in the comment after the next.
+            threads
+                .into_iter()
+                .map(|joinhandle| {
+                    joinhandle.join().map_err(|_| {
+                        DbFileParseError::new(
+                            ParseErrorKind::CollectionDbError,
+                            "Failed to join collection.db collection parsing thread.",
+                        )
+                    })?
+                })
+                .collect::<Vec<_>>()
+        })
+        .map_err(|_| {
+            DbFileParseError::new(
+                ParseErrorKind::CollectionDbError,
+                "Failed to retrieve result from collection.db collection parsing scope.",
+            )
+        })?;
+        // Take the first collection out of the parser thread results.
         let mut collections = results.pop().unwrap()?;
         // For each result in the parser threads, ensure that it's an `Ok(collection)`. Escalate the
         // first error that's found to the caller.
@@ -78,11 +86,11 @@ impl Load for CollectionDb {
         // Sort by collection number - ensure that what is returned is in the same order as it is in
         // the database file.
         collections.sort_by(|(a, _), (b, _)| a.cmp(b));
-        // Get rid of the collection numbers and keep only the collections themselves.
         let collections = collections
             .into_iter()
             .map(|(_, collection)| collection)
-            .collect::<Vec<Collection>>();
+            .collect::<Vec<_>>();
+        // Get rid of the collection numbers and keep only the collections themselves.
         Ok(CollectionDb {
             version,
             number_of_collections,
@@ -91,16 +99,14 @@ impl Load for CollectionDb {
     }
 }
 
-fn spawn_collection_loader_thread<'a>(
+fn spawn_collection_loader_thread<'a, 'scope>(
+    scope: &'scope Scope<'a>,
     number: usize,
     counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>,
-    byte_pointer: *const u8,
-    byte_size: usize,
-) -> JoinHandle<ParseFileResult<Vec<(usize, Collection<'a>)>>> {
-    let tmp = byte_pointer as usize;
-    thread::spawn(move || {
-        let bytes = unsafe { slice::from_raw_parts(tmp as *const u8, byte_size) };
+    bytes: &'a [u8],
+) -> ScopedJoinHandle<'scope, ParseFileResult<Vec<(usize, Collection<'a>)>>> {
+    scope.spawn(move |_| {
         let mut collections = Vec::new();
         loop {
             let (collection_name, number_of_beatmaps, num, mut start) = {

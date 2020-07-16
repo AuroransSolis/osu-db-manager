@@ -26,7 +26,7 @@ fn main() {
     let database = db.unwrap();
     let jobs = jobs.unwrap();
     let timer = Instant::now();
-    let database = OsuDatabase::read_from_bytes(jobs, database);
+    let database = OsuDatabase::read_from_bytes(jobs, &database);
     let elapsed = timer.elapsed();
     if let Ok(_) = database {
         println!("Successfully loaded database! Time taken: {:?}", elapsed);

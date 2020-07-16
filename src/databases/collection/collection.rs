@@ -10,8 +10,8 @@ pub struct Collection<'a> {
     pub md5_beatmap_hashes: Vec<&'a str>,
 }
 
-impl Collection {
-    pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
+impl<'a> Collection<'a> {
+    pub fn read_from_bytes(bytes: &'a [u8], i: &mut usize) -> ParseFileResult<Self> {
         let collection_name = read_str_utf8(bytes, i, "collection name")?;
         let number_of_beatmaps = read_int(bytes, i)?;
         let mut md5_beatmap_hashes = Vec::with_capacity(number_of_beatmaps as usize);

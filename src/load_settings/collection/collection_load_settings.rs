@@ -1,9 +1,7 @@
-use std::io::Result as IoResult;
-
-use clap::{App, AppSettings, Arg, SubCommand};
-
-use crate::load_settings::{query::QueryStruct, EqualClone, EqualCopy, LoadSetting, Relational};
+use crate::load_settings::{EqualClone, Relational};
 use crate::masks::collection_mask::CollectionMask;
+use clap::{App, Arg};
+use std::io::Result as IoResult;
 
 pub struct CollectionLoadSettings {
     pub collection_name: EqualClone<String>,

@@ -1,8 +1,7 @@
-use chrono::NaiveDate;
-
 use crate::databases::osu::primitives::GameplayMode;
 use crate::deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
+use chrono::NaiveDate;
 
 #[derive(Debug, Clone)]
 pub struct Score<'a> {
@@ -27,8 +26,8 @@ pub struct Score<'a> {
     pub online_score_id: i64,
 }
 
-impl Score {
-    pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
+impl<'a> Score<'a> {
+    pub fn read_from_bytes(bytes: &'a [u8], i: &mut usize) -> ParseFileResult<Self> {
         let gameplay_mode = GameplayMode::read_from_bytes(bytes, i)?;
         let score_version = read_int(bytes, i)?;
         let md5_beatmap_hash = read_md5_hash(bytes, i)?;

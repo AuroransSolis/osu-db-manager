@@ -1,5 +1,5 @@
 #![rustfmt::skip]
-use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
+use clap::{App, Arg};
 
 use crate::masks::mask::Mask;
 

@@ -1,8 +1,8 @@
 use std::io::Result as IoResult;
 
 use crate::load_settings::{
-    query::QueryStruct, scores::scoresdb_beatmap_load_settings::ScoresDbBeatmapLoadSettings,
-    LoadSetting,
+    query::QueryStruct,
+    scores::scoresdb_beatmap_load_settings::ScoresDbBeatmapLoadSettings,
 };
 use crate::masks::scores_mask::ScoresDbMask;
 

@@ -1,5 +1,5 @@
 #![rustfmt::skip]
-use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
+use clap::{App, Arg};
 
 use crate::masks::mask::Mask;
 
@@ -1308,11 +1308,10 @@ impl Mask for OsuDbMask {
             account_unlock_date,
             player_name,
             number_of_beatmaps,
-            unknown_short
         ] = if matches.is_present("All") {
-            [true; 7]
+            [true; 6]
         } else if matches.is_present("None") {
-            [false; 7]
+            [false; 6]
         } else {
             let version = matches.is_present("Version");
             let folder_count = matches.is_present("Folder count");
@@ -1327,10 +1326,9 @@ impl Mask for OsuDbMask {
                 account_unlock_date,
                 player_name,
                 number_of_beatmaps,
-                unknown_short,
             ]
         };
-        let meatmap_mask = if let Some(m) = matches.value_of("Beatmap show options") {
+        let beatmap_mask = if let Some(m) = matches.value_of("Beatmap show options") {
             BeatmapMask::from_input(m)
         } else {
             BeatmapMask::default()

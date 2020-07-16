@@ -1,9 +1,3 @@
-use std::slice;
-use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
-
-use chrono::NaiveDate;
-
 use crate::databases::{
     load::PartialLoad,
     osu::{
@@ -15,9 +9,12 @@ use crate::databases::{
 use crate::deserialize_primitives::*;
 use crate::load_settings::osu::beatmap_load_settings::BeatmapLoadSettings;
 use crate::load_settings::osu::osudb_load_settings::OsuDbLoadSettings;
-use crate::masks::osu_mask::{BeatmapMask, OsuDbMask};
+use crate::masks::osu_mask::OsuDbMask;
 use crate::maybe_deserialize_primitives::*;
-use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
+use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
+use chrono::NaiveDate;
+use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub struct PartialOsuDb<'a> {
@@ -31,8 +28,8 @@ pub struct PartialOsuDb<'a> {
     pub unknown_short: Option<i16>,
 }
 
-impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
-    fn read_single_thread(settings: OsuDbLoadSettings, bytes: &[u8]) -> ParseFileResult<Self> {
+impl<'a> PartialLoad<'a, OsuDbMask, OsuDbLoadSettings> for PartialOsuDb<'a> {
+    fn read_single_thread(settings: OsuDbLoadSettings, bytes: &'a [u8]) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
         let mut skip = false;
@@ -87,15 +84,19 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
                     "Read version with no associated beatmap loading method {}",
                     version
                 );
-                return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
+                return Err(DbFileParseError::new(
+                    ParseErrorKind::OsuDbError,
+                    err_msg.as_str(),
+                ));
             }
+            Some(tmp)
         };
         let unknown_short = if version < 20140609 {
-            Legacy::maybe_read_unknown_short(*s, &bytes, i)?
+            Legacy::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
         } else if version >= 20140609 && version < 20160408 {
-            Modern::maybe_read_unknown_short(*s, &bytes, i)?
+            Modern::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
         } else {
-            ModernWithEntrySize::maybe_read_unknown_short(*s, &bytes, i)?
+            ModernWithEntrySize::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
         };
         let version = if settings.version {
             Some(version)
@@ -117,7 +118,7 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
     fn read_multi_thread(
         settings: OsuDbLoadSettings,
         jobs: usize,
-        bytes: &[u8],
+        bytes: &'a [u8],
     ) -> ParseFileResult<Self> {
         let mut skip = false;
         let s = &mut skip;
@@ -133,70 +134,89 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
             None
         };
         let player_name = maybe_read_player_name_nocomp(settings.player_name, s, &bytes, i)?;
-        let num_beatmaps = read_int(&bytes, &mut bytes_used)?;
+        let num_beatmaps = read_int(&bytes, i)?;
         let beatmaps = if settings.beatmap_load_settings.ignore_all() || num_beatmaps == 0 {
-            None
+            Ok(None)
         } else {
             let counter = Arc::new(Mutex::new(0));
-            let start = Arc::new(Mutex::new(bytes_used));
+            let start = Arc::new(Mutex::new(*i));
             if version >= 20160408 && version < 20191107 {
-                // Spawn a thread for each requested job, collect handles into a vec.
-                let threads = (0..jobs)
-                    .map(|_| {
-                        spawn_partial_beatmap_loader_thread(
-                            m,
-                            num_beatmaps as usize,
-                            counter.clone(),
-                            start.clone(),
-                            bytes.as_ptr(),
-                            bytes.len(),
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                let mut results = threads
-                    .into_iter()
-                    .map(|joinhandle| joinhandle.join().unwrap())
-                    .collect::<Vec<_>>();
-                let mut beatmaps = results.pop().unwrap();
+                let mut results = thread::scope(|s| {
+                    // Spawn a thread for each requested job, collect handles into a vec.
+                    let threads = (0..jobs)
+                        .map(|n| {
+                            spawn_partial_beatmap_loader_thread(
+                                s,
+                                num_beatmaps as usize,
+                                counter.clone(),
+                                start.clone(),
+                                bytes,
+                                &settings.beatmap_load_settings,
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    threads
+                        .into_iter()
+                        .map(|mut joinhandle| {
+                            joinhandle.join().map_err(|_| {
+                                DbFileParseError::new(
+                                    ParseErrorKind::OsuDbError,
+                                    "Failed to join osu!.db partial beatmap parsing thread.",
+                                )
+                            })?
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .map_err(|_| {
+                    DbFileParseError::new(
+                        ParseErrorKind::OsuDbError,
+                        "Failed to retrieve result from osu!.db partial beatmap parsing scope.",
+                    )
+                })?;
+                let mut beatmaps = results.pop().unwrap()?;
                 for beatmap_result in results {
-                    // I'm using a `for` loop here with the `pop` above instead of `into_iter()` and
-                    // `for_each()` or `fold()` because of the `?`. `?` only returns from the most
-                    // immediate function closure, and I want the `?` to return out of this method
-                    // call.
+                    // I'm using a `for` loop here with the `pop` above instead of `into_iter()`
+                    // and `for_each()` or `fold()` because of the `?`. `?` only returns from
+                    // the most immediate function closure, and I want the `?` to return out of
+                    // this method call.
                     beatmaps.append(&mut beatmap_result?);
                 }
-                // Sort by their number so that the parsed data is in the same order as it appears
-                // in the database file.
+                // Sort by their number so that the parsed data is in the same order as it
+                // appears in the database file.
                 beatmaps.sort_by(|(a, _), (b, _)| a.cmp(b));
                 // Keep only the beatmaps - drop the counting number.
-                let beatmaps = beatmaps
-                    .into_iter()
-                    .map(|(_, beatmap)| beatmap)
-                    .collect::<Vec<_>>();
-                Some(beatmaps)
-            } else if version < 20160408 && version >= 20140609 || version >= 20191107 {
-            // Catch valid versions.
-                return Err(DbFileParseError::new(
-                    OsuDbError,
-                    "osu!.db versions older than 20160408 do \
+                Ok(Some(
+                    beatmaps
+                        .into_iter()
+                        .map(|(_, beatmap)| beatmap)
+                        .collect::<Vec<_>>(),
+                ))
+            } else if (version < 20160408 && version >= 20140609) || version >= 20191107 {
+                // Catch valid versions.
+                Err(DbFileParseError::new(
+                    ParseErrorKind::OsuDbError,
+                    "osu!.db versions older than 20160408 or newer than 20191107 do \
                      not support multithreaded loading due to lacking a specified entry size.",
-                ));
+                ))
             } else {
                 let err_msg = format!(
                     "Read version with no associated beatmap loading method: {}",
                     version
                 );
-                return Err(DbFileParseError::new(OsuDbError, err_msg.as_str()));
+                Err(DbFileParseError::new(
+                    ParseErrorKind::OsuDbError,
+                    err_msg.as_str(),
+                ))
             }
-        };
+        }?;
         let unknown_short = if version < 20140609 {
-            Legacy::maybe_read_unknown_short(*s, &bytes, i)?
+            Legacy::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
         } else if version >= 20140609 && version < 20160408 {
-            Modern::maybe_read_unknown_short(*s, &bytes, i)?
+            Modern::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
         } else {
-            ModernWithEntrySize::maybe_read_unknown_short(*s, &bytes, i)?
+            ModernWithEntrySize::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
         };
-        let version = if mask.version { Some(version) } else { None };
+        let version = if settings.version { Some(version) } else { None };
         Ok(PartialOsuDb {
             version,
             folder_count,
@@ -210,52 +230,46 @@ impl PartialLoad<OsuDbMask, OsuDbLoadSettings> for PartialOsuDb {
     }
 }
 
-#[inline]
-fn spawn_partial_beatmap_loader_thread<'a>(
-    settings: *const BeatmapLoadSettings,
+fn spawn_partial_beatmap_loader_thread<'a, 'scope>(
+    scope: &'scope Scope<'a>,
     number: usize,
     counter: Arc<Mutex<usize>>,
-    start: Arc<Mutex<usize>>,
-    bytes_pointer: *const u8,
-    bytes_len: usize,
-) -> JoinHandle<ParseFileResult<Vec<(usize, PartialBeatmap<'a>)>>> {
-    let tmp_bp = bytes_pointer as usize;
-    let tmp_s = settings as usize;
-    thread::spawn(move || {
-        let (settings, bytes) = unsafe {
-            (
-                &*(tmp_s as *const BeatmapLoadSettings),
-                slice::from_raw_parts(tmp_bp as *const u8, bytes_len),
-            )
-        };
+    start_read: Arc<Mutex<usize>>,
+    bytes: &'a [u8],
+    settings: &'a BeatmapLoadSettings,
+) -> ScopedJoinHandle<'scope, ParseFileResult<Vec<(usize, PartialBeatmap<'a>)>>> {
+    scope.spawn(move |_| {
         let mut beatmaps = Vec::new();
         loop {
             let (entry_size, mut start, num) = {
                 // Lock the counter.
                 let mut ctr = counter.lock().unwrap();
                 if *ctr >= number {
-                    // Return the collected beatmaps if the requisite number have been parsed.
+                    // Return the collected beatmaps if the requisite number
+                    // have been parsed.
                     return Ok(beatmaps);
                 } else {
                     // Otherwise, increment the counter and carry on.
                     *ctr += 1;
                 }
                 // Lock the start index.
-                let mut s = start.lock().unwrap();
-                // Keep track of where the rest of the beatmap entry actually begins.
+                let mut s = start_read.lock().unwrap();
+                // Keep track of where the rest of the beatmap entry
+                // actually begins.
                 let start_at = *s + 4;
                 let entry_size = read_int(bytes, &mut *s)?;
                 // Increase the start index by the size of this entry.
                 *s += entry_size as usize;
                 (entry_size, start_at, *ctr - 1)
-                // Drop the lock on the counter and start index so other threads can get started on
-                // parsing.
+                // Drop the lock on the counter and start index so other
+                // threads can get started on parsing.
             };
-            // Use of the entry size means that we can safely skip to the next beatmap if this one
-            // doesn't meet the query criteria, since we know where to skip to. The
-            // `continue_if!()`s below do just that - they expand to an `if` statement where the
-            // conditional block is just `continue;` and the condition is the expression passed to
-            // the macro.
+            // Use of the entry size means that we can safely skip to the
+            // next beatmap if this one doesn't meet the query criteria,
+            // since we know where to skip to. The `continue_if!()`s below
+            // do just that - they expand to an `if` statement where the
+            // conditional block is just `continue;` and the condition is
+            // the expression passed to the macro.
             let entry_size = if settings.entry_size.is_ignore() {
                 None
             } else {
@@ -267,8 +281,13 @@ fn spawn_partial_beatmap_loader_thread<'a>(
             let i = &mut start;
             let mut skip = false;
             let s = &mut skip;
-            let artist_name =
-                maybe_read_str_utf8(&settings.artist_name, s, bytes, i, "non-Unicode artist name")?;
+            let artist_name = maybe_read_str_utf8(
+                &settings.artist_name,
+                s,
+                bytes,
+                i,
+                "non-Unicode artist name",
+            )?;
             continue_if!(skip);
             let artist_name_unicode = maybe_read_str_utf8(
                 &settings.artist_name_unicode,
@@ -336,24 +355,32 @@ fn spawn_partial_beatmap_loader_thread<'a>(
             continue_if!(skip);
             let (num_mcsr_standard, mcsr_standard) =
                 ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
-                    !settings.mod_combo_star_ratings_standard,
+                    settings.num_mod_combo_star_ratings_standard,
+                    settings.mod_combo_star_ratings_standard,
+                    s,
                     bytes,
                     i,
                 )?;
             let (num_mcsr_taiko, mcsr_taiko) =
                 ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
-                    !settings.mod_combo_star_ratings_standard,
+                    settings.num_mod_combo_star_ratings_taiko,
+                    settings.mod_combo_star_ratings_taiko,
+                    s,
                     bytes,
                     i,
                 )?;
             let (num_mcsr_ctb, mcsr_ctb) = ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
-                !settings.mod_combo_star_ratings_standard,
+                settings.num_mod_combo_star_ratings_ctb,
+                settings.mod_combo_star_ratings_ctb,
+                s,
                 bytes,
                 i,
             )?;
             let (num_mcsr_mania, mcsr_mania) =
                 ModernWithEntrySize::maybe_read_mod_combo_star_ratings(
-                    !settings.mod_combo_star_ratings_standard,
+                    settings.num_mod_combo_star_ratings_mania,
+                    settings.mod_combo_star_ratings_mania,
+                    s,
                     bytes,
                     i,
                 )?;
@@ -440,7 +467,8 @@ fn spawn_partial_beatmap_loader_thread<'a>(
             continue_if!(skip);
             let visual_override = maybe_read_boolean(settings.visual_override, s, bytes, i)?;
             continue_if!(skip);
-            let unknown_short = ModernWithEntrySize::maybe_read_unknown_short(*s, bytes, i)?;
+            let unknown_short =
+                ModernWithEntrySize::maybe_read_unknown_short(settings.unknown_short, s, bytes, i)?;
             continue_if!(skip);
             let offset_from_song_start_in_editor_ms =
                 maybe_read_int(settings.offset_from_song_start_in_editor_ms, s, bytes, i)?;

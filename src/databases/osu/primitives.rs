@@ -5,7 +5,7 @@ use std::ops::Range;
 use std::str::FromStr;
 
 use crate::deserialize_primitives::*;
-use crate::load_settings::{Compare, EqualCopy, LoadSetting};
+use crate::load_settings::EqualCopy;
 use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 
 // Deserializing osu!.db-specific data types
@@ -302,21 +302,16 @@ impl FromStr for ByteSingle {
     type Err = IoError;
 
     fn from_str(s: &str) -> IoResult<Self> {
-        if is_number(s) {
-            if s.contains('.') {
-                Ok(Single(s.parse::<f32>().map_err(|e| {
-                    let msg = format!("Failed to parse input: {}\n{}", s, e);
-                    IoError::new(InvalidInput, msg.as_str())
-                })?))
-            } else {
-                Ok(Byte(s.parse::<u8>().map_err(|e| {
-                    let msg = format!("Failed to parse input: {}\n{}", s, e);
-                    IoError::new(InvalidInput, msg.as_str())
-                })?))
-            }
+        if s.contains('.') {
+            Ok(Single(s.parse::<f32>().map_err(|e| {
+                let msg = format!("Failed to parse input: {}\n{}", s, e);
+                IoError::new(InvalidInput, msg.as_str())
+            })?))
         } else {
-            let msg = format!("Input is not a number ({})", s);
-            Err(IoError::new(InvalidInput, msg.as_str()))
+            Ok(Byte(s.parse::<u8>().map_err(|e| {
+                let msg = format!("Failed to parse input: {}\n{}", s, e);
+                IoError::new(InvalidInput, msg.as_str())
+            })?))
         }
     }
 }
@@ -429,18 +424,18 @@ impl GameplayMode {
             } else {
                 let byte = bytes[*i];
                 *i += 1;
-                let gameplay_mode = match b {
+                let gameplay_mode = match byte {
                     0 => Ok(Standard),
                     1 => Ok(Taiko),
                     2 => Ok(Ctb),
                     3 => Ok(Mania),
                     _ => {
-                        let err_msg = format!("Read invalid gamemode specifier ({})", b);
+                        let err_msg = format!("Read invalid gamemode specifier ({})", byte);
                         Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
                     }
                 }?;
-                if let LoadSetting::Filter(cmp) = setting {
-                    if cmp.compare(gameplay_mode) {
+                if let EqualCopy::Eq(cmp) = setting {
+                    if cmp == gameplay_mode {
                         Ok(Some(gameplay_mode))
                     } else {
                         *skip = true;

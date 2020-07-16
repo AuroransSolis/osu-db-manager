@@ -69,6 +69,7 @@ pub enum Verbosity {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum InterfaceType {
+    None,
     Shell,
     Tui,
 }

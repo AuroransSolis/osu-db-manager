@@ -1,11 +1,9 @@
-use chrono::NaiveDate;
-
 use crate::databases::osu::{primitives::*, versions::ReadPartialVersionSpecificData};
 use crate::deserialize_primitives::*;
 use crate::load_settings::osu::beatmap_load_settings::BeatmapLoadSettings;
-use crate::masks::osu_mask::BeatmapMask;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
+use chrono::NaiveDate;
 
 /// Partial beatmap struct - this is like a regular `Beatmap`, except it's possible to skip parsing
 /// arbitrary fields. Skipped fields have a `None` value. The idea behind the `PartialBeatmap` is
@@ -74,10 +72,10 @@ pub struct PartialBeatmap<'a> {
     pub mania_scroll_speed: Option<u8>,
 }
 
-impl PartialBeatmap {
+impl<'a> PartialBeatmap<'a> {
     pub fn read_from_bytes<T: ReadPartialVersionSpecificData>(
         settings: &BeatmapLoadSettings,
-        bytes: &[u8],
+        bytes: &'a [u8],
         i: &mut usize,
     ) -> ParseFileResult<Self> {
         let mut skip = false;
@@ -121,7 +119,8 @@ impl PartialBeatmap {
             i,
             "audio file name",
         )?;
-        let md5_beatmap_hash = maybe_read_md5_hash(&settings.md5_beatmap_hash, &mut skip, bytes, i)?;
+        let md5_beatmap_hash =
+            maybe_read_md5_hash(&settings.md5_beatmap_hash, &mut skip, bytes, i)?;
         let dotosu_file_name = maybe_read_str_utf8(
             &settings.dotosu_file_name,
             &mut skip,
@@ -144,17 +143,40 @@ impl PartialBeatmap {
         let overall_difficulty =
             T::maybe_read_arcshpod(settings.overall_difficulty, &mut skip, bytes, i)?;
         let slider_velocity = maybe_read_double(settings.slider_velocity, &mut skip, bytes, i)?;
-        let (num_mcsr_standard, mcsr_standard) =
-            T::maybe_read_mod_combo_star_ratings(skip, bytes, i)?;
-        let (num_mcsr_taiko, mcsr_taiko) = T::maybe_read_mod_combo_star_ratings(skip, bytes, i)?;
-        let (num_mcsr_ctb, mcsr_ctb) = T::maybe_read_mod_combo_star_ratings(skip, bytes, i)?;
-        let (num_mcsr_mania, mcsr_mania) = T::maybe_read_mod_combo_star_ratings(skip, bytes, i)?;
+        let (num_mcsr_standard, mcsr_standard) = T::maybe_read_mod_combo_star_ratings(
+            settings.num_mod_combo_star_ratings_standard,
+            settings.mod_combo_star_ratings_standard,
+            &mut skip,
+            bytes,
+            i,
+        )?;
+        let (num_mcsr_taiko, mcsr_taiko) = T::maybe_read_mod_combo_star_ratings(
+            settings.num_mod_combo_star_ratings_taiko,
+            settings.mod_combo_star_ratings_taiko,
+            &mut skip,
+            bytes,
+            i,
+        )?;
+        let (num_mcsr_ctb, mcsr_ctb) = T::maybe_read_mod_combo_star_ratings(
+            settings.num_mod_combo_star_ratings_ctb,
+            settings.mod_combo_star_ratings_ctb,
+            &mut skip,
+            bytes,
+            i,
+        )?;
+        let (num_mcsr_mania, mcsr_mania) = T::maybe_read_mod_combo_star_ratings(
+            settings.num_mod_combo_star_ratings_mania,
+            settings.mod_combo_star_ratings_mania,
+            &mut skip,
+            bytes,
+            i,
+        )?;
         let drain_time = maybe_read_int(settings.drain_time, &mut skip, bytes, i)?;
         let total_time = maybe_read_int(settings.total_time, &mut skip, bytes, i)?;
         let preview_offset_from_start_ms =
             maybe_read_int(settings.preview_offset_from_start_ms, &mut skip, bytes, i)?;
         let num_timing_points = read_int(bytes, i)?;
-        let timing_points = if mask.timing_points {
+        let timing_points = if settings.timing_points {
             if num_timing_points == 0 {
                 None
             } else {
@@ -168,10 +190,10 @@ impl PartialBeatmap {
             *i += num_timing_points as usize * 17;
             None
         };
-        let num_timing_points = if settings.timing_points.is_ignore() {
-            None
-        } else {
+        let num_timing_points = if settings.timing_points {
             Some(num_timing_points)
+        } else {
+            None
         };
         let beatmap_id = maybe_read_int(settings.beatmap_id, &mut skip, bytes, i)?;
         let beatmap_set_id = maybe_read_int(settings.beatmap_set_id, &mut skip, bytes, i)?;
@@ -215,7 +237,8 @@ impl PartialBeatmap {
             maybe_read_boolean(settings.disable_storyboard, &mut skip, bytes, i)?;
         let disable_video = maybe_read_boolean(settings.disable_video, &mut skip, bytes, i)?;
         let visual_override = maybe_read_boolean(settings.visual_override, &mut skip, bytes, i)?;
-        let unknown_short = T::maybe_read_unknown_short(skip, bytes, i)?;
+        let unknown_short =
+            T::maybe_read_unknown_short(settings.unknown_short, &mut skip, bytes, i)?;
         let offset_from_song_start_in_editor_ms = maybe_read_int(
             settings.offset_from_song_start_in_editor_ms,
             &mut skip,
