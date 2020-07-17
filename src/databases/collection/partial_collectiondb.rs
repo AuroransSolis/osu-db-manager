@@ -126,13 +126,13 @@ impl<'a> PartialLoad<'a, CollectionDbMask, CollectionDbLoadSettings> for Partial
     }
 }
 
-fn spawn_partial_collection_loader_thread<'a, 'scope>(
-    scope: &'scope Scope<'a>,
+fn spawn_partial_collection_loader_thread<'scope, 'b: 'scope, 'a: 'b>(
+    scope: &'scope Scope<'b>,
     number: usize,
     counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>,
     bytes: &'a [u8],
-    settings: &'a CollectionLoadSettings,
+    settings: &'b CollectionLoadSettings,
 ) -> ScopedJoinHandle<'scope, ParseFileResult<Vec<(usize, PartialCollection<'a>)>>> {
     scope.spawn(|_| {
         let mut collections = Vec::new();

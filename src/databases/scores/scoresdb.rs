@@ -89,8 +89,8 @@ impl<'a> Load<'a> for ScoresDb<'a> {
     }
 }
 
-fn spawn_scoresdb_beatmap_loader_thread<'a, 'scope>(
-    scope: &'scope Scope<'a>,
+fn spawn_scoresdb_beatmap_loader_thread<'scope, 'b: 'scope, 'a: 'b>(
+    scope: &'scope Scope<'b>,
     number_of_scores_db_beatmaps: usize,
     counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>,

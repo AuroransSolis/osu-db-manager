@@ -99,8 +99,8 @@ impl<'a> Load<'a> for CollectionDb<'a> {
     }
 }
 
-fn spawn_collection_loader_thread<'a, 'scope>(
-    scope: &'scope Scope<'a>,
+fn spawn_collection_loader_thread<'scope, 'b: 'scope, 'a: 'b>(
+    scope: &'scope Scope<'b>,
     number: usize,
     counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>,

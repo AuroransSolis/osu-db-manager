@@ -173,8 +173,8 @@ impl<'a> Load<'a> for OsuDb<'a> {
     }
 }
 
-fn spawn_beatmap_loader_thread<'a, 'scope>(
-    scope: &'scope Scope<'a>,
+fn spawn_beatmap_loader_thread<'scope, 'b: 'scope, 'a: 'b>(
+    scope: &'scope Scope<'b>,
     number: usize,
     counter: Arc<Mutex<usize>>,
     start: Arc<Mutex<usize>>,

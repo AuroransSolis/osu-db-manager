@@ -84,7 +84,7 @@ impl<'a> PartialLoad<'a, ScoresDbMask, ScoresDbLoadSettings> for PartialScoresDb
         } else {
             let counter = Arc::new(Mutex::new(0));
             let start_read = Arc::new(Mutex::new(8));
-            let mut results = thread::scope(move |s| {
+            let mut results = thread::scope(|s| {
                 let threads = (0..jobs)
                     .map(|n| {
                         spawn_partial_scoresdb_beatmap_loader_thread(
@@ -135,13 +135,13 @@ impl<'a> PartialLoad<'a, ScoresDbMask, ScoresDbLoadSettings> for PartialScoresDb
     }
 }
 
-fn spawn_partial_scoresdb_beatmap_loader_thread<'a, 'scope>(
-    scope: &'scope Scope<'a>,
+fn spawn_partial_scoresdb_beatmap_loader_thread<'scope, 'b: 'scope, 'a: 'b>(
+    scope: &'scope Scope<'b>,
     number_of_scoresdb_beatmaps: usize,
     counter: Arc<Mutex<usize>>,
     start_read: Arc<Mutex<usize>>,
     bytes: &'a [u8],
-    settings: &'a ScoresDbBeatmapLoadSettings,
+    settings: &'b ScoresDbBeatmapLoadSettings,
 ) -> ScopedJoinHandle<'scope, ParseFileResult<Vec<(usize, PartialScoresDbBeatmap<'a>)>>> {
     scope.spawn(move |_| {
         let mut partial_scoresdb_beatmaps = Vec::new();
