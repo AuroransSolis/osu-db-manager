@@ -22,7 +22,6 @@ impl<'a> PartialLoad<'a, CollectionDbMask, CollectionDbLoadSettings> for Partial
         settings: CollectionDbLoadSettings,
         bytes: &'a [u8],
     ) -> ParseFileResult<Self> {
-        let mut skip = false;
         let mut index = 0;
         let i = &mut index;
         let version = maybe_read_int_nocomp(settings.version, &mut false, &bytes, i)?;
@@ -34,7 +33,7 @@ impl<'a> PartialLoad<'a, CollectionDbMask, CollectionDbLoadSettings> for Partial
                 let mut tmp = Vec::with_capacity(number_of_collections as usize);
                 for _ in 0..number_of_collections {
                     if let Some(collection) = PartialCollection::read_from_bytes(
-                        settings.collection_load_settings,
+                        settings.collection_load_settings.clone(),
                         &bytes,
                         i,
                     )? {
@@ -134,7 +133,7 @@ fn spawn_partial_collection_loader_thread<'scope, 'b: 'scope, 'a: 'b>(
     bytes: &'a [u8],
     settings: &'b CollectionLoadSettings,
 ) -> ScopedJoinHandle<'scope, ParseFileResult<Vec<(usize, PartialCollection<'a>)>>> {
-    scope.spawn(|_| {
+    scope.spawn(move |_| {
         let mut collections = Vec::new();
         loop {
             let mut skip = false;

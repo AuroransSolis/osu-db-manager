@@ -18,7 +18,7 @@ use databases::database::OsuDatabase;
 
 fn main() {
     let arguments = get_arguments().unwrap();
-    if let Some(info) = arguments.info {
+    if let Some(_) = arguments.info {
         println!("Got help command!");
         return;
     }

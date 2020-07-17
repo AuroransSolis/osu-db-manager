@@ -3,6 +3,7 @@ use crate::masks::collection_mask::CollectionMask;
 use clap::{App, Arg};
 use std::io::Result as IoResult;
 
+#[derive(Clone)]
 pub struct CollectionLoadSettings {
     pub collection_name: EqualClone<String>,
     pub number_of_beatmaps: Relational<i32>,

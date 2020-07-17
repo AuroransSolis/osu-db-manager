@@ -34,15 +34,19 @@ impl<'a> OsuDatabase<'a> {
         db: &'a Database,
         settings: DbSettings,
     ) -> ParseFileResult<Self> {
-        Ok(match (db, settings) {
-            (OsuDb(b), OsuSettings(s)) => PartialOsu(PartialOsuDb::read_from_bytes(s, jobs, b)?),
-            (CollectionDb(b), CollectionSettings(s)) => {
-                PartialCollection(PartialCollectionDb::read_from_bytes(s, jobs, b)?)
+        Ok(match settings {
+            OsuSettings(s) => match db {
+                OsuDb(b) => PartialOsu(PartialOsuDb::read_from_bytes(s, jobs, b)?),
+                _ => unreachable!(),
+            },
+            CollectionSettings(s) => match db {
+                CollectionDb(b) => PartialCollection(PartialCollectionDb::read_from_bytes(s, jobs, b)?),
+                _ => unreachable!(),
+            },
+            ScoresSettings(s) => match db {
+                ScoresDb(b) => PartialScores(PartialScoresDb::read_from_bytes(s, jobs, b)?),
+                _ => unreachable!(),
             }
-            (ScoresDb(b), ScoresSettings(s)) => {
-                PartialScores(PartialScoresDb::read_from_bytes(s, jobs, b)?)
-            }
-            _ => unreachable!(),
         })
     }
 

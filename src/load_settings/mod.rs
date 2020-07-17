@@ -369,7 +369,7 @@ pub(crate) fn is_valid_range(s: &str) -> bool {
 }
 
 fn date_from_str(s: &str) -> IoResult<NaiveDate> {
-    NaiveDate::parse_from_str(s, "%F").map_err(|e| {
+    NaiveDate::parse_from_str(s, "%F").map_err(|_| {
         let msg = format!("Failed to parse input ({}) as date (YYYY-MM-DD)", s);
         IoError::new(InvalidInput, msg.as_str())
     })

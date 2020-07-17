@@ -4,6 +4,7 @@ use crate::load_settings::{
 use crate::masks::collection_mask::CollectionDbMask;
 use std::io::Result as IoResult;
 
+#[derive(Clone)]
 pub struct CollectionDbLoadSettings {
     pub version: bool,
     pub number_of_collections: bool,

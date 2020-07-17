@@ -560,7 +560,7 @@ pub fn maybe_read_md5_hash<'a>(
                     Ok(None)
                 } else {
                     // first byte will be 32 every time if indicator == 0x0b
-                    let tmp = str::from_utf8(&bytes[*i + 1..*i + 33]).map_err(|e| {
+                    let tmp = str::from_utf8(&bytes[*i + 1..*i + 33]).map_err(|_| {
                         DbFileParseError::new(PrimitiveError, "Error reading MD5 hash.")
                     })?;
                     if s.compare_str(tmp) {

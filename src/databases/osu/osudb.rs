@@ -111,7 +111,7 @@ impl<'a> Load<'a> for OsuDb<'a> {
                     .collect::<Vec<_>>();
                 threads
                     .into_iter()
-                    .map(|mut joinhandle| {
+                    .map(|joinhandle| {
                         joinhandle.join().map_err(|_| {
                             DbFileParseError::new(
                                 ParseErrorKind::OsuDbError,
@@ -180,7 +180,7 @@ fn spawn_beatmap_loader_thread<'scope, 'b: 'scope, 'a: 'b>(
     start: Arc<Mutex<usize>>,
     bytes: &'a [u8],
 ) -> ScopedJoinHandle<'scope, ParseFileResult<Vec<(usize, Beatmap<'a>)>>> {
-    scope.spawn(|_| {
+    scope.spawn(move |_| {
         let mut beatmaps = Vec::new();
         loop {
             let (entry_size, mut start, num) = {

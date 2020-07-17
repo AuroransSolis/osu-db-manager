@@ -41,7 +41,7 @@ impl<'a> Load<'a> for ScoresDb<'a> {
         let start_read = Arc::new(Mutex::new(8));
         let mut results = thread::scope(|s| {
             let threads = (0..jobs)
-                .map(|n| {
+                .map(|_| {
                     spawn_scoresdb_beatmap_loader_thread(
                         s,
                         number_of_beatmaps as usize,

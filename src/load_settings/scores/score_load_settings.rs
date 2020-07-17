@@ -5,6 +5,7 @@ use chrono::NaiveDate;
 use clap::ArgMatches;
 use std::io::Result as IoResult;
 
+#[derive(Clone)]
 pub struct ScoreLoadSettings {
     pub gameplay_mode: EqualCopy<GameplayMode>,
     pub score_version: Relational<i32>,

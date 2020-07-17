@@ -40,7 +40,7 @@ impl<'a> Load<'a> for CollectionDb<'a> {
         let start_read = Arc::new(Mutex::new(8));
         let mut results = thread::scope(|s| {
             let threads = (0..jobs)
-                .map(|n| {
+                .map(|_| {
                     spawn_collection_loader_thread(
                         s,
                         number_of_collections as usize,

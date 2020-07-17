@@ -4,6 +4,7 @@ use crate::load_settings::{
 use crate::masks::osu_mask::OsuDbMask;
 use std::io::Result as IoResult;
 
+#[derive(Clone)]
 pub struct OsuDbLoadSettings {
     pub version: bool,
     pub folder_count: bool,

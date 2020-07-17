@@ -6,6 +6,7 @@ use crate::load_settings::{
 };
 use crate::masks::scores_mask::ScoresDbMask;
 
+#[derive(Clone)]
 pub struct ScoresDbLoadSettings {
     pub version: bool,
     pub number_of_beatmaps: bool,

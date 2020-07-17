@@ -140,41 +140,41 @@ impl ReadVersionSpecificData for ModernWithEntrySize {
 pub trait ReadPartialVersionSpecificData {
     #[inline]
     fn maybe_read_entry_size(
-        setting: Relational<i32>,
-        skip: &mut bool,
-        bytes: &[u8],
-        i: &mut usize,
+        _setting: Relational<i32>,
+        _skip: &mut bool,
+        _bytes: &[u8],
+        _i: &mut usize,
     ) -> ParseFileResult<Option<i32>> {
         Ok(None)
     }
 
     #[inline]
     fn maybe_read_arcshpod(
-        setting: Relational<ByteSingle>,
-        skip: &mut bool,
-        bytes: &[u8],
-        i: &mut usize,
+        _setting: Relational<ByteSingle>,
+        _skip: &mut bool,
+        _bytes: &[u8],
+        _i: &mut usize,
     ) -> ParseFileResult<Option<ByteSingle>> {
         Ok(None)
     }
 
     #[inline]
     fn maybe_read_mod_combo_star_ratings(
-        num_setting: bool,
-        mcsr_setting: bool,
-        skip: &mut bool,
-        bytes: &[u8],
-        i: &mut usize,
+        _num_setting: bool,
+        _mcsr_setting: bool,
+        _skip: &mut bool,
+        _bytes: &[u8],
+        _i: &mut usize,
     ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         Ok((None, None))
     }
 
     #[inline]
     fn maybe_read_unknown_short(
-        setting: bool,
-        skip: &mut bool,
-        bytes: &[u8],
-        i: &mut usize,
+        _setting: bool,
+        _skip: &mut bool,
+        _bytes: &[u8],
+        _i: &mut usize,
     ) -> ParseFileResult<Option<i16>> {
         Ok(None)
     }

@@ -144,7 +144,7 @@ impl<'a> PartialLoad<'a, OsuDbMask, OsuDbLoadSettings> for PartialOsuDb<'a> {
                 let mut results = thread::scope(|s| {
                     // Spawn a thread for each requested job, collect handles into a vec.
                     let threads = (0..jobs)
-                        .map(|n| {
+                        .map(|_| {
                             spawn_partial_beatmap_loader_thread(
                                 s,
                                 num_beatmaps as usize,

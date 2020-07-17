@@ -86,7 +86,7 @@ impl<'a> PartialLoad<'a, ScoresDbMask, ScoresDbLoadSettings> for PartialScoresDb
             let start_read = Arc::new(Mutex::new(8));
             let mut results = thread::scope(|s| {
                 let threads = (0..jobs)
-                    .map(|n| {
+                    .map(|_| {
                         spawn_partial_scoresdb_beatmap_loader_thread(
                             s,
                             number_of_beatmaps as usize,
@@ -148,7 +148,7 @@ fn spawn_partial_scoresdb_beatmap_loader_thread<'scope, 'b: 'scope, 'a: 'b>(
         loop {
             let mut skip = false;
             let s = &mut skip;
-            let (md5_beatmap_hash, number_of_scores, mut start_read, end, number) = {
+            let (md5_beatmap_hash, number_of_scores, mut start_read, number) = {
                 let mut ctr = counter.lock().unwrap();
                 let number = if *ctr >= number_of_scoresdb_beatmaps {
                     return Ok(partial_scoresdb_beatmaps);
@@ -227,7 +227,6 @@ fn spawn_partial_scoresdb_beatmap_loader_thread<'scope, 'b: 'scope, 'a: 'b>(
                     md5_beatmap_hash,
                     number_of_scores,
                     section_start,
-                    *s,
                     number,
                 )
             };

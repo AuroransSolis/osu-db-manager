@@ -388,7 +388,6 @@ pub fn read_md5_hash<'a>(bytes: &'a [u8], i: &mut usize) -> ParseFileResult<&'a 
     } else if indicator == 0x0b {
         if *i + 32 < bytes.len() {
             // first byte will be 32 every time
-            let hash_bytes = (bytes[*i + 1..*i + 33]).to_vec();
             let hash = Ok(str::from_utf8(&bytes[*i + 1..*i + 33])
                 .map_err(|_| DbFileParseError::new(PrimitiveError, "Error reading MD5 hash."))?);
             *i += 33;

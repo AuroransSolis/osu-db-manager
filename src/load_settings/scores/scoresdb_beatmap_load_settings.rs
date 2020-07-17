@@ -5,6 +5,7 @@ use crate::masks::scores_mask::ScoresDbBeatmapMask;
 use clap::{App, Arg, SubCommand};
 use std::io::Result as IoResult;
 
+#[derive(Clone)]
 pub struct ScoresDbBeatmapLoadSettings {
     pub md5_beatmap_hash: EqualClone<String>,
     pub number_of_scores: Relational<i32>,

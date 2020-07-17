@@ -1,4 +1,3 @@
-#![rustfmt::skip]
 use clap::{App, Arg};
 
 use crate::masks::mask::Mask;
