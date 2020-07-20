@@ -334,13 +334,13 @@ pub fn maybe_read_str_utf8<'a>(
 }
 
 #[inline]
-pub fn maybe_read_string_utf8_nocomp(
+pub fn maybe_read_string_utf8_nocomp<'a>(
     s: bool,
     skip: &mut bool,
-    bytes: &[u8],
+    bytes: &'a [u8],
     i: &mut usize,
     field: &str,
-) -> ParseFileResult<Option<String>> {
+) -> ParseFileResult<Option<&'a str>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         *i += 1;
@@ -351,7 +351,7 @@ pub fn maybe_read_string_utf8_nocomp(
                     *i += length;
                     Ok(None)
                 } else {
-                    let tmp = String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                    let tmp = str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
                         let err_msg = format!("Error reading string for {} ({})", field, e);
                         DbFileParseError::new(PrimitiveError, err_msg.as_str())
                     })?;

@@ -200,11 +200,11 @@ pub fn read_double(bytes: &[u8], i: &mut usize) -> ParseFileResult<f64> {
 }
 
 #[inline]
-pub fn read_string_utf8(
-    bytes: &[u8],
+pub fn read_string_utf8<'a>(
+    bytes: &'a [u8],
     i: &mut usize,
     field: &str,
-) -> ParseFileResult<Option<String>> {
+) -> ParseFileResult<Option<&'a str>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         *i += 1;
@@ -212,7 +212,7 @@ pub fn read_string_utf8(
             let length = read_uleb128(bytes, i)?;
             if *i + length <= bytes.len() {
                 let tmp = Ok(Some(
-                    String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                    str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
                         let err_msg = format!("Error reading string for {} ({})", field, e);
                         DbFileParseError::new(PrimitiveError, err_msg.as_str())
                     })?,
@@ -280,11 +280,11 @@ pub fn read_str_utf8<'a>(
 }
 
 #[inline]
-pub fn read_string_utf8_with_len(
-    bytes: &[u8],
+pub fn read_string_utf8_with_len<'a>(
+    bytes: &'a [u8],
     i: &mut usize,
     field: &str,
-) -> ParseFileResult<(usize, Option<String>)> {
+) -> ParseFileResult<(usize, Option<&'a str>)> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
         *i += 1;
@@ -294,7 +294,7 @@ pub fn read_string_utf8_with_len(
                 let tmp = Ok((
                     1 + length_bytes + length,
                     Some(
-                        String::from_utf8(bytes[*i..*i + length].to_vec()).map_err(|e| {
+                        str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
                             let err_msg = format!("Error reading string for {} ({})", field, e);
                             DbFileParseError::new(PrimitiveError, err_msg.as_str())
                         })?,
