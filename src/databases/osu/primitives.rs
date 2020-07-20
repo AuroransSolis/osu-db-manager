@@ -382,7 +382,7 @@ impl FromStr for GameplayMode {
         match s.to_lowercase().as_str() {
             "osu!" | "osu" | "osu!standard" | "standard" => Ok(Standard),
             "osu!taiko" | "taiko" => Ok(Taiko),
-            "osu!ctb" | "ctb" | "catch the beat" => Ok(Ctb),
+            "osu!ctb" | "ctb" | "catch-the-beat" => Ok(Ctb),
             "osu!mania" | "mania" => Ok(Mania),
             _ => {
                 let msg = format!("Unrecognized gameplay mode: {}", s);
