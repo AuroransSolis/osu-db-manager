@@ -468,3 +468,67 @@ impl Display for GameplayMode {
         )
     }
 }
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum UserPermissions {
+    None,
+    Normal,
+    Moderator,
+    Supporter,
+    Friend,
+    peppy,
+    WorldCupStaff,
+    Invalid,
+}
+
+impl UserPermissions {
+    pub(crate) fn new(n: i32) -> Self {
+        match n {
+            0 => UserPermissions::None,
+            1 => UserPermissions::Normal,
+            2 => UserPermissions::Moderator,
+            4 => UserPermissions::Supporter,
+            8 => UserPermissions::Friend,
+            16 => UserPermissions::peppy,
+            32 => UserPermissions::WorldCupStaff,
+            _ => UserPermissions::Invalid,
+        }
+    }
+
+    #[inline]
+    pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
+        let int = read_int(bytes, i)?;
+        Ok(UserPermissions::new(int))
+    }
+
+    pub fn maybe_read_from_bytes(
+        setting: EqualCopy<UserPermissions>,
+        skip: &mut bool,
+        bytes: &[u8],
+        i: &mut usize,
+    ) -> ParseFileResult<Option<Self>> {
+        if *i + 3 < bytes.len() {
+            if *skip || setting.is_ignore() {
+                Ok(None)
+            } else {
+                let permissions = UserPermissions::read_from_bytes(bytes, i)?;
+                if setting.is_load() || setting.compare(permissions) {
+                    Ok(Some(permissions))
+                } else {
+                    Ok(None)
+                }
+            }
+        } else {
+            Err(DbFileParseError::new(
+                PrimitiveError,
+                "Not enough bytes for user permissions",
+            ))
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum UnknownShortOrUserPermissions {
+    UnknownShort(i16),
+    UserPermissions(UserPermissions),
+}

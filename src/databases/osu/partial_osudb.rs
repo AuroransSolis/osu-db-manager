@@ -1,7 +1,7 @@
 use crate::databases::osu::{
     partial_beatmap::PartialBeatmap,
-    primitives::{GameplayMode, RankedStatus, TimingPoint},
-    versions::{Legacy, Modern, ModernWithEntrySize, ReadPartialVersionSpecificData},
+    primitives::*,
+    versions::{Legacy, Modern, ModernWithEntrySize, ModernWithPermissions, ReadPartialVersionSpecificData},
 };
 use crate::deserialize_primitives::*;
 use crate::load_settings::osu::beatmap_load_settings::BeatmapLoadSettings;
@@ -21,7 +21,7 @@ pub struct PartialOsuDb<'a> {
     pub player_name: Option<&'a str>,
     pub number_of_beatmaps: i32,
     pub beatmaps: Option<Vec<PartialBeatmap<'a>>>,
-    pub unknown_short: Option<i16>,
+    pub unknown_short_or_permissions: Option<UnknownShortOrUserPermissions>,
 }
 
 impl<'a> PartialOsuDb<'a> {
@@ -74,7 +74,7 @@ impl<'a> PartialOsuDb<'a> {
                         i,
                     )?);
                 }
-            } else if version >= 20140609 && version < 20160408 || version >= 20191107 {
+            } else if version >= 20140609 && version < 20160408 {
                 for _ in 0..num_beatmaps {
                     tmp.push(PartialBeatmap::read_from_bytes::<Modern>(
                         &settings.beatmap_load_settings,
@@ -85,6 +85,14 @@ impl<'a> PartialOsuDb<'a> {
             } else if version >= 20160408 && version < 20191107 {
                 for _ in 0..num_beatmaps {
                     tmp.push(PartialBeatmap::read_from_bytes::<ModernWithEntrySize>(
+                        &settings.beatmap_load_settings,
+                        &bytes,
+                        i,
+                    )?);
+                }
+            } else if version >= 20191107 {
+                for _ in 0..num_beatmaps {
+                    tmp.push(PartialBeatmap::read_from_bytes::<ModernWithPermissions>(
                         &settings.beatmap_load_settings,
                         &bytes,
                         i,
@@ -102,12 +110,34 @@ impl<'a> PartialOsuDb<'a> {
             }
             Some(tmp)
         };
-        let unknown_short = if version < 20140609 {
-            Legacy::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
+        let unknown_short_or_permissions = if version < 20140609 {
+            Legacy::maybe_read_unknown_short_or_user_permissions(
+                settings.unknown_short_or_permissions,
+                s,
+                &bytes,
+                i,
+            )?
         } else if version >= 20140609 && version < 20160408 {
-            Modern::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
+            Modern::maybe_read_unknown_short_or_user_permissions(
+                settings.unknown_short_or_permissions,
+                s,
+                &bytes,
+                i,
+            )?
+        } else if version >= 20160408 && version < 20191107 {
+            ModernWithEntrySize::maybe_read_unknown_short_or_user_permissions(
+                settings.unknown_short_or_permissions,
+                s,
+                &bytes,
+                i,
+            )?
         } else {
-            ModernWithEntrySize::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
+            ModernWithPermissions::maybe_read_unknown_short_or_user_permissions(
+                settings.unknown_short_or_permissions,
+                s,
+                &bytes,
+                i,
+            )?
         };
         let version = if settings.version {
             Some(version)
@@ -122,7 +152,7 @@ impl<'a> PartialOsuDb<'a> {
             player_name,
             number_of_beatmaps: num_beatmaps,
             beatmaps,
-            unknown_short,
+            unknown_short_or_permissions,
         })
     }
 
@@ -220,12 +250,34 @@ impl<'a> PartialOsuDb<'a> {
                 ))
             }
         }?;
-        let unknown_short = if version < 20140609 {
-            Legacy::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
+        let unknown_short_or_permissions = if version < 20140609 {
+            Legacy::maybe_read_unknown_short_or_user_permissions(
+                settings.unknown_short_or_permissions,
+                s,
+                &bytes,
+                i,
+            )?
         } else if version >= 20140609 && version < 20160408 {
-            Modern::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
+            Modern::maybe_read_unknown_short_or_user_permissions(
+                settings.unknown_short_or_permissions,
+                s,
+                &bytes,
+                i,
+            )?
+        } else if version >= 20160408 && version < 20191107 {
+            ModernWithEntrySize::maybe_read_unknown_short_or_user_permissions(
+                settings.unknown_short_or_permissions,
+                s,
+                &bytes,
+                i,
+            )?
         } else {
-            ModernWithEntrySize::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
+            ModernWithPermissions::maybe_read_unknown_short_or_user_permissions(
+                settings.unknown_short_or_permissions,
+                s,
+                &bytes,
+                i,
+            )?
         };
         let version = if settings.version {
             Some(version)
@@ -240,7 +292,7 @@ impl<'a> PartialOsuDb<'a> {
             player_name,
             number_of_beatmaps: num_beatmaps,
             beatmaps,
-            unknown_short,
+            unknown_short_or_permissions,
         })
     }
 }

@@ -363,7 +363,7 @@ pub fn read_boolean(bytes: &[u8], i: &mut usize) -> ParseFileResult<bool> {
 #[inline]
 pub fn read_datetime(bytes: &[u8], i: &mut usize) -> ParseFileResult<NaiveDate> {
     let ticks = read_long(bytes, i).map_err(|_| primitive!(DATETIME_ERR))?;
-    let duration_since_epoch = Duration::from_micros(ticks as u64 / 10);
+    let duration_since_epoch = Duration::from_secs(ticks as u64 / 10_000_000);
     let chrono_duration = ChronoDuration::from_std(duration_since_epoch).map_err(|e| {
         let msg = format!(
             "Failed to convert std::time::Duration to chrono::Duration\n\
@@ -372,7 +372,7 @@ pub fn read_datetime(bytes: &[u8], i: &mut usize) -> ParseFileResult<NaiveDate> 
         );
         DbFileParseError::new(PrimitiveError, msg)
     })?;
-    Ok(NaiveDate::from_ymd(1970, 0, 0) + chrono_duration)
+    Ok(NaiveDate::from_ymd(1970, 1, 1) + chrono_duration)
 }
 
 #[inline]

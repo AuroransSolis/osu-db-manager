@@ -63,29 +63,12 @@ pub struct Arguments {
         default_value = "1"
     )]
     pub jobs: usize,
-    #[structopt(
-        name = "interface type",
-        short = "i",
-        long = "interface",
-        value_name = "INTERFACE",
-        possible_values(&["s", "shell", "t", "tui"]),
-        conflicts_with_all(&[
-            "merge",
-            "osu-query",
-            "collection-query",
-            "scores-query",
-            "osu-show",
-            "collection-show",
-            "scores-show",
-        ])
-    )]
-    pub interface: Option<InterfaceType>,
     #[structopt(subcommand)]
-    pub merge_or_search: Option<MergeOrSearch>,
+    pub merge_search_or_interface: Option<MergeSearchOrInterface>,
 }
 
 #[derive(StructOpt)]
-pub enum MergeOrSearch {
+pub enum MergeSearchOrInterface {
     #[structopt(name = "search")]
     Search {
         #[structopt(flatten)]
@@ -93,7 +76,29 @@ pub enum MergeOrSearch {
         #[structopt(flatten)]
         show_options: DbMask,
     },
+    #[structopt(name = "merge")]
     Merge(Merge),
+    #[structopt(name = "interface")]
+    Interface {
+        #[structopt(
+            name = "interface type",
+            short = "i",
+            long = "interface",
+            value_name = "INTERFACE",
+            possible_values(&["s", "shell", "t", "tui"]),
+            conflicts_with_all(&[
+                "merge",
+                "osu-query",
+                "collection-query",
+                "scores-query",
+                "osu-show",
+                "collection-show",
+                "scores-show",
+            ]),
+            parse(try_from_str)
+        )]
+        interface: InterfaceType,
+    },
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

@@ -1,7 +1,7 @@
 use crate::databases::osu::{
     beatmap::Beatmap,
     primitives::*,
-    versions::{Legacy, Modern, ModernWithEntrySize, ReadVersionSpecificData},
+    versions::{Legacy, Modern, ModernWithEntrySize, ModernWithPermissions, ReadVersionSpecificData},
 };
 use crate::deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
@@ -19,7 +19,7 @@ pub struct OsuDb<'a> {
     pub player_name: Option<&'a str>,
     pub number_of_beatmaps: i32,
     pub beatmaps: Vec<Beatmap<'a>>,
-    pub unknown_short: i16,
+    pub unknown_short_or_permissions: UnknownShortOrUserPermissions,
 }
 
 impl<'a> OsuDb<'a> {
@@ -39,7 +39,7 @@ impl<'a> OsuDb<'a> {
         let account_unlock_date = if !account_unlocked {
             Some(read_datetime(&bytes, &mut index)?)
         } else {
-            let _ = read_datetime(&bytes, &mut index)?;
+            let _ = read_long(&bytes, &mut index)?;
             None
         };
         let player_name = read_str_utf8(&bytes, &mut index, "player name")?;
@@ -52,7 +52,7 @@ impl<'a> OsuDb<'a> {
             for _ in 0..num_beatmaps {
                 beatmaps.push(Beatmap::read_from_bytes::<Legacy>(&bytes, &mut index)?);
             }
-        } else if version >= 20140609 && version < 20160408 || version >= 20191107 {
+        } else if version >= 20140609 && version < 20160408 {
             for _ in 0..num_beatmaps {
                 beatmaps.push(Beatmap::read_from_bytes::<Modern>(&bytes, &mut index)?);
             }
@@ -60,6 +60,13 @@ impl<'a> OsuDb<'a> {
             for _ in 0..num_beatmaps {
                 beatmaps.push(Beatmap::read_from_bytes::<ModernWithEntrySize>(
                     &bytes, &mut index,
+                )?);
+            }
+        } else if version > 20191107 {
+            for _ in 0..num_beatmaps {
+                beatmaps.push(Beatmap::read_from_bytes::<ModernWithPermissions>(
+                    &bytes,
+                    &mut index
                 )?);
             }
         } else {
@@ -72,7 +79,15 @@ impl<'a> OsuDb<'a> {
                 err_msg.as_str(),
             ));
         }
-        let unknown_short = read_short(&bytes, &mut index)?;
+        let unknown_short_or_permissions = if version < 20140609 {
+            Legacy::read_unknown_short_or_user_permissions(&bytes, &mut index)?
+        } else if version < 20160408 {
+            Modern::read_unknown_short_or_user_permissions(&bytes, &mut index)?
+        } else if version < 20191107 {
+            ModernWithEntrySize::read_unknown_short_or_user_permissions(&bytes, &mut index)?
+        } else {
+            ModernWithPermissions::read_unknown_short_or_user_permissions(&bytes, &mut index)?
+        };
         Ok(OsuDb {
             version,
             folder_count,
@@ -81,7 +96,7 @@ impl<'a> OsuDb<'a> {
             player_name,
             number_of_beatmaps: num_beatmaps,
             beatmaps,
-            unknown_short,
+            unknown_short_or_permissions,
         })
     }
 
@@ -164,7 +179,15 @@ impl<'a> OsuDb<'a> {
                 err_msg.as_str(),
             ));
         };
-        let unknown_short = read_short(&bytes, &mut *start.lock().unwrap())?;
+        let unknown_short_or_permissions = if version < 20140609 {
+            Legacy::read_unknown_short_or_user_permissions(&bytes, &mut index)?
+        } else if version < 20160408 {
+            Modern::read_unknown_short_or_user_permissions(&bytes, &mut index)?
+        } else if version < 20191107 {
+            ModernWithEntrySize::read_unknown_short_or_user_permissions(&bytes, &mut index)?
+        } else {
+            ModernWithPermissions::read_unknown_short_or_user_permissions(&bytes, &mut index)?
+        };
         Ok(OsuDb {
             version,
             folder_count,
@@ -173,7 +196,7 @@ impl<'a> OsuDb<'a> {
             player_name,
             number_of_beatmaps: num_beatmaps,
             beatmaps,
-            unknown_short,
+            unknown_short_or_permissions,
         })
     }
 }

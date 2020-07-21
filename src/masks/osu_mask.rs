@@ -271,7 +271,7 @@ pub struct OsuDbMask {
     #[structopt(flatten)]
     pub beatmap_mask: BeatmapMask,
     #[structopt(long)]
-    pub unknown_short: bool,
+    pub unknown_short_or_permissions: bool,
 }
 
 impl OsuDbMask {
@@ -282,7 +282,7 @@ impl OsuDbMask {
             && !self.account_unlock_date
             && !self.player_name
             && !self.number_of_beatmaps
-            && !self.unknown_short
+            && !self.unknown_short_or_permissions
             && self.beatmap_mask.ignore_all()
     }
 
@@ -293,7 +293,7 @@ impl OsuDbMask {
             && self.account_unlock_date
             && self.player_name
             && self.number_of_beatmaps
-            && self.unknown_short
+            && self.unknown_short_or_permissions
             && self.beatmap_mask.is_complete()
     }
 }

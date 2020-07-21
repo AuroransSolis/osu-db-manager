@@ -19,7 +19,7 @@ pub struct OsuDbLoadSettings {
     #[structopt(flatten)]
     pub beatmap_load_settings: BeatmapLoadSettings,
     #[structopt(skip)]
-    pub unknown_short: bool,
+    pub unknown_short_or_permissions: bool,
 }
 
 impl OsuDbLoadSettings {
@@ -29,7 +29,7 @@ impl OsuDbLoadSettings {
             && self.account_unlocked
             && self.account_unlock_date
             && self.player_name
-            && self.unknown_short
+            && self.unknown_short_or_permissions
             && self.beatmap_load_settings.load_all()
     }
 
@@ -39,7 +39,7 @@ impl OsuDbLoadSettings {
             && !self.account_unlocked
             && !self.account_unlock_date
             && !self.player_name
-            && !self.unknown_short
+            && !self.unknown_short_or_permissions
             && self.beatmap_load_settings.ignore_all()
     }
 
@@ -49,7 +49,7 @@ impl OsuDbLoadSettings {
             || !self.account_unlocked
             || !self.account_unlock_date
             || !self.player_name
-            || !self.unknown_short
+            || !self.unknown_short_or_permissions
             || self.beatmap_load_settings.is_partial()
     }
 
@@ -61,6 +61,6 @@ impl OsuDbLoadSettings {
         self.player_name |= mask.player_name;
         self.number_of_beatmaps |= mask.number_of_beatmaps;
         self.beatmap_load_settings.set_from_mask(&mask.beatmap_mask);
-        self.unknown_short |= mask.unknown_short;
+        self.unknown_short_or_permissions |= mask.unknown_short_or_permissions;
     }
 }
