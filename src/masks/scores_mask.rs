@@ -16,9 +16,9 @@ pub struct ScoreMask {
     #[structopt(long)]
     pub number_of_300s: bool,
     #[structopt(long)]
-    pub number_of_100s: bool,  // 150s in Taiko, 100s in CTB, 200s in Mania
+    pub number_of_100s: bool, // 150s in Taiko, 100s in CTB, 200s in Mania
     #[structopt(long)]
-    pub number_of_50s: bool,   // small fruit in CTB, 50s in Mania
+    pub number_of_50s: bool, // small fruit in CTB, 50s in Mania
     #[structopt(long)]
     pub number_of_gekis: bool, // max 300s in Mania
     #[structopt(long)]

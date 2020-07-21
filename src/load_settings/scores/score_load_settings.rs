@@ -219,7 +219,8 @@ impl ScoreLoadSettings {
     pub fn set_from_mask(&mut self, mask: &ScoreMask) {
         self.gameplay_mode.apply_mask(mask.gameplay_mode);
         self.score_version.apply_mask(mask.score_version);
-        self.md5_beatmap_hash.apply_mask(mask.score_md5_beatmap_hash);
+        self.md5_beatmap_hash
+            .apply_mask(mask.score_md5_beatmap_hash);
         self.player_name.apply_mask(mask.player_name);
         self.md5_replay_hash.apply_mask(mask.md5_replay_hash);
         self.number_of_300s.apply_mask(mask.number_of_300s);

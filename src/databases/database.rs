@@ -20,7 +20,11 @@ pub enum OsuDatabase<'a> {
 use self::OsuDatabase::*;
 
 impl<'a> OsuDatabase<'a> {
-    pub fn read_from_bytes(jobs: usize, db_type: DbIndicator, bytes: &'a [u8]) -> ParseFileResult<Self> {
+    pub fn read_from_bytes(
+        jobs: usize,
+        db_type: DbIndicator,
+        bytes: &'a [u8],
+    ) -> ParseFileResult<Self> {
         Ok(match db_type {
             DbIndicator::OsuDb => Osu(OsuDb::read_from_bytes(jobs, bytes)?),
             DbIndicator::CollectionDb => Collection(CollectionDb::read_from_bytes(jobs, bytes)?),
@@ -35,7 +39,9 @@ impl<'a> OsuDatabase<'a> {
     ) -> ParseFileResult<Self> {
         Ok(match settings {
             OsuSettings(s) => PartialOsu(PartialOsuDb::read_from_bytes(s, jobs, bytes)?),
-            CollectionSettings(s) => PartialCollection(PartialCollectionDb::read_from_bytes(s, jobs, bytes)?),
+            CollectionSettings(s) => {
+                PartialCollection(PartialCollectionDb::read_from_bytes(s, jobs, bytes)?)
+            }
             ScoresSettings(s) => PartialScores(PartialScoresDb::read_from_bytes(s, jobs, bytes)?),
         })
     }

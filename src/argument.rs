@@ -93,7 +93,7 @@ pub enum MergeOrSearch {
         #[structopt(flatten)]
         show_options: DbMask,
     },
-    Merge(Merge)
+    Merge(Merge),
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

@@ -12,7 +12,7 @@ pub struct BeatmapLoadSettings {
         value_name = "RELATIONAL",
         help = "Size of the beatmap entry in bytes",
         default_value,
-        parse(try_from_str),
+        parse(try_from_str)
     )]
     pub entry_size: Relational<i32>,
     #[structopt(

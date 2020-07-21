@@ -2,12 +2,12 @@ pub mod collection;
 pub mod osu;
 pub mod scores;
 
-use chrono::NaiveDate;
 use crate::load_settings::{
     collection::collectiondb_load_settings::CollectionDbLoadSettings,
     osu::osudb_load_settings::OsuDbLoadSettings,
     scores::scoresdb_load_settings::ScoresDbLoadSettings,
 };
+use chrono::NaiveDate;
 use std::cmp::{PartialEq, PartialOrd};
 use std::default::Default;
 use std::fmt::{self, Debug, Display};
@@ -41,7 +41,7 @@ impl<T: Copy + Clone + PartialEq> Default for EqualCopy<T> {
 
 impl<T: Copy + Clone + PartialEq + FromStr> FromStr for EqualCopy<T>
 where
-    <T as FromStr>::Err: Debug
+    <T as FromStr>::Err: Debug,
 {
     type Err = String;
 
@@ -132,9 +132,10 @@ where
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, String> {
-        Ok(EqualClone::Eq(s.parse::<T>().map_err(|e| {
-            format!("Error parsing value: {:?}", e)
-        })?))
+        Ok(EqualClone::Eq(
+            s.parse::<T>()
+                .map_err(|e| format!("Error parsing value: {:?}", e))?,
+        ))
     }
 }
 
@@ -273,12 +274,12 @@ where
             if start_str == "" && end_str == "" {
                 return Err("At least one of the range bounds must be defined.".into());
             }
-            let start = start_str.parse::<T>().map_err(|e| {
-                format!("Failed to parse start of range.\n{:?}", e)
-            })?;
-            let end = end_str.parse::<T>().map_err(|e| {
-                format!("Failed to parse end of range.\n{:?}", e)
-            })?;
+            let start = start_str
+                .parse::<T>()
+                .map_err(|e| format!("Failed to parse start of range.\n{:?}", e))?;
+            let end = end_str
+                .parse::<T>()
+                .map_err(|e| format!("Failed to parse end of range.\n{:?}", e))?;
             Ok(if start_str == "" {
                 match (first, last) {
                     ("(", ")") | ("[", ")") => Relational::Lt(end),
