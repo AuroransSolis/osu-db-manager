@@ -2,70 +2,475 @@ use crate::databases::osu::primitives::{ByteSingle, GameplayMode, RankedStatus};
 use crate::load_settings::{EqualClone, EqualCopy, Relational};
 use crate::masks::osu_mask::BeatmapMask;
 use chrono::naive::NaiveDate;
-use clap::{App, Arg};
-use std::io::Result as IoResult;
+use structopt::StructOpt;
 
-#[derive(Clone)]
+#[derive(Clone, StructOpt)]
 pub struct BeatmapLoadSettings {
+    #[structopt(
+        name = "entry size",
+        long = "entry-size",
+        value_name = "RELATIONAL",
+        help = "Size of the beatmap entry in bytes",
+        default_value,
+        parse(try_from_str),
+    )]
     pub entry_size: Relational<i32>,
+    #[structopt(
+        name = "artist name",
+        long = "artist-name",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub artist_name: EqualClone<String>,
+    #[structopt(
+        name = "artist name unicode",
+        long = "artist-name-unicode",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub artist_name_unicode: EqualClone<String>,
+    #[structopt(
+        name = "song title",
+        long = "song-title",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub song_title: EqualClone<String>,
+    #[structopt(
+        name = "song title unicode",
+        long = "song-title-unicode",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub song_title_unicode: EqualClone<String>,
+    #[structopt(
+        name = "creator name",
+        long = "creator-name",
+        value_name = "EQ",
+        default_value,
+        help = "Name of the creator of the beatmap",
+        parse(try_from_str)
+    )]
     pub creator_name: EqualClone<String>,
+    #[structopt(
+        name = "difficulty",
+        long = "difficulty",
+        value_name = "EQ",
+        help = "Name of the difficulty of this map in its mapset",
+        default_value,
+        parse(try_from_str)
+    )]
     pub difficulty: EqualClone<String>,
+    #[structopt(
+        name = "audio file name",
+        long = "audio-file-name",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub audio_file_name: EqualClone<String>,
+    #[structopt(
+        name = "MD5 beatmap hash",
+        long = "md5-beatmap-hash",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub md5_beatmap_hash: EqualClone<String>,
+    #[structopt(
+        name = ".osu file name",
+        long = "dotosu-file-name",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub dotosu_file_name: EqualClone<String>,
+    #[structopt(
+        name = "ranked status",
+        long = "ranked-status",
+        value_name = "EQ",
+        default_value,
+        possible_values(&[
+            "unknown",
+            "unsubmitted",
+            "pending",
+            "wip",
+            "graveyard",
+            "unused",
+            "ranked",
+            "approved",
+            "qualified",
+            "loved"
+        ]),
+        long_help = "Possible values: unknown, unsubmitted, pending, wip, graveyard, unused, \
+            ranked, approved, qualified, loved",
+        parse(try_from_str)
+    )]
     pub ranked_status: EqualCopy<RankedStatus>,
+    #[structopt(
+        name = "number of hitcircles",
+        long = "number-of-hitcircles",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub number_of_hitcircles: Relational<i16>,
+    #[structopt(
+        name = "number of sliders",
+        long = "number-of-sliders",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub number_of_sliders: Relational<i16>,
+    #[structopt(
+        name = "number of spinners",
+        long = "number-of-spinners",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub number_of_spinners: Relational<i16>,
+    #[structopt(
+        name = "last modification time",
+        long = "last-modification-time",
+        value_name = "RELATIONAL-DATE",
+        default_value,
+        parse(try_from_str)
+    )]
     pub last_modification_time: Relational<NaiveDate>,
+    #[structopt(
+        name = "approach rate",
+        alias = "ar",
+        long = "approach-rate",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub approach_rate: Relational<ByteSingle>,
+    #[structopt(
+        name = "circle size",
+        alias = "cs",
+        long = "circle-size",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub circle_size: Relational<ByteSingle>,
+    #[structopt(
+        name = "hp drain",
+        alias = "hp",
+        long = "hp-drain",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub hp_drain: Relational<ByteSingle>,
+    #[structopt(
+        name = "overall difficulty",
+        alias = "od",
+        long = "overall-difficulty",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub overall_difficulty: Relational<ByteSingle>,
+    #[structopt(
+        name = "slider velocity",
+        long = "slider-velocity",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub slider_velocity: Relational<f64>,
+    #[structopt(skip)]
     pub num_mod_combo_star_ratings_standard: bool,
+    #[structopt(skip)]
     pub mod_combo_star_ratings_standard: bool,
+    #[structopt(skip)]
     pub num_mod_combo_star_ratings_taiko: bool,
+    #[structopt(skip)]
     pub mod_combo_star_ratings_taiko: bool,
+    #[structopt(skip)]
     pub num_mod_combo_star_ratings_ctb: bool,
+    #[structopt(skip)]
     pub mod_combo_star_ratings_ctb: bool,
+    #[structopt(skip)]
     pub num_mod_combo_star_ratings_mania: bool,
+    #[structopt(skip)]
     pub mod_combo_star_ratings_mania: bool,
+    #[structopt(
+        name = "drain time",
+        long = "drain-time",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub drain_time: Relational<i32>,
+    #[structopt(
+        name = "total time",
+        long = "total-time",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub total_time: Relational<i32>,
+    #[structopt(
+        name = "preview offset from start ms",
+        long = "preview-offset-from-start-ms",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub preview_offset_from_start_ms: Relational<i32>,
+    #[structopt(
+        name = "num timing points",
+        long = "num-timing-points",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub num_timing_points: Relational<i32>,
+    #[structopt(skip)]
     pub timing_points: bool,
+    #[structopt(
+        name = "beatmap id",
+        long = "beatmap-id",
+        value_name = "RELATIONAL",
+        help = "Beatmap ID - e.g. 992022 in https://osu.ppy.sh/beatmapsets/439396#osu/992022",
+        default_value,
+        parse(try_from_str)
+    )]
     pub beatmap_id: Relational<i32>,
+    #[structopt(
+        name = "beatmap set id",
+        long = "beatmap-set-id",
+        value_name = "RELATIONAL",
+        help = "Beatmap set ID - e.g. 439396 in https://osu.ppy.sh/beatmapsets/439396#osu/992022",
+        default_value,
+        parse(try_from_str)
+    )]
     pub beatmap_set_id: Relational<i32>,
+    #[structopt(
+        name = "thread id",
+        long = "thread-id",
+        value_name = "RELATIONAL",
+        help = "Thread ID - e.g. 440377 in https://osu.ppy.sh/community/forums/topics/440377",
+        default_value,
+        parse(try_from_str)
+    )]
     pub thread_id: Relational<i32>,
+    #[structopt(
+        name = "standard grade",
+        long = "standard-grade",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub standard_grade: Relational<u8>,
+    #[structopt(
+        name = "taiko grade",
+        long = "taiko-grade",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub taiko_grade: Relational<u8>,
+    #[structopt(
+        name = "ctb grade",
+        long = "ctb-grade",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub ctb_grade: Relational<u8>,
+    #[structopt(
+        name = "mania grade",
+        long = "mania-grade",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub mania_grade: Relational<u8>,
+    #[structopt(
+        name = "local offset",
+        long = "local-offset",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub local_offset: Relational<i16>,
+    #[structopt(
+        name = "stack leniency",
+        long = "stack-leniency",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub stack_leniency: Relational<f32>,
+    #[structopt(
+        name = "gameplay mode",
+        long = "gameplay-mode",
+        value_name = "EQ",
+        possible_values(&[
+            "osu!",
+            "osu",
+            "osu!standard",
+            "standard",
+            "osu!taiko",
+            "taiko",
+            "osu!ctb",
+            "ctb",
+            "catch-the-beat",
+            "osu!mania",
+            "mania",
+        ]),
+        long_help = "Possible values: osu!, osu, osu!standard, standard, osu!taiko, taiko, \
+            osu!ctb, ctb, catch-the-beat, osu!mania, mania",
+        default_value,
+        parse(try_from_str)
+    )]
     pub gameplay_mode: EqualCopy<GameplayMode>,
+    #[structopt(
+        name = "song source",
+        long = "song-source",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub song_source: EqualClone<String>,
+    #[structopt(
+        name = "song tags",
+        long = "song-tags",
+        value_name = "EQ-COMMA-SEPARATED",
+        default_value,
+        parse(try_from_str)
+    )]
     pub song_tags: EqualClone<String>,
+    #[structopt(
+        name = "online offset",
+        long = "online-offset",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub online_offset: Relational<i16>,
+    #[structopt(
+        name = "font used for song title",
+        long = "font-used-for-song-title",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub font_used_for_song_title: EqualClone<String>,
+    #[structopt(
+        name = "unplayed",
+        long = "unplayed",
+        value_name = "EQ-BOOL",
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        default_value,
+        parse(try_from_str)
+    )]
     pub unplayed: EqualCopy<bool>,
+    #[structopt(
+        name = "last played",
+        long = "last-played",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub last_played: Relational<NaiveDate>,
+    #[structopt(
+        name = "is OSZ2",
+        long = "is-osz2",
+        value_name = "EQ-BOOL",
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        default_value,
+        parse(try_from_str)
+    )]
     pub is_osz2: EqualCopy<bool>,
+    #[structopt(
+        name = "beatmap folder name",
+        long = "beatmap-folder-name",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub beatmap_folder_name: EqualClone<String>,
+    #[structopt(
+        name = "last checked against repo",
+        long = "last-checked-against-repo",
+        value_name = "RELATIONAL-DATE",
+        default_value,
+        parse(try_from_str)
+    )]
     pub last_checked_against_repo: Relational<NaiveDate>,
+    #[structopt(
+        name = "ignore beatmap sound",
+        long = "ignore-beatmap-sound",
+        value_name = "EQ-BOOL",
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        default_value,
+        parse(try_from_str)
+    )]
     pub ignore_beatmap_sound: EqualCopy<bool>,
+    #[structopt(
+        name = "ignore beatmap skin",
+        long = "ignore-beatmap-skin",
+        value_name = "EQ-BOOL",
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        default_value,
+        parse(try_from_str)
+    )]
     pub ignore_beatmap_skin: EqualCopy<bool>,
+    #[structopt(
+        name = "disable storyboard",
+        long = "disable-storyboard",
+        value_name = "EQ-BOOL",
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        default_value,
+        parse(try_from_str)
+    )]
     pub disable_storyboard: EqualCopy<bool>,
+    #[structopt(
+        name = "disable video",
+        long = "disable-video",
+        value_name = "EQ-BOOL",
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        default_value,
+        parse(try_from_str)
+    )]
     pub disable_video: EqualCopy<bool>,
+    #[structopt(
+        name = "visual override",
+        long = "visual-override",
+        value_name = "EQ-BOOL",
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        default_value,
+        parse(try_from_str)
+    )]
     pub visual_override: EqualCopy<bool>,
+    #[structopt(skip)]
     pub unknown_short: bool,
+    #[structopt(
+        name = "offset from song start in editor ms",
+        long = "offset-from-song-start-in-editor-ms",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub offset_from_song_start_in_editor_ms: Relational<i32>,
+    #[structopt(
+        name = "mania scroll speed",
+        long = "mania-scroll-speed",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub mania_scroll_speed: Relational<u8>,
 }
 
@@ -259,559 +664,6 @@ impl BeatmapLoadSettings {
             || self.mania_scroll_speed.is_ignore()
     }
 
-    pub fn set_from_query(&mut self, args: Vec<&str>) -> IoResult<()> {
-        if args.len() == 0 {
-            return Ok(());
-        }
-        let matches = App::new("osu!.db query parser")
-            .arg(
-                Arg::with_name("Entry size")
-                    .long("ENTRY-SIZE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("SIZE"),
-            )
-            .arg(
-                Arg::with_name("Artist name")
-                    .long("ARTIST-NAME")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NAME"),
-            )
-            .arg(
-                Arg::with_name("Artist name unicode")
-                    .long("ARTIST-NAME-UNICODE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NAME"),
-            )
-            .arg(
-                Arg::with_name("Song title")
-                    .long("SONG-TITLE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("TITLE"),
-            )
-            .arg(
-                Arg::with_name("Song title unicode")
-                    .long("SONG-TITLE-UNICODE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("TITLE"),
-            )
-            .arg(
-                Arg::with_name("Creator name")
-                    .long("CREATOR-NAME")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NAME"),
-            )
-            .arg(
-                Arg::with_name("Difficulty")
-                    .long("DIFFICULTY")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NAME"),
-            )
-            .arg(
-                Arg::with_name("Audio file name")
-                    .long("AUDIO-FILE-NAME")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("FILENAME"),
-            )
-            .arg(
-                Arg::with_name("MD5 beatmap hash")
-                    .long("MD5-BEATMAP-HASH")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("HASH"),
-            )
-            .arg(
-                Arg::with_name(".osu file name")
-                    .long("DOTOSU-FILE-NAME")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("FILENAME"),
-            )
-            .arg(
-                Arg::with_name("Ranked status")
-                    .long("RANKED-STATUS")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("STATUS"),
-            )
-            .arg(
-                Arg::with_name("Number of hitcircles")
-                    .long("NUMBER-OF-HITCIRCLES")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Number of sliders")
-                    .long("NUMBER-OF-SLIDERS")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Number of spinners")
-                    .long("NUMBER-OF-SPINNERS")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Last modification time")
-                    .long("LAST-MODIFICATION-TIME")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("DATE"),
-            )
-            .arg(
-                Arg::with_name("Approach rate")
-                    .long("APPROACH-RATE")
-                    .multiple(false)
-                    .short("AR")
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Circle size")
-                    .long("CIRCLE-SIZE")
-                    .multiple(false)
-                    .short("CS")
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("HP drain")
-                    .long("HP-DRAIN")
-                    .multiple(false)
-                    .short("HP")
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Overall difficulty")
-                    .long("OVERALL-DIFFICULTY")
-                    .multiple(false)
-                    .short("OD")
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Slider velocity")
-                    .long("SLIDER-VELOCITY")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Number of precalculated mod combo star ratings (standard)")
-                    .long("NUM-MOD-COMBO-STAR-RATINGS-STANDARD")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(false),
-            )
-            .arg(
-                Arg::with_name("Number of precalculated mod combo star ratings (taiko)")
-                    .long("NUM-MOD-COMBO-STAR-RATINGS-TAIKO")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(false),
-            )
-            .arg(
-                Arg::with_name("Number of precalculated mod combo star ratings (CTB)")
-                    .long("NUM-MOD-COMBO-STAR-RATINGS-CTB")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(false),
-            )
-            .arg(
-                Arg::with_name("Number of precalculated mod combo star ratings (mania)")
-                    .long("NUM-MOD-COMBO-STAR-RATINGS-MANIA")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(false),
-            )
-            .arg(
-                Arg::with_name("Drain time")
-                    .long("DRAIN-TIME")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Total time")
-                    .long("TOTAL-TIME")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Preview offset from start (ms)")
-                    .long("PREVIEW-OFFSET-FROM-START-MS")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Number of timing points")
-                    .long("NUM-TIMING-POINTS")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Beatmap ID")
-                    .long("BEATMAP-ID")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Beatmap set ID")
-                    .long("BEATMAP-SET-ID")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Thread ID")
-                    .long("THREAD-ID")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Standard grade")
-                    .long("STANDARD-GRADE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("GRADE"),
-            )
-            .arg(
-                Arg::with_name("Taiko grade")
-                    .long("TAIKO-GRADE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("GRADE"),
-            )
-            .arg(
-                Arg::with_name("CTB grade")
-                    .long("CTB-GRADE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("GRADE"),
-            )
-            .arg(
-                Arg::with_name("Mania grade")
-                    .long("MANIA-GRADE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("GRADE"),
-            )
-            .arg(
-                Arg::with_name("Local offset")
-                    .long("LOCAL-OFFSET")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Stack leniency")
-                    .long("STACK-LENIENCY")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Gameplay mode")
-                    .long("GAMEPLAY-MODE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("MODE"),
-            )
-            .arg(
-                Arg::with_name("Song source")
-                    .long("SONG-SOURCE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("SOURCE"),
-            )
-            .arg(
-                Arg::with_name("Song tags")
-                    .long("SONG-TAGS")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("'TAG1,TAG2,...'"),
-            )
-            .arg(
-                Arg::with_name("Online offset")
-                    .long("ONLINE-OFFSET")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Font used for song title")
-                    .long("FONT-USED-FOR-SONG-TITLE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("FONT"),
-            )
-            .arg(
-                Arg::with_name("Unplayed")
-                    .long("UNPLAYED")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("T/F"),
-            )
-            .arg(
-                Arg::with_name("Last played")
-                    .long("LAST-PLAYED")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("DATE"),
-            )
-            .arg(
-                Arg::with_name("Is OSZ2")
-                    .long("IS-OSZ2")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("T/F"),
-            )
-            .arg(
-                Arg::with_name("Beatmap folder name")
-                    .long("BEATMAP-FOLDER-NAME")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NAME"),
-            )
-            .arg(
-                Arg::with_name("Last checked against repo")
-                    .long("LAST-CHECKED-AGAINST-REPO")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("DATE"),
-            )
-            .arg(
-                Arg::with_name("Ignore beatmap sound")
-                    .long("IGNORE-BEATMAP-SOUND")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("T/F"),
-            )
-            .arg(
-                Arg::with_name("Ignore beatmap skin")
-                    .long("IGNORE-BEATMAP-SKIN")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("T/F"),
-            )
-            .arg(
-                Arg::with_name("Disable storyboard")
-                    .long("DISABLE-STORYBOARD")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("T/F"),
-            )
-            .arg(
-                Arg::with_name("Disable video")
-                    .long("DISABLE-VIDEO")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("T/F"),
-            )
-            .arg(
-                Arg::with_name("Visual override")
-                    .long("VISUAL-OVERRIDE")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("T/F"),
-            )
-            .arg(
-                Arg::with_name("Unknown short")
-                    .long("UNKNOWN-SHORT")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(false),
-            )
-            .arg(
-                Arg::with_name("Offset from song start in editor (ms)")
-                    .long("OFFSET-FROM-SONG-START-IN-EDITOR-MS")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .arg(
-                Arg::with_name("Mania scroll speed")
-                    .long("MANIA-SCROLL-SPEED")
-                    .multiple(false)
-                    .required(false)
-                    .takes_value(true)
-                    .number_of_values(1)
-                    .value_name("NUMBER/RANGE"),
-            )
-            .get_matches_from(args.into_iter());
-        self.entry_size = Relational::from_matches(&matches, "Entry size")?;
-        self.artist_name = EqualClone::from_matches(&matches, "Artist name")?;
-        self.artist_name_unicode = EqualClone::from_matches(&matches, "Artist name unicode")?;
-        self.song_title = EqualClone::from_matches(&matches, "Song title")?;
-        self.song_title_unicode = EqualClone::from_matches(&matches, "Song title unicode")?;
-        self.creator_name = EqualClone::from_matches(&matches, "Creator name")?;
-        self.difficulty = EqualClone::from_matches(&matches, "Difficulty")?;
-        self.audio_file_name = EqualClone::from_matches(&matches, "Audio file name")?;
-        self.md5_beatmap_hash = EqualClone::from_matches(&matches, "MD5 beatmap hash")?;
-        self.dotosu_file_name = EqualClone::from_matches(&matches, ".osu file name")?;
-        self.ranked_status = EqualCopy::from_matches(&matches, "Ranked status")?;
-        self.number_of_hitcircles = Relational::from_matches(&matches, "Number of hitcircles")?;
-        self.number_of_sliders = Relational::from_matches(&matches, "Number of sliders")?;
-        self.number_of_spinners = Relational::from_matches(&matches, "Number of spinners")?;
-        self.last_modification_time =
-            Relational::date_from_matches(&matches, "Last modification time")?;
-        self.approach_rate = Relational::from_matches(&matches, "Approach rate")?;
-        self.circle_size = Relational::from_matches(&matches, "Circle size")?;
-        self.hp_drain = Relational::from_matches(&matches, "HP drain")?;
-        self.overall_difficulty = Relational::from_matches(&matches, "Overall difficulty")?;
-        self.slider_velocity = Relational::from_matches(&matches, "Slider velocity")?;
-        self.drain_time = Relational::from_matches(&matches, "Drain time")?;
-        self.total_time = Relational::from_matches(&matches, "Total time")?;
-        self.preview_offset_from_start_ms =
-            Relational::from_matches(&matches, "Preview offset from start (ms)")?;
-        self.num_timing_points = Relational::from_matches(&matches, "Number of timing points")?;
-        self.beatmap_id = Relational::from_matches(&matches, "Beatmap ID")?;
-        self.beatmap_set_id = Relational::from_matches(&matches, "Beatmap set ID")?;
-        self.thread_id = Relational::from_matches(&matches, "Thread ID")?;
-        self.standard_grade = Relational::from_matches(&matches, "Standard grade")?;
-        self.taiko_grade = Relational::from_matches(&matches, "Taiko grade")?;
-        self.ctb_grade = Relational::from_matches(&matches, "CTB grade")?;
-        self.mania_grade = Relational::from_matches(&matches, "Mania grade")?;
-        self.local_offset = Relational::from_matches(&matches, "Local offset")?;
-        self.stack_leniency = Relational::from_matches(&matches, "Stack leniency")?;
-        self.gameplay_mode = EqualCopy::from_matches(&matches, "Gameplay mode")?;
-        self.song_source = EqualClone::from_matches(&matches, "Song source")?;
-        self.song_tags = EqualClone::from_matches(&matches, "Song tags")?;
-        self.online_offset = Relational::from_matches(&matches, "Online offset")?;
-        self.font_used_for_song_title =
-            EqualClone::from_matches(&matches, "Font used for song title")?;
-        self.unplayed = EqualCopy::bool_from_matches(&matches, "Unplayed")?;
-        self.last_played = Relational::date_from_matches(&matches, "Last played")?;
-        self.is_osz2 = EqualCopy::bool_from_matches(&matches, "Is OSZ2")?;
-        self.beatmap_folder_name = EqualClone::from_matches(&matches, "Beatmap folder name")?;
-        self.last_checked_against_repo =
-            Relational::date_from_matches(&matches, "Last checked against repo")?;
-        self.ignore_beatmap_sound = EqualCopy::bool_from_matches(&matches, "Ignore beatmap sound")?;
-        self.ignore_beatmap_skin = EqualCopy::bool_from_matches(&matches, "Ignore beatmap skin")?;
-        self.disable_storyboard = EqualCopy::bool_from_matches(&matches, "Disable storyboard")?;
-        self.disable_video = EqualCopy::bool_from_matches(&matches, "Disable video")?;
-        self.visual_override = EqualCopy::bool_from_matches(&matches, "Visual override")?;
-        self.offset_from_song_start_in_editor_ms =
-            Relational::from_matches(&matches, "Offset from song start in editor (ms)")?;
-        self.mania_scroll_speed = Relational::from_matches(&matches, "Mania scroll speed")?;
-        Ok(())
-    }
-
     pub fn set_from_mask(&mut self, mask: &BeatmapMask) {
         self.entry_size.apply_mask(mask.entry_size);
         self.artist_name.apply_mask(mask.artist_name);
@@ -880,11 +732,8 @@ impl BeatmapLoadSettings {
         self.disable_video.apply_mask(mask.disable_video);
         self.visual_override.apply_mask(mask.visual_override);
         self.unknown_short |= mask.unknown_short;
-        if self.offset_from_song_start_in_editor_ms.is_ignore()
-            && mask.offset_from_song_start_in_editor_ms
-        {
-            self.offset_from_song_start_in_editor_ms = Relational::Load;
-        }
+        self.offset_from_song_start_in_editor_ms
+            .apply_mask(mask.offset_from_song_start_in_editor_ms);
         self.mania_scroll_speed.apply_mask(mask.mania_scroll_speed);
     }
 }

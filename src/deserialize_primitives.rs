@@ -211,12 +211,12 @@ pub fn read_string_utf8<'a>(
         if indicator == 0x0b {
             let length = read_uleb128(bytes, i)?;
             if *i + length <= bytes.len() {
-                let tmp = Ok(Some(
-                    str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
+                let tmp = Ok(Some(str::from_utf8(&bytes[*i..*i + length]).map_err(
+                    |e| {
                         let err_msg = format!("Error reading string for {} ({})", field, e);
                         DbFileParseError::new(PrimitiveError, err_msg.as_str())
-                    })?,
-                ));
+                    },
+                )?));
                 *i += length;
                 tmp
             } else {
@@ -293,12 +293,10 @@ pub fn read_string_utf8_with_len<'a>(
             if *i + length <= bytes.len() {
                 let tmp = Ok((
                     1 + length_bytes + length,
-                    Some(
-                        str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
-                            let err_msg = format!("Error reading string for {} ({})", field, e);
-                            DbFileParseError::new(PrimitiveError, err_msg.as_str())
-                        })?,
-                    ),
+                    Some(str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
+                        let err_msg = format!("Error reading string for {} ({})", field, e);
+                        DbFileParseError::new(PrimitiveError, err_msg.as_str())
+                    })?),
                 ));
                 *i += length;
                 tmp

@@ -1,15 +1,11 @@
-use crate::databases::{
-    load::PartialLoad,
-    osu::{
-        partial_beatmap::PartialBeatmap,
-        primitives::{GameplayMode, RankedStatus, TimingPoint},
-        versions::{Legacy, Modern, ModernWithEntrySize, ReadPartialVersionSpecificData},
-    },
+use crate::databases::osu::{
+    partial_beatmap::PartialBeatmap,
+    primitives::{GameplayMode, RankedStatus, TimingPoint},
+    versions::{Legacy, Modern, ModernWithEntrySize, ReadPartialVersionSpecificData},
 };
 use crate::deserialize_primitives::*;
 use crate::load_settings::osu::beatmap_load_settings::BeatmapLoadSettings;
 use crate::load_settings::osu::osudb_load_settings::OsuDbLoadSettings;
-use crate::masks::osu_mask::OsuDbMask;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
 use chrono::NaiveDate;
@@ -28,8 +24,23 @@ pub struct PartialOsuDb<'a> {
     pub unknown_short: Option<i16>,
 }
 
-impl<'a> PartialLoad<'a, OsuDbMask, OsuDbLoadSettings> for PartialOsuDb<'a> {
-    fn read_single_thread(settings: OsuDbLoadSettings, bytes: &'a [u8]) -> ParseFileResult<Self> {
+impl<'a> PartialOsuDb<'a> {
+    pub fn read_from_bytes(
+        settings: OsuDbLoadSettings,
+        jobs: usize,
+        bytes: &'a [u8],
+    ) -> ParseFileResult<Self> {
+        if jobs == 1 {
+            Self::read_single_thread(settings, bytes)
+        } else {
+            Self::read_multi_thread(settings, jobs, bytes)
+        }
+    }
+
+    pub fn read_single_thread(
+        settings: OsuDbLoadSettings,
+        bytes: &'a [u8],
+    ) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
         let mut skip = false;
@@ -115,7 +126,7 @@ impl<'a> PartialLoad<'a, OsuDbMask, OsuDbLoadSettings> for PartialOsuDb<'a> {
         })
     }
 
-    fn read_multi_thread(
+    pub fn read_multi_thread(
         settings: OsuDbLoadSettings,
         jobs: usize,
         bytes: &'a [u8],
@@ -216,7 +227,11 @@ impl<'a> PartialLoad<'a, OsuDbMask, OsuDbLoadSettings> for PartialOsuDb<'a> {
         } else {
             ModernWithEntrySize::maybe_read_unknown_short(settings.unknown_short, s, &bytes, i)?
         };
-        let version = if settings.version { Some(version) } else { None };
+        let version = if settings.version {
+            Some(version)
+        } else {
+            None
+        };
         Ok(PartialOsuDb {
             version,
             folder_count,

@@ -1,11 +1,10 @@
-use crate::argument::Database::{self, *};
+use crate::argument::DbIndicator;
 use crate::databases::{
     collection::{collectiondb::CollectionDb, partial_collectiondb::PartialCollectionDb},
-    load::{Load, PartialLoad},
     osu::{osudb::OsuDb, partial_osudb::PartialOsuDb},
     scores::{partial_scoresdb::PartialScoresDb, scoresdb::ScoresDb},
 };
-use crate::load_settings::DbSettings::{self, *};
+use crate::load_settings::LoadSettings::{self, *};
 use crate::read_error::ParseFileResult;
 
 #[derive(Debug)]
@@ -21,32 +20,23 @@ pub enum OsuDatabase<'a> {
 use self::OsuDatabase::*;
 
 impl<'a> OsuDatabase<'a> {
-    pub fn read_from_bytes(jobs: usize, db: &'a Database) -> ParseFileResult<Self> {
-        Ok(match db {
-            OsuDb(b) => Osu(OsuDb::read_from_bytes(jobs, b)?),
-            CollectionDb(b) => Collection(CollectionDb::read_from_bytes(jobs, b)?),
-            ScoresDb(b) => Scores(ScoresDb::read_from_bytes(jobs, b)?),
+    pub fn read_from_bytes(jobs: usize, db_type: DbIndicator, bytes: &'a [u8]) -> ParseFileResult<Self> {
+        Ok(match db_type {
+            DbIndicator::OsuDb => Osu(OsuDb::read_from_bytes(jobs, bytes)?),
+            DbIndicator::CollectionDb => Collection(CollectionDb::read_from_bytes(jobs, bytes)?),
+            DbIndicator::ScoresDb => Scores(ScoresDb::read_from_bytes(jobs, bytes)?),
         })
     }
 
     pub fn read_partial_from_bytes(
         jobs: usize,
-        db: &'a Database,
-        settings: DbSettings,
+        settings: LoadSettings,
+        bytes: &'a [u8],
     ) -> ParseFileResult<Self> {
         Ok(match settings {
-            OsuSettings(s) => match db {
-                OsuDb(b) => PartialOsu(PartialOsuDb::read_from_bytes(s, jobs, b)?),
-                _ => unreachable!(),
-            },
-            CollectionSettings(s) => match db {
-                CollectionDb(b) => PartialCollection(PartialCollectionDb::read_from_bytes(s, jobs, b)?),
-                _ => unreachable!(),
-            },
-            ScoresSettings(s) => match db {
-                ScoresDb(b) => PartialScores(PartialScoresDb::read_from_bytes(s, jobs, b)?),
-                _ => unreachable!(),
-            }
+            OsuSettings(s) => PartialOsu(PartialOsuDb::read_from_bytes(s, jobs, bytes)?),
+            CollectionSettings(s) => PartialCollection(PartialCollectionDb::read_from_bytes(s, jobs, bytes)?),
+            ScoresSettings(s) => PartialScores(PartialScoresDb::read_from_bytes(s, jobs, bytes)?),
         })
     }
 

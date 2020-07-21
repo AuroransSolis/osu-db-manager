@@ -1,10 +1,7 @@
-use crate::databases::{
-    load::Load,
-    osu::{
-        beatmap::Beatmap,
-        primitives::*,
-        versions::{Legacy, Modern, ModernWithEntrySize, ReadVersionSpecificData},
-    },
+use crate::databases::osu::{
+    beatmap::Beatmap,
+    primitives::*,
+    versions::{Legacy, Modern, ModernWithEntrySize, ReadVersionSpecificData},
 };
 use crate::deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
@@ -25,8 +22,16 @@ pub struct OsuDb<'a> {
     pub unknown_short: i16,
 }
 
-impl<'a> Load<'a> for OsuDb<'a> {
-    fn read_single_thread(bytes: &'a [u8]) -> ParseFileResult<Self> {
+impl<'a> OsuDb<'a> {
+    pub fn read_from_bytes(jobs: usize, bytes: &'a [u8]) -> ParseFileResult<Self> {
+        if jobs == 1 {
+            Self::read_single_thread(bytes)
+        } else {
+            Self::read_multi_thread(jobs, bytes)
+        }
+    }
+
+    pub fn read_single_thread(bytes: &'a [u8]) -> ParseFileResult<Self> {
         let mut index = 0;
         let version = read_int(&bytes, &mut index)?;
         let folder_count = read_int(&bytes, &mut index)?;
@@ -80,7 +85,7 @@ impl<'a> Load<'a> for OsuDb<'a> {
         })
     }
 
-    fn read_multi_thread(jobs: usize, bytes: &'a [u8]) -> ParseFileResult<Self> {
+    pub fn read_multi_thread(jobs: usize, bytes: &'a [u8]) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
         let version = read_int(&bytes, i)?;

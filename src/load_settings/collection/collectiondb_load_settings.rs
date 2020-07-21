@@ -1,17 +1,18 @@
-use crate::load_settings::{
-    collection::collection_load_settings::CollectionLoadSettings, query::QueryStruct
-};
+use crate::load_settings::collection::collection_load_settings::CollectionLoadSettings;
 use crate::masks::collection_mask::CollectionDbMask;
-use std::io::Result as IoResult;
+use structopt::StructOpt;
 
-#[derive(Clone)]
+#[derive(Clone, StructOpt)]
 pub struct CollectionDbLoadSettings {
+    #[structopt(skip)]
     pub version: bool,
+    #[structopt(skip)]
     pub number_of_collections: bool,
+    #[structopt(flatten)]
     pub collection_load_settings: CollectionLoadSettings,
 }
 
-impl QueryStruct<CollectionDbMask> for CollectionDbLoadSettings {
+impl CollectionDbLoadSettings {
     fn load_all(&self) -> bool {
         self.version && self.number_of_collections && self.collection_load_settings.load_all()
     }
@@ -22,10 +23,6 @@ impl QueryStruct<CollectionDbMask> for CollectionDbLoadSettings {
 
     fn is_partial(&self) -> bool {
         !self.version || !self.number_of_collections || self.collection_load_settings.is_partial()
-    }
-
-    fn set_from_query(&mut self, args: Vec<&str>) -> IoResult<()> {
-        self.collection_load_settings.set_from_query(args)
     }
 
     fn set_from_mask(&mut self, mask: &CollectionDbMask) {

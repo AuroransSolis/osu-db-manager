@@ -1,10 +1,9 @@
-use crate::databases::{collection::partial_collection::PartialCollection, load::PartialLoad};
+use crate::databases::collection::partial_collection::PartialCollection;
 use crate::deserialize_primitives::*;
 use crate::load_settings::collection::{
     collection_load_settings::CollectionLoadSettings,
     collectiondb_load_settings::CollectionDbLoadSettings,
 };
-use crate::masks::collection_mask::CollectionDbMask;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
 use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
@@ -17,8 +16,20 @@ pub struct PartialCollectionDb<'a> {
     pub collections: Option<Vec<PartialCollection<'a>>>,
 }
 
-impl<'a> PartialLoad<'a, CollectionDbMask, CollectionDbLoadSettings> for PartialCollectionDb<'a> {
-    fn read_single_thread(
+impl<'a> PartialCollectionDb<'a> {
+    pub fn read_from_bytes(
+        settings: CollectionDbLoadSettings,
+        jobs: usize,
+        bytes: &'a [u8],
+    ) -> ParseFileResult<Self> {
+        if jobs == 1 {
+            Self::read_single_thread(settings, bytes)
+        } else {
+            Self::read_multi_thread(settings, jobs, bytes)
+        }
+    }
+
+    pub fn read_single_thread(
         settings: CollectionDbLoadSettings,
         bytes: &'a [u8],
     ) -> ParseFileResult<Self> {
@@ -54,7 +65,7 @@ impl<'a> PartialLoad<'a, CollectionDbMask, CollectionDbLoadSettings> for Partial
         })
     }
 
-    fn read_multi_thread(
+    pub fn read_multi_thread(
         settings: CollectionDbLoadSettings,
         jobs: usize,
         bytes: &'a [u8],

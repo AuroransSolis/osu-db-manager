@@ -1,19 +1,18 @@
-use std::io::Result as IoResult;
-
-use crate::load_settings::{
-    query::QueryStruct,
-    scores::scoresdb_beatmap_load_settings::ScoresDbBeatmapLoadSettings,
-};
+use crate::load_settings::scores::scoresdb_beatmap_load_settings::ScoresDbBeatmapLoadSettings;
 use crate::masks::scores_mask::ScoresDbMask;
+use structopt::StructOpt;
 
-#[derive(Clone)]
+#[derive(Clone, StructOpt)]
 pub struct ScoresDbLoadSettings {
+    #[structopt(skip)]
     pub version: bool,
+    #[structopt(skip)]
     pub number_of_beatmaps: bool,
+    #[structopt(flatten)]
     pub beatmap_load_settings: ScoresDbBeatmapLoadSettings,
 }
 
-impl QueryStruct<ScoresDbMask> for ScoresDbLoadSettings {
+impl ScoresDbLoadSettings {
     fn load_all(&self) -> bool {
         self.version && self.number_of_beatmaps && self.beatmap_load_settings.load_all()
     }
@@ -24,10 +23,6 @@ impl QueryStruct<ScoresDbMask> for ScoresDbLoadSettings {
 
     fn is_partial(&self) -> bool {
         !self.version || !self.number_of_beatmaps || self.beatmap_load_settings.is_partial()
-    }
-
-    fn set_from_query(&mut self, args: Vec<&str>) -> IoResult<()> {
-        self.beatmap_load_settings.set_from_query(args)
     }
 
     fn set_from_mask(&mut self, mask: &ScoresDbMask) {

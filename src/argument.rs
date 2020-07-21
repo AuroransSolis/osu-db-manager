@@ -1,70 +1,99 @@
-use std::fs::read;
-use std::io::{Error as IoError, ErrorKind::Other, Result as IoResult};
+use crate::databases::merge::Merge;
+use crate::load_settings::LoadSettings;
+use crate::masks::DbMask;
+use std::str::FromStr;
+use structopt::StructOpt;
 
-use clap::{App, AppSettings, Arg, ArgGroup, SubCommand};
+#[derive(StructOpt)]
+#[structopt(
+    name = "osu-db-manager",
+    author = "Aurorans Solis",
+    about = "osu! database managing, merging, parsing, and querying tool",
+    version = "0.0.1",
+    after_help = r#"Information about value name notation:
+    Each option will have one of the following value names:
+        - EQ
+        - EQ-BOOL
+        - RELATIONAL
+        - RELATIONAL-DATE
+    EQ and EQ-BOOL both have the same expected syntax, and RELATIONAL and RELATIONAL-DATE do
+    as well. Here are their expected syntaxes:
+        - EQ: just a value, for instance --artist-name 'Thank You Scientist'
+        - EQ-BOOL: a boolean indicated by t, true, y, yes, 1, f, false, n, no, or 0
+        - RELATIONAL: there are many accepted formats for relationals:
+            - equal: --ar 9
+            - greater than: --ar '(9..)'
+            - less than: --ar '(..9)'
+            - greater than or equal to: --ar '[9..)'
+            - less than or equal to: --ar '(..9]'
+            - in range (exclusive, exclusive): --ar '(8..10)'
+            - in range (exclusive, inclusive): --ar '(8..10]'
+            - in range (inclusive, exlusive): --ar '[8..10)'
+            - in range (inclusive, inclusive): --ar '[8..10]'
+        - RELATIONAL-DATE: just like RELATIONAL, except with a date. The date is expected to be in a
+            YYYY-MM-DD format.
 
-use crate::databases::merge::ConflictResolution;
-
+Information about interface types:
+    - None (no option given): controlled by command line arguments, much like you're doing now
+    - Shell: presents a shell-like interface to browse a database.
+    - TUI: presents a text-based "graphical" browser of the database."#
+)]
 pub struct Arguments {
-    pub db: Option<Database>,
-    pub verbosity: Verbosity,
-    pub jobs: Option<usize>,
+    #[structopt(
+        name = "database type",
+        short = "t",
+        long = "type",
+        value_name = "TYPE",
+        possible_values(&["collection", "osu", "scores"]),
+        parse(try_from_str)
+    )]
+    pub db_type: DbIndicator,
+    #[structopt(
+        name = "database path",
+        short = "p",
+        long = "path",
+        value_name = "PATH"
+    )]
+    pub db_path: String,
+    #[structopt(
+        name = "jobs",
+        short = "j",
+        long = "jobs",
+        value_name = "NUM",
+        default_value = "1"
+    )]
+    pub jobs: usize,
+    #[structopt(
+        name = "interface type",
+        short = "i",
+        long = "interface",
+        value_name = "INTERFACE",
+        possible_values(&["s", "shell", "t", "tui"]),
+        conflicts_with_all(&[
+            "merge",
+            "osu-query",
+            "collection-query",
+            "scores-query",
+            "osu-show",
+            "collection-show",
+            "scores-show",
+        ])
+    )]
     pub interface: Option<InterfaceType>,
-    pub database_query: Option<String>,
-    pub show_options: Option<String>,
-    pub merge: Option<(Database, ConflictResolution)>,
-    pub info: Option<Info>,
+    #[structopt(subcommand)]
+    pub merge_or_search: Option<MergeOrSearch>,
 }
 
-impl Arguments {
-    fn new() -> Self {
-        Arguments {
-            db: None,
-            verbosity: Verbosity::Quiet,
-            jobs: None,
-            interface: None,
-            database_query: None,
-            show_options: None,
-            merge: None,
-            info: None,
-        }
-    }
-
-    fn new_info(info: Info) -> Self {
-        Arguments {
-            db: None,
-            jobs: None,
-            verbosity: Verbosity::Quiet,
-            interface: None,
-            database_query: None,
-            show_options: None,
-            merge: None,
-            info: Some(info),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Database {
-    OsuDb(Vec<u8>),
-    CollectionDb(Vec<u8>),
-    ScoresDb(Vec<u8>),
-}
-
-impl Database {
-    fn new_of_same_type(first: &Self, bytes: Vec<u8>) -> Self {
-        match first {
-            &Database::OsuDb(_) => Database::OsuDb(bytes),
-            &Database::CollectionDb(_) => Database::CollectionDb(bytes),
-            &Database::ScoresDb(_) => Database::ScoresDb(bytes),
-        }
-    }
-}
-
-pub enum Verbosity {
-    Quiet,
-    Low,
-    High,
+#[derive(StructOpt)]
+pub enum MergeOrSearch {
+    #[structopt(name = "search")]
+    Search {
+        #[structopt(flatten)]
+        database_query: LoadSettings,
+        #[structopt(flatten)]
+        show_options: DbMask,
+    },
+    Merge(Merge)
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -74,11 +103,16 @@ pub enum InterfaceType {
     Tui,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Info {
-    Query(DbIndicator),
-    Show(DbIndicator),
-    ConflictResolution,
+impl FromStr for InterfaceType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s.to_lowercase().as_str() {
+            "s" | "shell" => Ok(InterfaceType::Shell),
+            "t" | "tui" => Ok(InterfaceType::Tui),
+            other @ _ => Err(format!("Unknown interface type: {}", s)),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -88,228 +122,15 @@ pub enum DbIndicator {
     ScoresDb,
 }
 
-impl From<&str> for DbIndicator {
-    fn from(other: &str) -> Self {
-        match other {
-            "o" | "osu" => DbIndicator::OsuDb,
-            "c" | "collection" => DbIndicator::CollectionDb,
-            "s" | "scores" => DbIndicator::ScoresDb,
-            _ => unreachable!(),
-        }
-    }
-}
+impl FromStr for DbIndicator {
+    type Err = String;
 
-pub fn get_arguments() -> IoResult<Arguments> {
-    let matches = App::new("osu-db-manager")
-        .version("1.0.0")
-        .author("Aurorans Solis")
-        .about("Tool to read, write, browse, and merge osu! databases.")
-        .setting(AppSettings::SubcommandsNegateReqs)
-        .arg(Arg::with_name("osu!.db specifier")
-            .short("o")
-            .long("osu")
-            .takes_value(true)
-            .value_name("PATH")
-            .help("Specifies that the given path is to an osu!.db"))
-        .arg(Arg::with_name("collection.db specifier")
-            .short("c")
-            .long("collection")
-            .takes_value(true)
-            .value_name("PATH")
-            .help("Specifies that the given path is to a collection.db"))
-        .arg(Arg::with_name("scores.db specifier")
-            .short("s")
-            .long("scores")
-            .takes_value(true)
-            .value_name("PATH")
-            .help("Specifies that the given path is to a scores.db"))
-        .group(ArgGroup::with_name("Database type indicator and path")
-            .args(&["osu!.db specifier", "collection.db specifier", "scores.db specifier"])
-            .multiple(false)
-            .required(true))
-        .arg(Arg::with_name("Jobs")
-            .short("j")
-            .long("jobs")
-            .takes_value(true)
-            .number_of_values(1)
-            .value_name("JOBS")
-            .default_value("1")
-            .help("Number of threads to load the database with. Default: 1"))
-        .arg(Arg::with_name("Interface type")
-            .short("i")
-            .long("interface")
-            .conflicts_with_all(&["Database query", "Show options"])
-            .takes_value(true)
-            .value_name("INTERFACE_TYPE")
-            .possible_values(&["s", "shell", "t", "tui"])
-            .multiple(false)
-            .required(false)
-            .help("Alternative interface type specifier. Valid interfaces: 't'/'tui', 's'/'shell'. Default \
-                is none (print requested information and quit)."))
-        .arg(Arg::with_name("Database query")
-            .short("q")
-            .long("query")
-            .value_name("QUERY")
-            .takes_value(true)
-            .required(false)
-            .help("Database query. Use 'info --query TYPE' for information on what you can \
-                query in database type TYPE. Can be used in conjunction with show options."))
-        .arg(Arg::with_name("Show options")
-            .short("S")
-            .long("show")
-            .value_name("SHOW_OPTIONS")
-            .takes_value(true)
-            .required(false)
-            .help("What information to show from each database entry. Use 'info --show TYPE' \
-                for information on what you can show from each database type TYPE. Can be used in \
-                conjunction with a query."))
-        .arg(Arg::with_name("Merge")
-            .short("m")
-            .long("merge")
-            .takes_value(true)
-            .min_values(1)
-            .max_values(2)
-            .value_names(&["PATH", "OSU_DB_PATH"])
-            .multiple(true)
-            .required(false)
-            .help("Merge a second database at location PATH into the one specified with the \
-                first argument. The databases will be treated as the same type, so make sure the \
-                path points to one of the same type!"))
-        .arg(Arg::with_name("Resolution")
-            .short("r")
-            .long("resolution")
-            .multiple(false)
-            .required(false)
-            .takes_value(true)
-            .value_name("RESOLUTION_TYPE")
-            .help("Method used to resolve conflicts in a merge. Only required if no interface \
-                is specified. For information on available conflict resolution methods, use 'info \
-                --conflict-resolution'."))
-        .subcommand(SubCommand::with_name("info")
-            .arg(Arg::with_name("query")
-                .long("query")
-                .takes_value(true)
-                .value_name("TYPE")
-                .possible_values(&["o", "osu", "c", "collection", "s", "scores", ""])
-                .required_unless_one(&["show", "conflict resolution"])
-                .conflicts_with_all(&["show", "conflict resolution"])
-                .help("Shows all available fields to query in database TYPE as well as examples \
-                    for querying each field of a database."))
-            .arg(Arg::with_name("show")
-                .long("show")
-                .takes_value(true)
-                .value_name("TYPE")
-                .possible_values(&["o", "osu", "c", "collection", "s", "scores", ""])
-                .required_unless_one(&["query", "conflict resolution"])
-                .conflicts_with_all(&["query", "conflict resolution"])
-                .help("Shows all available fields in database TYPE to display."))
-            .arg(Arg::with_name("conflict resolution")
-                .long("conflict-resolution")
-                .takes_value(false)
-                .multiple(false)
-                .required_unless_one(&["query", "show"])
-                .conflicts_with_all(&["query", "show"])
-                .help("Shows available merging methods and information on them.")))
-        .get_matches();
-    if let ("info", Some(info_matches)) = matches.subcommand() {
-        if let Some(value) = info_matches.value_of("query") {
-            return Ok(Arguments::new_info(Info::Query(DbIndicator::from(value))));
-        } else if let Some(value) = info_matches.value_of("show") {
-            return Ok(Arguments::new_info(Info::Show(DbIndicator::from(value))));
-        } else if info_matches.is_present("conflict resolution") {
-            return Ok(Arguments::new_info(Info::ConflictResolution));
-        } else {
-            // One of the three is required, this is just for optimization purposes
-            unreachable!();
-        }
-        // If the 'info' command is used, then one of 'query', 'show', or 'merge' must be used, so
-        // not having one of them is 'unreachable!()'.
-    }
-    let mut arguments = Arguments::new();
-    if let Some(path) = matches.value_of("osu!.db specifier") {
-        arguments.db = Some(Database::OsuDb(read(path)?))
-    } else if let Some(path) = matches.value_of("collection.db specifier") {
-        arguments.db = Some(Database::CollectionDb(read(path)?));
-    } else if let Some(path) = matches.value_of("scores.db specifier") {
-        arguments.db = Some(Database::ScoresDb(read(path)?));
-    } else {
-        // One of the three is required; this is just for optimization purposes
-        unreachable!()
-    };
-    if let Some(jobs) = matches.value_of("Jobs") {
-        let jobs = jobs
-            .parse::<usize>()
-            .map_err(|_| IoError::new(Other, "Invalid number of jobs."))?;
-        arguments.jobs = Some(jobs);
-    } else {
-        arguments.jobs = Some(1);
-    }
-    let merge = if let Some(path) = matches.value_of("Merge") {
-        let second = Database::new_of_same_type(arguments.db.as_ref().unwrap(), read(path)?);
-        Some(second)
-    } else {
-        None
-    };
-    if let Some(interface) = matches.value_of("Interface type") {
-        let interface = match interface {
-            "s" | "shell" => InterfaceType::Shell,
-            "t" | "tui" => InterfaceType::Tui,
-            _ => unreachable!(), // No other values are accepted
-        };
-        arguments.interface = Some(interface);
-        return Ok(arguments);
-    }
-    let resolution = if let Some(res_method) = matches.value_of("Resolution") {
-        let res_method = ConflictResolution::from_argument(res_method).ok_or_else(|| {
-            IoError::new(
-                Other,
-                "Unrecognized merge conflict resolution method. Valid methods:\n\
-                 ignore-duplicates, replace-destination, merge-subentries,\
-                 rename-source-with-prefix=PREFIX, rename-source-with-suffix=SUFFIX,\
-                 rename-destination-with-prefix=PREFIX, rename-destination-with-suffix=SUFFIX\n\n\
-                 Note: prefix/suffix methods must be put in quotes, for example:\n    \
-                 -r \"rename-source-with-suffix=foo\"",
-            )
-        })?;
-        Some(res_method)
-    } else {
-        None
-    };
-    if let Some(merge) = merge {
-        if let Some(resolution) = resolution {
-            arguments.merge = Some((merge, resolution));
-        } else {
-            arguments.merge = Some((merge, ConflictResolution::MergeSubentries))
-        }
-    } else if resolution.is_some() {
-        return Err(IoError::new(
-            Other,
-            "Conflict resolution method specified without merge argument.",
-        ));
-    }
-    if let Some(query) = matches.value_of("Database query") {
-        if arguments.merge.is_some() {
-            return Err(IoError::new(
-                Other,
-                "Queries can only be passed in as an argument when no \
-                 interface is specified.",
-            ));
-        } else {
-            arguments.database_query = Some(query.to_string());
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "collection" => Ok(DbIndicator::CollectionDb),
+            "osu" => Ok(DbIndicator::OsuDb),
+            "scores" => Ok(DbIndicator::ScoresDb),
+            other @ _ => Err(format!("Invalid database type: {}", other)),
         }
     }
-    if let Some(show_opts) = matches.value_of("Show options") {
-        if arguments.merge.is_some() {
-            return Err(IoError::new(
-                Other,
-                "Show options can only be passed in as an argument when \
-                 no interface is specified.",
-            ));
-        } else {
-            arguments.show_options = Some(show_opts.to_string());
-        }
-    } else if arguments.interface == Some(InterfaceType::None) {
-        arguments.show_options = Some("ALL".to_string());
-    }
-    Ok(arguments)
 }

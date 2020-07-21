@@ -1,4 +1,4 @@
-use crate::databases::{collection::collection::Collection, load::Load};
+use crate::databases::collection::collection::Collection;
 use crate::deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
 use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
@@ -13,8 +13,16 @@ pub struct CollectionDb<'a> {
     pub collections: Vec<Collection<'a>>,
 }
 
-impl<'a> Load<'a> for CollectionDb<'a> {
-    fn read_single_thread(bytes: &'a [u8]) -> ParseFileResult<Self> {
+impl<'a> CollectionDb<'a> {
+    pub fn read_from_bytes(jobs: usize, bytes: &'a [u8]) -> ParseFileResult<Self> {
+        if jobs == 1 {
+            Self::read_single_thread(bytes)
+        } else {
+            Self::read_multi_thread(jobs, bytes)
+        }
+    }
+
+    pub fn read_single_thread(bytes: &'a [u8]) -> ParseFileResult<Self> {
         let mut index = 0;
         let i = &mut index;
         let version = read_int(&bytes, i)?;
@@ -30,7 +38,7 @@ impl<'a> Load<'a> for CollectionDb<'a> {
         })
     }
 
-    fn read_multi_thread(jobs: usize, bytes: &'a [u8]) -> ParseFileResult<Self> {
+    pub fn read_multi_thread(jobs: usize, bytes: &'a [u8]) -> ParseFileResult<Self> {
         let version = read_int(&bytes, &mut 0)?;
         let number_of_collections = read_int(&bytes, &mut 4)?;
         // Keeps track of how many collections we've parsed.

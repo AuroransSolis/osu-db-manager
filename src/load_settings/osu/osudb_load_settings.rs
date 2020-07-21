@@ -1,22 +1,28 @@
-use crate::load_settings::{
-    osu::beatmap_load_settings::BeatmapLoadSettings, query::QueryStruct
-};
+use crate::load_settings::osu::beatmap_load_settings::BeatmapLoadSettings;
 use crate::masks::osu_mask::OsuDbMask;
-use std::io::Result as IoResult;
+use structopt::StructOpt;
 
-#[derive(Clone)]
+#[derive(Clone, StructOpt)]
 pub struct OsuDbLoadSettings {
+    #[structopt(skip)]
     pub version: bool,
+    #[structopt(skip)]
     pub folder_count: bool,
+    #[structopt(skip)]
     pub account_unlocked: bool,
+    #[structopt(skip)]
     pub account_unlock_date: bool,
+    #[structopt(skip)]
     pub player_name: bool,
+    #[structopt(skip)]
     pub number_of_beatmaps: bool,
+    #[structopt(flatten)]
     pub beatmap_load_settings: BeatmapLoadSettings,
+    #[structopt(skip)]
     pub unknown_short: bool,
 }
 
-impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {
+impl OsuDbLoadSettings {
     fn load_all(&self) -> bool {
         self.version
             && self.folder_count
@@ -45,10 +51,6 @@ impl QueryStruct<OsuDbMask> for OsuDbLoadSettings {
             || !self.player_name
             || !self.unknown_short
             || self.beatmap_load_settings.is_partial()
-    }
-
-    fn set_from_query(&mut self, args: Vec<&str>) -> IoResult<()> {
-        self.beatmap_load_settings.set_from_query(args)
     }
 
     fn set_from_mask(&mut self, mask: &OsuDbMask) {

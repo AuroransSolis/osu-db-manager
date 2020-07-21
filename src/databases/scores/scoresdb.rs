@@ -1,7 +1,4 @@
-use crate::databases::{
-    load::Load,
-    scores::{score::Score, scoresdb_beatmap::ScoresDbBeatmap},
-};
+use crate::databases::scores::{score::Score, scoresdb_beatmap::ScoresDbBeatmap};
 use crate::deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
 use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
@@ -15,8 +12,16 @@ pub struct ScoresDb<'a> {
     pub beatmaps: Vec<ScoresDbBeatmap<'a>>,
 }
 
-impl<'a> Load<'a> for ScoresDb<'a> {
-    fn read_single_thread(bytes: &'a [u8]) -> ParseFileResult<ScoresDb<'a>> {
+impl<'a> ScoresDb<'a> {
+    pub fn read_from_bytes(jobs: usize, bytes: &'a [u8]) -> ParseFileResult<Self> {
+        if jobs == 1 {
+            Self::read_single_thread(bytes)
+        } else {
+            Self::read_multi_thread(jobs, bytes)
+        }
+    }
+
+    pub fn read_single_thread(bytes: &'a [u8]) -> ParseFileResult<ScoresDb<'a>> {
         let mut index = 0;
         let i = &mut index;
         let version = read_int(&bytes, i)?;
@@ -32,7 +37,7 @@ impl<'a> Load<'a> for ScoresDb<'a> {
         })
     }
 
-    fn read_multi_thread(jobs: usize, bytes: &'a [u8]) -> ParseFileResult<ScoresDb<'a>> {
+    pub fn read_multi_thread(jobs: usize, bytes: &'a [u8]) -> ParseFileResult<ScoresDb<'a>> {
         let (version, number_of_beatmaps) = {
             let mut index = 0;
             (read_int(&bytes, &mut index)?, read_int(&bytes, &mut index)?)

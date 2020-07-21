@@ -1,6 +1,3 @@
-extern crate chrono;
-extern crate clap;
-
 mod argument;
 mod databases;
 mod deserialize_primitives;
@@ -11,22 +8,22 @@ mod maybe_deserialize_primitives;
 mod read_error;
 mod serialize_primitives;
 
-use std::time::Instant;
 
 use argument::*;
 use databases::database::OsuDatabase;
+use std::io::Read;
+use std::fs::File;
+use std::time::Instant;
+use structopt::StructOpt;
 
 fn main() {
-    let arguments = get_arguments().unwrap();
-    if let Some(_) = arguments.info {
-        println!("Got help command!");
-        return;
-    }
-    let Arguments { db, jobs, .. } = arguments;
-    let database = db.unwrap();
-    let jobs = jobs.unwrap();
+    let arguments = Arguments::from_args();
+    let Arguments { db_type, db_path, jobs, .. } = arguments;
     let timer = Instant::now();
-    let database = OsuDatabase::read_from_bytes(jobs, &database);
+    let mut buffer = Vec::new();
+    let mut file = File::open(&db_path).expect("Failed to open database file.");
+    file.read_to_end(&mut buffer).expect("Failed to read database file.");
+    let database = OsuDatabase::read_from_bytes(jobs, db_type, &buffer);
     let elapsed = timer.elapsed();
     if let Ok(_) = database {
         println!("Successfully loaded database! Time taken: {:?}", elapsed);

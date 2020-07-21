@@ -2,29 +2,150 @@ use crate::databases::osu::primitives::GameplayMode;
 use crate::load_settings::{EqualClone, EqualCopy, Relational};
 use crate::masks::scores_mask::ScoreMask;
 use chrono::NaiveDate;
-use clap::ArgMatches;
-use std::io::Result as IoResult;
+use structopt::StructOpt;
 
-#[derive(Clone)]
+#[derive(Clone, StructOpt)]
 pub struct ScoreLoadSettings {
+    #[structopt(
+        name = "gameplay mode",
+        long = "gameplay-mode",
+        value_name = "EQ-GAMEPLAY-MODE",
+        default_value,
+        parse(try_from_str)
+    )]
     pub gameplay_mode: EqualCopy<GameplayMode>,
+    #[structopt(
+        name = "score version",
+        long = "score-version",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub score_version: Relational<i32>,
+    #[structopt(
+        name = "score md5 beatmap hash",
+        long = "score-md5-beatmap-hash",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub md5_beatmap_hash: EqualClone<String>,
+    #[structopt(
+        name = "player name",
+        long = "player-name",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub player_name: EqualClone<String>,
+    #[structopt(
+        name = "md5 replay hash",
+        long = "md5-replay-hash",
+        value_name = "EQ",
+        default_value,
+        parse(try_from_str)
+    )]
     pub md5_replay_hash: EqualClone<String>,
+    #[structopt(
+        name = "number of 300s",
+        long = "number-of-300s",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub number_of_300s: Relational<i16>,
+    #[structopt(
+        name = "number of 100s",
+        long = "number-of-100s",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub number_of_100s: Relational<i16>,
+    #[structopt(
+        name = "number of 50s",
+        long = "number-of-50s",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub number_of_50s: Relational<i16>,
+    #[structopt(
+        name = "number of gekis",
+        long = "number-of-gekis",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub number_of_gekis: Relational<i16>,
+    #[structopt(
+        name = "number of katus",
+        long = "number-of-katus",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub number_of_katus: Relational<i16>,
+    #[structopt(
+        name = "number of misses",
+        long = "number-of-misses",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub number_of_misses: Relational<i16>,
+    #[structopt(
+        name = "replay score",
+        long = "replay-score",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub replay_score: Relational<i32>,
+    #[structopt(
+        name = "max combo",
+        long = "max-combo",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub max_combo: Relational<i16>,
+    #[structopt(
+        name = "perfect combo",
+        long = "perfect-combo",
+        value_name = "EQ-BOOL",
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        default_value,
+        parse(try_from_str)
+    )]
     pub perfect_combo: EqualCopy<bool>,
+    #[structopt(
+        name = "mods used",
+        long = "mods-used",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub mods_used: Relational<i32>,
+    #[structopt(skip)]
     pub empty_string: bool,
+    #[structopt(
+        name = "",
+        long = "",
+        value_name = "RELATIONAL-DATE",
+        default_value,
+        parse(try_from_str)
+    )]
     pub replay_timestamp: Relational<NaiveDate>,
+    #[structopt(skip)]
     pub negative_one: bool,
+    #[structopt(
+        name = "",
+        long = "",
+        value_name = "RELATIONAL",
+        default_value,
+        parse(try_from_str)
+    )]
     pub online_score_id: Relational<i64>,
 }
 
@@ -95,36 +216,10 @@ impl ScoreLoadSettings {
             || self.online_score_id.is_ignore()
     }
 
-    pub fn set_from_query(&mut self, matches: &ArgMatches) -> IoResult<()> {
-        self.gameplay_mode = EqualCopy::from_matches(matches, "Gameplay mode")?;
-        self.score_version = Relational::from_matches(matches, "Score version")?;
-        self.md5_beatmap_hash = EqualClone::from_matches(matches, "MD5 beatmap hash")?;
-        self.player_name = EqualClone::from_matches(matches, "Player name")?;
-        self.md5_replay_hash = EqualClone::from_matches(matches, "MD5 replay hash")?;
-        self.number_of_300s = Relational::from_matches(matches, "Number of 300s")?;
-        self.number_of_100s = Relational::from_matches(
-            matches,
-            "Number of 100s (standard/CTB)/150s (taiko)/200s (mania)",
-        )?;
-        self.number_of_50s =
-            Relational::from_matches(matches, "Number of 50s (standard/mania)/small fruit (CTB)")?;
-        self.number_of_gekis =
-            Relational::from_matches(matches, "Number of gekis/max 300s (mania)")?;
-        self.number_of_katus = Relational::from_matches(matches, "Number of katus/100s (mania)")?;
-        self.number_of_misses = Relational::from_matches(matches, "Number of misses")?;
-        self.replay_score = Relational::from_matches(matches, "Replay score")?;
-        self.max_combo = Relational::from_matches(matches, "Max combo")?;
-        self.perfect_combo = EqualCopy::bool_from_matches(matches, "Perfect combo")?;
-        self.mods_used = Relational::from_matches(matches, "Mods used")?;
-        self.replay_timestamp = Relational::date_from_matches(matches, "Replay timestamp")?;
-        self.online_score_id = Relational::from_matches(matches, "Online score ID")?;
-        Ok(())
-    }
-
     pub fn set_from_mask(&mut self, mask: &ScoreMask) {
         self.gameplay_mode.apply_mask(mask.gameplay_mode);
         self.score_version.apply_mask(mask.score_version);
-        self.md5_beatmap_hash.apply_mask(mask.md5_beatmap_hash);
+        self.md5_beatmap_hash.apply_mask(mask.score_md5_beatmap_hash);
         self.player_name.apply_mask(mask.player_name);
         self.md5_replay_hash.apply_mask(mask.md5_replay_hash);
         self.number_of_300s.apply_mask(mask.number_of_300s);

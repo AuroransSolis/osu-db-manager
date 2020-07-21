@@ -1,5 +1,4 @@
 use crate::databases::{
-    load::PartialLoad,
     osu::primitives::GameplayMode,
     scores::{partial_score::PartialScore, partial_scoresdb_beatmap::PartialScoresDbBeatmap},
 };
@@ -8,7 +7,6 @@ use crate::load_settings::scores::{
     scoresdb_beatmap_load_settings::ScoresDbBeatmapLoadSettings,
     scoresdb_load_settings::ScoresDbLoadSettings,
 };
-use crate::masks::scores_mask::ScoresDbMask;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::{
     DbFileParseError, ParseErrorKind, ParseErrorKind::PrimitiveError, ParseFileResult,
@@ -24,8 +22,20 @@ pub struct PartialScoresDb<'a> {
     pub beatmaps: Option<Vec<PartialScoresDbBeatmap<'a>>>,
 }
 
-impl<'a> PartialLoad<'a, ScoresDbMask, ScoresDbLoadSettings> for PartialScoresDb<'a> {
-    fn read_single_thread(
+impl<'a> PartialScoresDb<'a> {
+    pub fn read_from_bytes(
+        settings: ScoresDbLoadSettings,
+        jobs: usize,
+        bytes: &'a [u8],
+    ) -> ParseFileResult<Self> {
+        if jobs == 1 {
+            Self::read_single_thread(settings, bytes)
+        } else {
+            Self::read_multi_thread(settings, jobs, bytes)
+        }
+    }
+
+    pub fn read_single_thread(
         settings: ScoresDbLoadSettings,
         bytes: &'a [u8],
     ) -> ParseFileResult<Self> {
@@ -62,7 +72,7 @@ impl<'a> PartialLoad<'a, ScoresDbMask, ScoresDbLoadSettings> for PartialScoresDb
         })
     }
 
-    fn read_multi_thread(
+    pub fn read_multi_thread(
         settings: ScoresDbLoadSettings,
         jobs: usize,
         bytes: &'a [u8],
@@ -223,12 +233,7 @@ fn spawn_partial_scoresdb_beatmap_loader_thread<'scope, 'b: 'scope, 'a: 'b>(
                     // 8 bytes for score ID
                     // Total of 78
                 }
-                (
-                    md5_beatmap_hash,
-                    number_of_scores,
-                    section_start,
-                    number,
-                )
+                (md5_beatmap_hash, number_of_scores, section_start, number)
             };
             continue_if!(*s);
             let scores = if settings.score_load_settings.ignore_all() || number_of_scores == 0 {
