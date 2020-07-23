@@ -2,6 +2,7 @@ use crate::load_settings::{
     scores::score_load_settings::ScoreLoadSettings, EqualClone, Relational,
 };
 use crate::masks::scores_mask::ScoresDbBeatmapMask;
+use std::default::Default;
 use structopt::StructOpt;
 
 #[derive(Clone, StructOpt)]
@@ -53,5 +54,15 @@ impl ScoresDbBeatmapLoadSettings {
             self.number_of_scores = Relational::Load;
         }
         self.score_load_settings.set_from_mask(&mask.scores_mask);
+    }
+}
+
+impl Default for ScoresDbBeatmapLoadSettings {
+    fn default() -> Self {
+        ScoresDbBeatmapLoadSettings {
+            md5_beatmap_hash: EqualClone::default(),
+            number_of_scores: Relational::default(),
+            score_load_settings: ScoreLoadSettings::default(),
+        }
     }
 }

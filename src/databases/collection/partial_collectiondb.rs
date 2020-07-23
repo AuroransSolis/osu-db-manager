@@ -6,6 +6,7 @@ use crate::load_settings::collection::{
 };
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
+use crate::{masks::collection_mask::CollectionDbMask, maybe_print, maybe_print_vec};
 use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
 use std::sync::{Arc, Mutex};
 
@@ -133,6 +134,18 @@ impl<'a> PartialCollectionDb<'a> {
             number_of_collections,
             collections,
         })
+    }
+
+    pub fn display(&self, show: CollectionDbMask) {
+        if !show.ignore_all() {
+            maybe_print!(show.version, self.version);
+            maybe_print!(show.number_of_collections, self.number_of_collections);
+            if self.collections.is_some() && !show.collections_mask.ignore_all() {
+                for collection in self.collections.as_ref().unwrap() {
+                    collection.display(show.collections_mask);
+                }
+            }
+        }
     }
 }
 

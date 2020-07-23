@@ -1,6 +1,12 @@
 use crate::databases::merge::Merge;
-use crate::load_settings::LoadSettings;
-use crate::masks::DbMask;
+use crate::load_settings::{
+    collection::collectiondb_load_settings::CollectionDbLoadSettings,
+    osu::osudb_load_settings::OsuDbLoadSettings,
+    scores::scoresdb_load_settings::ScoresDbLoadSettings, LoadSettings,
+};
+use crate::masks::{
+    collection_mask::CollectionDbMask, osu_mask::OsuDbMask, scores_mask::ScoresDbMask, DbMask,
+};
 use std::str::FromStr;
 use structopt::StructOpt;
 
@@ -68,13 +74,35 @@ pub struct Arguments {
 }
 
 #[derive(StructOpt)]
+pub enum Search {
+    #[structopt(name = "osu-search")]
+    OsuSearch {
+        #[structopt(flatten)]
+        load_settings: OsuDbLoadSettings,
+        #[structopt(flatten)]
+        mask: OsuDbMask,
+    },
+    #[structopt(name = "collection-search")]
+    CollectionSearch {
+        #[structopt(flatten)]
+        load_settings: CollectionDbLoadSettings,
+        #[structopt(flatten)]
+        mask: CollectionDbMask,
+    },
+    #[structopt(name = "scores-search")]
+    ScoresSearch {
+        #[structopt(flatten)]
+        load_settings: ScoresDbLoadSettings,
+        #[structopt(flatten)]
+        mask: ScoresDbMask,
+    },
+}
+
+#[derive(StructOpt)]
 pub enum MergeSearchOrInterface {
-    #[structopt(name = "search")]
     Search {
-        #[structopt(flatten)]
-        database_query: LoadSettings,
-        #[structopt(flatten)]
-        show_options: DbMask,
+        #[structopt(subcommand)]
+        search: Search,
     },
     #[structopt(name = "merge")]
     Merge(Merge),

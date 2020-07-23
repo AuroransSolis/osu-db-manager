@@ -1,13 +1,16 @@
 use crate::databases::osu::{
     partial_beatmap::PartialBeatmap,
     primitives::*,
-    versions::{Legacy, Modern, ModernWithEntrySize, ModernWithPermissions, ReadPartialVersionSpecificData},
+    versions::{
+        Legacy, Modern, ModernWithEntrySize, ModernWithPermissions, ReadPartialVersionSpecificData,
+    },
 };
 use crate::deserialize_primitives::*;
 use crate::load_settings::osu::beatmap_load_settings::BeatmapLoadSettings;
 use crate::load_settings::osu::osudb_load_settings::OsuDbLoadSettings;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
+use crate::{masks::osu_mask::OsuDbMask, maybe_print};
 use chrono::NaiveDate;
 use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
 use std::sync::{Arc, Mutex};
@@ -19,7 +22,7 @@ pub struct PartialOsuDb<'a> {
     pub account_unlocked: Option<bool>,
     pub account_unlock_date: Option<NaiveDate>,
     pub player_name: Option<&'a str>,
-    pub number_of_beatmaps: i32,
+    pub number_of_beatmaps: Option<i32>,
     pub beatmaps: Option<Vec<PartialBeatmap<'a>>>,
     pub unknown_short_or_permissions: Option<UnknownShortOrUserPermissions>,
 }
@@ -144,13 +147,18 @@ impl<'a> PartialOsuDb<'a> {
         } else {
             None
         };
+        let number_of_beatmaps = if settings.number_of_beatmaps {
+            Some(num_beatmaps)
+        } else {
+            None
+        };
         Ok(PartialOsuDb {
             version,
             folder_count,
             account_unlocked,
             account_unlock_date,
             player_name,
-            number_of_beatmaps: num_beatmaps,
+            number_of_beatmaps,
             beatmaps,
             unknown_short_or_permissions,
         })
@@ -284,16 +292,39 @@ impl<'a> PartialOsuDb<'a> {
         } else {
             None
         };
+        let number_of_beatmaps = if settings.number_of_beatmaps {
+            Some(num_beatmaps)
+        } else {
+            None
+        };
         Ok(PartialOsuDb {
             version,
             folder_count,
             account_unlocked,
             account_unlock_date,
             player_name,
-            number_of_beatmaps: num_beatmaps,
+            number_of_beatmaps,
             beatmaps,
             unknown_short_or_permissions,
         })
+    }
+
+    pub fn display(&self, show: OsuDbMask) {
+        maybe_print!(show.version, self.version);
+        maybe_print!(show.folder_count, self.folder_count);
+        maybe_print!(show.account_unlocked, self.account_unlocked);
+        maybe_print!(show.account_unlock_date, self.account_unlock_date);
+        maybe_print!(show.player_name, self.player_name);
+        maybe_print!(show.number_of_beatmaps, self.number_of_beatmaps);
+        if !show.beatmap_mask.ignore_all() && self.beatmaps.is_some() {
+            for beatmap in self.beatmaps.as_ref().unwrap() {
+                beatmap.display(show.beatmap_mask);
+            }
+        }
+        maybe_print!(
+            show.unknown_short_or_permissions,
+            self.unknown_short_or_permissions
+        );
     }
 }
 

@@ -3,6 +3,7 @@ use crate::deserialize_primitives::*;
 use crate::load_settings::osu::beatmap_load_settings::BeatmapLoadSettings;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
+use crate::{masks::osu_mask::BeatmapMask, maybe_print, maybe_print_vec};
 use chrono::NaiveDate;
 
 /// Partial beatmap struct - this is like a regular `Beatmap`, except it's possible to skip parsing
@@ -308,5 +309,127 @@ impl<'a> PartialBeatmap<'a> {
             offset_from_song_start_in_editor_ms,
             mania_scroll_speed,
         })
+    }
+
+    pub fn display(&self, show: BeatmapMask) {
+        maybe_print!(show.entry_size, self.entry_size, "    ");
+        maybe_print!(show.artist_name, self.artist_name, "    ");
+        maybe_print!(show.artist_name_unicode, self.artist_name_unicode, "    ");
+        maybe_print!(show.song_title, self.song_title, "    ");
+        maybe_print!(show.song_title_unicode, self.song_title_unicode, "    ");
+        maybe_print!(show.creator_name, self.creator_name, "    ");
+        maybe_print!(show.difficulty, self.difficulty, "    ");
+        maybe_print!(show.audio_file_name, self.audio_file_name, "    ");
+        maybe_print!(show.md5_beatmap_hash, self.md5_beatmap_hash, "    ");
+        maybe_print!(show.dotosu_file_name, self.dotosu_file_name, "    ");
+        maybe_print!(show.ranked_status, self.ranked_status, "    ");
+        maybe_print!(show.number_of_hitcircles, self.number_of_hitcircles, "    ");
+        maybe_print!(show.number_of_sliders, self.number_of_sliders, "    ");
+        maybe_print!(show.number_of_spinners, self.number_of_spinners, "    ");
+        maybe_print!(
+            show.last_modification_time,
+            self.last_modification_time,
+            "    "
+        );
+        maybe_print!(show.approach_rate, self.approach_rate, "    ");
+        maybe_print!(show.circle_size, self.circle_size, "    ");
+        maybe_print!(show.hp_drain, self.hp_drain, "    ");
+        maybe_print!(show.overall_difficulty, self.overall_difficulty, "    ");
+        maybe_print!(show.slider_velocity, self.slider_velocity, "    ");
+        maybe_print!(
+            show.num_mod_combo_star_ratings_standard,
+            self.num_mod_combo_star_ratings_standard,
+            "    "
+        );
+        if show.mod_combo_star_ratings_standard && self.mod_combo_star_ratings_standard.is_some() {
+            println!("    MCSR osu!standard {{");
+            for (mods, star_rating) in self.mod_combo_star_ratings_standard.as_ref().unwrap() {
+                println!("        mods: {:32b} | star rating: {}*", mods, star_rating);
+            }
+            println!("    }}");
+        }
+        maybe_print!(
+            show.num_mod_combo_star_ratings_taiko,
+            self.num_mod_combo_star_ratings_taiko,
+            "    "
+        );
+        if show.mod_combo_star_ratings_taiko && self.mod_combo_star_ratings_taiko.is_some() {
+            println!("    MCSR osu!taiko {{");
+            for (mods, star_rating) in self.mod_combo_star_ratings_taiko.as_ref().unwrap() {
+                println!("        mods: {:32b} | star rating: {}*", mods, star_rating);
+            }
+            println!("    }}");
+        }
+        maybe_print!(
+            show.num_mod_combo_star_ratings_ctb,
+            self.num_mod_combo_star_ratings_ctb,
+            "    "
+        );
+        if show.mod_combo_star_ratings_ctb && self.mod_combo_star_ratings_ctb.is_some() {
+            println!("    MCSR osu!ctb {{");
+            for (mods, star_rating) in self.mod_combo_star_ratings_ctb.as_ref().unwrap() {
+                println!("        mods: {:32b} | star rating: {}*", mods, star_rating);
+            }
+            println!("    }}");
+        }
+        maybe_print!(
+            show.num_mod_combo_star_ratings_mania,
+            self.num_mod_combo_star_ratings_mania,
+            "    "
+        );
+        if show.mod_combo_star_ratings_mania && self.mod_combo_star_ratings_mania.is_some() {
+            println!("    MCSR osu!mania {{");
+            for (mods, star_rating) in self.mod_combo_star_ratings_mania.as_ref().unwrap() {
+                println!("        mods: {:32b} | star rating: {}*", mods, star_rating);
+            }
+            println!("    }}");
+        }
+        maybe_print!(show.drain_time, self.drain_time, "    ");
+        maybe_print!(show.total_time, self.total_time, "    ");
+        maybe_print!(
+            show.preview_offset_from_start_ms,
+            self.preview_offset_from_start_ms,
+            "    "
+        );
+        maybe_print!(show.num_timing_points, self.num_timing_points, "    ");
+        maybe_print_vec!(show.timing_points, self.timing_points, "timing points");
+        maybe_print!(show.beatmap_id, self.beatmap_id, "    ");
+        maybe_print!(show.beatmap_set_id, self.beatmap_set_id, "    ");
+        maybe_print!(show.thread_id, self.thread_id, "    ");
+        maybe_print!(show.standard_grade, self.standard_grade, "    ");
+        maybe_print!(show.taiko_grade, self.taiko_grade, "    ");
+        maybe_print!(show.ctb_grade, self.ctb_grade, "    ");
+        maybe_print!(show.mania_grade, self.mania_grade, "    ");
+        maybe_print!(show.local_offset, self.local_offset, "    ");
+        maybe_print!(show.stack_leniency, self.stack_leniency, "    ");
+        maybe_print!(show.gameplay_mode, self.gameplay_mode, "    ");
+        maybe_print!(show.song_source, self.song_source, "    ");
+        maybe_print!(show.song_tags, self.song_tags, "    ");
+        maybe_print!(show.online_offset, self.online_offset, "    ");
+        maybe_print!(
+            show.font_used_for_song_title,
+            self.font_used_for_song_title,
+            "    "
+        );
+        maybe_print!(show.unplayed, self.unplayed, "    ");
+        maybe_print!(show.last_played, self.last_played, "    ");
+        maybe_print!(show.is_osz2, self.is_osz2, "    ");
+        maybe_print!(show.beatmap_folder_name, self.beatmap_folder_name, "    ");
+        maybe_print!(
+            show.last_checked_against_repo,
+            self.last_checked_against_repo,
+            "    "
+        );
+        maybe_print!(show.ignore_beatmap_sound, self.ignore_beatmap_sound, "    ");
+        maybe_print!(show.ignore_beatmap_skin, self.ignore_beatmap_skin, "    ");
+        maybe_print!(show.disable_storyboard, self.disable_storyboard, "    ");
+        maybe_print!(show.disable_video, self.disable_video, "    ");
+        maybe_print!(show.visual_override, self.visual_override, "    ");
+        maybe_print!(show.unknown_short, self.unknown_short, "    ");
+        maybe_print!(
+            show.offset_from_song_start_in_editor_ms,
+            self.offset_from_song_start_in_editor_ms
+        );
+        maybe_print!(show.mania_scroll_speed, self.mania_scroll_speed, "    ");
     }
 }

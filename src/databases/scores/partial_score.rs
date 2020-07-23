@@ -1,9 +1,9 @@
-use chrono::NaiveDate;
-
 use crate::databases::osu::primitives::GameplayMode;
 use crate::load_settings::scores::score_load_settings::ScoreLoadSettings;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
+use crate::{masks::scores_mask::ScoreMask, maybe_print};
+use chrono::NaiveDate;
 
 #[derive(Debug, Clone)]
 pub struct PartialScore<'a> {
@@ -82,5 +82,31 @@ impl<'a> PartialScore<'a> {
                 online_score_id,
             }))
         }
+    }
+
+    pub fn display(&self, show: ScoreMask) {
+        maybe_print!(show.gameplay_mode, self.gameplay_mode, "        ");
+        maybe_print!(show.score_version, self.score_version, "        ");
+        maybe_print!(
+            show.score_md5_beatmap_hash,
+            self.md5_beatmap_hash,
+            "        "
+        );
+        maybe_print!(show.player_name, self.player_name, "        ");
+        maybe_print!(show.md5_replay_hash, self.md5_replay_hash, "        ");
+        maybe_print!(show.number_of_300s, self.number_of_300s, "        ");
+        maybe_print!(show.number_of_100s, self.number_of_100s, "        ");
+        maybe_print!(show.number_of_50s, self.number_of_50s, "        ");
+        maybe_print!(show.number_of_gekis, self.number_of_gekis, "        ");
+        maybe_print!(show.number_of_katus, self.number_of_katus, "        ");
+        maybe_print!(show.number_of_misses, self.number_of_misses, "        ");
+        maybe_print!(show.replay_score, self.replay_score, "        ");
+        maybe_print!(show.max_combo, self.max_combo, "        ");
+        maybe_print!(show.perfect_combo, self.perfect_combo, "        ");
+        maybe_print!(show.mods_used, self.mods_used, "        ");
+        maybe_print!(show.empty_string, self.empty_string, "        ");
+        maybe_print!(show.replay_timestamp, self.replay_timestamp, "        ");
+        maybe_print!(show.negative_one, self.negative_one, "        ");
+        maybe_print!(show.online_score_id, self.online_score_id, "        ");
     }
 }

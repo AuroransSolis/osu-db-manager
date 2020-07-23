@@ -3,11 +3,11 @@ use structopt::StructOpt;
 #[derive(Copy, Clone, Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct CollectionMask {
-    #[structopt(long)]
+    #[structopt(long = "show-collection-name")]
     pub collection_name: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-number-of-beatmaps")]
     pub number_of_beatmaps: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-md5-beatmap-hashes")]
     pub md5_beatmap_hashes: bool,
 }
 
@@ -24,9 +24,9 @@ impl CollectionMask {
 #[derive(Copy, Clone, Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct CollectionDbMask {
-    #[structopt(long)]
+    #[structopt(long = "show-version")]
     pub version: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-number-of-collections")]
     pub number_of_collections: bool,
     #[structopt(flatten)]
     pub collections_mask: CollectionMask,

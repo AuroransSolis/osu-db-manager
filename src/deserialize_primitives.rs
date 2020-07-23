@@ -379,10 +379,7 @@ pub fn read_datetime(bytes: &[u8], i: &mut usize) -> ParseFileResult<NaiveDate> 
 pub fn read_md5_hash<'a>(bytes: &'a [u8], i: &mut usize) -> ParseFileResult<&'a str> {
     let indicator = read_byte(bytes, i)?;
     if indicator == 0 {
-        Err(DbFileParseError::new(
-            PrimitiveError,
-            "Missing hash! Indicator was 0.",
-        ))
+        Ok("")
     } else if indicator == 0x0b {
         if *i + 32 < bytes.len() {
             // first byte will be 32 every time

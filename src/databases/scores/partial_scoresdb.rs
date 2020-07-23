@@ -11,6 +11,7 @@ use crate::maybe_deserialize_primitives::*;
 use crate::read_error::{
     DbFileParseError, ParseErrorKind, ParseErrorKind::PrimitiveError, ParseFileResult,
 };
+use crate::{masks::scores_mask::ScoresDbMask, maybe_print};
 use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
@@ -142,6 +143,18 @@ impl<'a> PartialScoresDb<'a> {
             number_of_beatmaps,
             beatmaps,
         })
+    }
+
+    pub fn display(&self, show: ScoresDbMask) {
+        maybe_print!(show.version, self.version);
+        if show.number_of_beatmaps {
+            println!("number of beatmaps: {}", self.number_of_beatmaps);
+        }
+        if !show.beatmaps_mask.ignore_all() && self.beatmaps.is_some() {
+            for beatmap in self.beatmaps.as_ref().unwrap() {
+                beatmap.display(show.beatmaps_mask);
+            }
+        }
     }
 }
 

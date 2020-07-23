@@ -5,6 +5,9 @@ use crate::databases::{
     scores::{partial_scoresdb::PartialScoresDb, scoresdb::ScoresDb},
 };
 use crate::load_settings::LoadSettings::{self, *};
+use crate::masks::{
+    collection_mask::CollectionDbMask, osu_mask::OsuDbMask, scores_mask::ScoresDbMask, DbMask,
+};
 use crate::read_error::ParseFileResult;
 
 #[derive(Debug)]
@@ -44,6 +47,22 @@ impl<'a> OsuDatabase<'a> {
             }
             ScoresSettings(s) => PartialScores(PartialScoresDb::read_from_bytes(s, jobs, bytes)?),
         })
+    }
+
+    pub fn display(&self, show: Option<DbMask>) {
+        match (self, show) {
+            (Osu(osudb), None) => osudb.display(),
+            (Collection(collectiondb), None) => collectiondb.display(),
+            (Scores(scoresdb), None) => scoresdb.display(),
+            (PartialOsu(partialosudb), Some(DbMask::OsuMask(mask))) => partialosudb.display(mask),
+            (PartialCollection(partialcollectiondb), Some(DbMask::CollectionMask(mask))) => {
+                partialcollectiondb.display(mask)
+            }
+            (PartialScores(partialscoresdb), Some(DbMask::ScoresMask(mask))) => {
+                partialscoresdb.display(mask)
+            }
+            _ => unreachable!(),
+        }
     }
 
     pub fn unwrap_osu(self) -> OsuDb<'a> {

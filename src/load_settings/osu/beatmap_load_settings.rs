@@ -2,6 +2,7 @@ use crate::databases::osu::primitives::{ByteSingle, GameplayMode, RankedStatus};
 use crate::load_settings::{EqualClone, EqualCopy, Relational};
 use crate::masks::osu_mask::BeatmapMask;
 use chrono::naive::NaiveDate;
+use std::default::Default;
 use structopt::StructOpt;
 
 #[derive(Clone, StructOpt)]
@@ -104,7 +105,8 @@ pub struct BeatmapLoadSettings {
             "ranked",
             "approved",
             "qualified",
-            "loved"
+            "loved",
+            "ignore",
         ]),
         long_help = "Possible values: unknown, unsubmitted, pending, wip, graveyard, unused, \
             ranked, approved, qualified, loved",
@@ -328,6 +330,7 @@ pub struct BeatmapLoadSettings {
             "catch-the-beat",
             "osu!mania",
             "mania",
+            "ignore",
         ]),
         long_help = "Possible values: osu!, osu, osu!standard, standard, osu!taiko, taiko, \
             osu!ctb, ctb, catch-the-beat, osu!mania, mania",
@@ -371,7 +374,7 @@ pub struct BeatmapLoadSettings {
         name = "unplayed",
         long = "unplayed",
         value_name = "EQ-BOOL",
-        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0", "ignore"]),
         default_value,
         parse(try_from_str)
     )]
@@ -388,7 +391,7 @@ pub struct BeatmapLoadSettings {
         name = "is OSZ2",
         long = "is-osz2",
         value_name = "EQ-BOOL",
-        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0", "ignore"]),
         default_value,
         parse(try_from_str)
     )]
@@ -413,7 +416,7 @@ pub struct BeatmapLoadSettings {
         name = "ignore beatmap sound",
         long = "ignore-beatmap-sound",
         value_name = "EQ-BOOL",
-        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0", "ignore"]),
         default_value,
         parse(try_from_str)
     )]
@@ -422,7 +425,7 @@ pub struct BeatmapLoadSettings {
         name = "ignore beatmap skin",
         long = "ignore-beatmap-skin",
         value_name = "EQ-BOOL",
-        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0", "ignore"]),
         default_value,
         parse(try_from_str)
     )]
@@ -431,7 +434,7 @@ pub struct BeatmapLoadSettings {
         name = "disable storyboard",
         long = "disable-storyboard",
         value_name = "EQ-BOOL",
-        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0", "ignore"]),
         default_value,
         parse(try_from_str)
     )]
@@ -440,7 +443,7 @@ pub struct BeatmapLoadSettings {
         name = "disable video",
         long = "disable-video",
         value_name = "EQ-BOOL",
-        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0", "ignore"]),
         default_value,
         parse(try_from_str)
     )]
@@ -449,7 +452,7 @@ pub struct BeatmapLoadSettings {
         name = "visual override",
         long = "visual-override",
         value_name = "EQ-BOOL",
-        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0"]),
+        possible_values(&["t", "true", "y", "yes", "1", "f", "false", "n", "no", "0", "ignore"]),
         default_value,
         parse(try_from_str)
     )]
@@ -735,5 +738,72 @@ impl BeatmapLoadSettings {
         self.offset_from_song_start_in_editor_ms
             .apply_mask(mask.offset_from_song_start_in_editor_ms);
         self.mania_scroll_speed.apply_mask(mask.mania_scroll_speed);
+    }
+}
+
+impl Default for BeatmapLoadSettings {
+    fn default() -> Self {
+        BeatmapLoadSettings {
+            entry_size: Relational::default(),
+            artist_name: EqualClone::default(),
+            artist_name_unicode: EqualClone::default(),
+            song_title: EqualClone::default(),
+            song_title_unicode: EqualClone::default(),
+            creator_name: EqualClone::default(),
+            difficulty: EqualClone::default(),
+            audio_file_name: EqualClone::default(),
+            md5_beatmap_hash: EqualClone::default(),
+            dotosu_file_name: EqualClone::default(),
+            ranked_status: EqualCopy::default(),
+            number_of_hitcircles: Relational::default(),
+            number_of_sliders: Relational::default(),
+            number_of_spinners: Relational::default(),
+            last_modification_time: Relational::default(),
+            approach_rate: Relational::default(),
+            circle_size: Relational::default(),
+            hp_drain: Relational::default(),
+            overall_difficulty: Relational::default(),
+            slider_velocity: Relational::default(),
+            num_mod_combo_star_ratings_standard: bool::default(),
+            mod_combo_star_ratings_standard: bool::default(),
+            num_mod_combo_star_ratings_taiko: bool::default(),
+            mod_combo_star_ratings_taiko: bool::default(),
+            num_mod_combo_star_ratings_ctb: bool::default(),
+            mod_combo_star_ratings_ctb: bool::default(),
+            num_mod_combo_star_ratings_mania: bool::default(),
+            mod_combo_star_ratings_mania: bool::default(),
+            drain_time: Relational::default(),
+            total_time: Relational::default(),
+            preview_offset_from_start_ms: Relational::default(),
+            num_timing_points: Relational::default(),
+            timing_points: bool::default(),
+            beatmap_id: Relational::default(),
+            beatmap_set_id: Relational::default(),
+            thread_id: Relational::default(),
+            standard_grade: Relational::default(),
+            taiko_grade: Relational::default(),
+            ctb_grade: Relational::default(),
+            mania_grade: Relational::default(),
+            local_offset: Relational::default(),
+            stack_leniency: Relational::default(),
+            gameplay_mode: EqualCopy::default(),
+            song_source: EqualClone::default(),
+            song_tags: EqualClone::default(),
+            online_offset: Relational::default(),
+            font_used_for_song_title: EqualClone::default(),
+            unplayed: EqualCopy::default(),
+            last_played: Relational::default(),
+            is_osz2: EqualCopy::default(),
+            beatmap_folder_name: EqualClone::default(),
+            last_checked_against_repo: Relational::default(),
+            ignore_beatmap_sound: EqualCopy::default(),
+            ignore_beatmap_skin: EqualCopy::default(),
+            disable_storyboard: EqualCopy::default(),
+            disable_video: EqualCopy::default(),
+            visual_override: EqualCopy::default(),
+            unknown_short: bool::default(),
+            offset_from_song_start_in_editor_ms: Relational::default(),
+            mania_scroll_speed: Relational::default(),
+        }
     }
 }

@@ -24,4 +24,21 @@ impl<'a> Collection<'a> {
             md5_beatmap_hashes,
         })
     }
+
+    pub fn display(&self) {
+        if self.collection_name.is_some() {
+            println!(
+                "    collection name: {}",
+                self.collection_name.as_ref().unwrap()
+            );
+        } else {
+            println!("    collection name: \"\"");
+        }
+        println!("    number of beatmaps: {}", self.number_of_beatmaps);
+        println!("    Hashes {{");
+        for &hash in &self.md5_beatmap_hashes {
+            println!("        {}", hash);
+        }
+        println!("    }}");
+    }
 }

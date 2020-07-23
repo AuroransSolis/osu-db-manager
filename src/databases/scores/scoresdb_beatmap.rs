@@ -28,4 +28,18 @@ impl<'a> ScoresDbBeatmap<'a> {
             scores,
         })
     }
+
+    pub fn display(&self) {
+        println!("    md5 beatmap hash: {}", self.md5_beatmap_hash);
+        println!("    number of scores: {}", self.number_of_scores);
+        println!("    scores {{");
+        if self.scores.is_some() {
+            for score in self.scores.as_ref().unwrap() {
+                score.display();
+            }
+        } else {
+            println!("        no scores");
+        }
+        println!("    }}");
+    }
 }

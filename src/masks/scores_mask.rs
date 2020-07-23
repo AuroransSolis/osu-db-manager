@@ -3,43 +3,43 @@ use structopt::StructOpt;
 #[derive(Copy, Clone, Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct ScoreMask {
-    #[structopt(long)]
+    #[structopt(long = "show-gameplay-mode")]
     pub gameplay_mode: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-score-version")]
     pub score_version: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-score-md5-beatmap-hash")]
     pub score_md5_beatmap_hash: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-player-name")]
     pub player_name: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-md5-replay-hash")]
     pub md5_replay_hash: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-number-of-300s")]
     pub number_of_300s: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-number-of-100s")]
     pub number_of_100s: bool, // 150s in Taiko, 100s in CTB, 200s in Mania
-    #[structopt(long)]
+    #[structopt(long = "show-number-of-50s")]
     pub number_of_50s: bool, // small fruit in CTB, 50s in Mania
-    #[structopt(long)]
+    #[structopt(long = "show-number-of-gekis")]
     pub number_of_gekis: bool, // max 300s in Mania
-    #[structopt(long)]
+    #[structopt(long = "show-number-of-katus")]
     pub number_of_katus: bool, // 100s in mania
-    #[structopt(long)]
+    #[structopt(long = "show-number-of-misses")]
     pub number_of_misses: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-replay-score")]
     pub replay_score: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-max-combo")]
     pub max_combo: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-perfect-combo")]
     pub perfect_combo: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-mods-used")]
     pub mods_used: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-empty-string")]
     pub empty_string: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-replay-timestamp")]
     pub replay_timestamp: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-negative-one")]
     pub negative_one: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-online-score-id")]
     pub online_score_id: bool,
 }
 
@@ -92,9 +92,9 @@ impl ScoreMask {
 #[derive(Copy, Clone, Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct ScoresDbBeatmapMask {
-    #[structopt(long)]
+    #[structopt(long = "show-md5-beatmap-hash")]
     pub md5_beatmap_hash: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-number-of-scores")]
     pub number_of_scores: bool,
     #[structopt(flatten)]
     pub scores_mask: ScoreMask,
@@ -113,9 +113,9 @@ impl ScoresDbBeatmapMask {
 #[derive(Copy, Clone, Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct ScoresDbMask {
-    #[structopt(long)]
+    #[structopt(long = "show-version")]
     pub version: bool,
-    #[structopt(long)]
+    #[structopt(long = "show-number-of-beatmaps")]
     pub number_of_beatmaps: bool,
     #[structopt(flatten)]
     pub beatmaps_mask: ScoresDbBeatmapMask,

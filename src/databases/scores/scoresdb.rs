@@ -92,6 +92,16 @@ impl<'a> ScoresDb<'a> {
             beatmaps,
         })
     }
+
+    pub fn display(&self) {
+        println!("version: {}", self.version);
+        println!("number of beatmaps: {}", self.number_of_beatmaps);
+        println!("beatmaps {{");
+        for beatmap in &self.beatmaps {
+            beatmap.display();
+        }
+        println!("}}");
+    }
 }
 
 fn spawn_scoresdb_beatmap_loader_thread<'scope, 'b: 'scope, 'a: 'b>(

@@ -1,5 +1,6 @@
 use crate::load_settings::{EqualClone, Relational};
 use crate::masks::collection_mask::CollectionMask;
+use std::default::Default;
 use structopt::StructOpt;
 
 #[derive(Clone, StructOpt)]
@@ -53,5 +54,15 @@ impl CollectionLoadSettings {
         self.collection_name.apply_mask(mask.collection_name);
         self.number_of_beatmaps.apply_mask(mask.number_of_beatmaps);
         self.md5_beatmap_hash.apply_mask(mask.md5_beatmap_hashes);
+    }
+}
+
+impl Default for CollectionLoadSettings {
+    fn default() -> Self {
+        CollectionLoadSettings {
+            collection_name: EqualClone::default(),
+            number_of_beatmaps: Relational::default(),
+            md5_beatmap_hash: EqualClone::default(),
+        }
     }
 }

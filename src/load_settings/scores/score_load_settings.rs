@@ -2,6 +2,7 @@ use crate::databases::osu::primitives::GameplayMode;
 use crate::load_settings::{EqualClone, EqualCopy, Relational};
 use crate::masks::scores_mask::ScoreMask;
 use chrono::NaiveDate;
+use std::default::Default;
 use structopt::StructOpt;
 
 #[derive(Clone, StructOpt)]
@@ -237,5 +238,31 @@ impl ScoreLoadSettings {
         self.replay_timestamp.apply_mask(mask.replay_timestamp);
         self.negative_one |= mask.negative_one;
         self.online_score_id.apply_mask(mask.online_score_id);
+    }
+}
+
+impl Default for ScoreLoadSettings {
+    fn default() -> Self {
+        ScoreLoadSettings {
+            gameplay_mode: EqualCopy::default(),
+            score_version: Relational::default(),
+            md5_beatmap_hash: EqualClone::default(),
+            player_name: EqualClone::default(),
+            md5_replay_hash: EqualClone::default(),
+            number_of_300s: Relational::default(),
+            number_of_100s: Relational::default(),
+            number_of_50s: Relational::default(),
+            number_of_gekis: Relational::default(),
+            number_of_katus: Relational::default(),
+            number_of_misses: Relational::default(),
+            replay_score: Relational::default(),
+            max_combo: Relational::default(),
+            perfect_combo: EqualCopy::default(),
+            mods_used: Relational::default(),
+            empty_string: bool::default(),
+            replay_timestamp: Relational::default(),
+            negative_one: bool::default(),
+            online_score_id: Relational::default(),
+        }
     }
 }

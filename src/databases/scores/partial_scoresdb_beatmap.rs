@@ -3,6 +3,7 @@ use crate::deserialize_primitives::*;
 use crate::load_settings::scores::scoresdb_beatmap_load_settings::ScoresDbBeatmapLoadSettings;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
+use crate::{masks::scores_mask::ScoresDbBeatmapMask, maybe_print};
 
 #[derive(Debug, Clone)]
 pub struct PartialScoresDbBeatmap<'a> {
@@ -39,5 +40,17 @@ impl<'a> PartialScoresDbBeatmap<'a> {
             number_of_scores,
             scores,
         })
+    }
+
+    pub fn display(&self, show: ScoresDbBeatmapMask) {
+        maybe_print!(show.md5_beatmap_hash, self.md5_beatmap_hash, "    ");
+        if show.number_of_scores {
+            println!("    number of scores: {}", self.number_of_scores);
+        }
+        if !show.scores_mask.ignore_all() && self.scores.is_some() {
+            for score in self.scores.as_ref().unwrap() {
+                score.display(show.scores_mask);
+            }
+        }
     }
 }

@@ -2,6 +2,7 @@ use crate::deserialize_primitives::*;
 use crate::load_settings::collection::collection_load_settings::CollectionLoadSettings;
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::ParseFileResult;
+use crate::{masks::collection_mask::CollectionMask, maybe_print, maybe_print_vec};
 
 #[derive(Debug, Clone)]
 pub struct PartialCollection<'a> {
@@ -61,5 +62,11 @@ impl<'a> PartialCollection<'a> {
                 md5_beatmap_hashes,
             }))
         }
+    }
+
+    pub fn display(&self, show: CollectionMask) {
+        maybe_print!(show.collection_name, self.collection_name);
+        maybe_print!(show.number_of_beatmaps, self.number_of_beatmaps);
+        maybe_print_vec!(show.md5_beatmap_hashes, self.md5_beatmap_hashes, "hashes");
     }
 }

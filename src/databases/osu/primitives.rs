@@ -1,12 +1,11 @@
-use std::cmp::{Ordering, PartialEq, PartialOrd};
-use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::io::{Error as IoError, ErrorKind::InvalidInput, Result as IoResult};
-use std::ops::Range;
-use std::str::FromStr;
-
 use crate::deserialize_primitives::*;
 use crate::load_settings::EqualCopy;
 use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
+use std::cmp::{Ordering, PartialEq, PartialOrd};
+use std::fmt::{self, Display};
+use std::io::{Error as IoError, ErrorKind::InvalidInput, Result as IoResult};
+use std::ops::Range;
+use std::str::FromStr;
 
 // Deserializing osu!.db-specific data types
 const RANKED_STATUS_ERR: &str = "Failed to read byte for ranked status.";
@@ -112,6 +111,16 @@ impl TimingPoint {
     }
 }
 
+impl Display for TimingPoint {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "BPM: {} | Offset from start: {} | Inherited: {}",
+            self.bpm, self.offset, self.inherited
+        )
+    }
+}
+
 /// Shows the ranking status of a particular beatmap. A beatmap can have a status of any of the
 /// following:
 /// - Unknown
@@ -138,7 +147,7 @@ pub enum RankedStatus {
 use self::RankedStatus::*;
 
 impl Display for RankedStatus {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -264,7 +273,7 @@ pub enum ByteSingle {
 use self::ByteSingle::*;
 
 impl Display for ByteSingle {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -455,7 +464,7 @@ impl GameplayMode {
 }
 
 impl Display for GameplayMode {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -527,8 +536,36 @@ impl UserPermissions {
     }
 }
 
+impl Display for UserPermissions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                UserPermissions::None => "None",
+                UserPermissions::Normal => "Normal",
+                UserPermissions::Moderator => "Moderator",
+                UserPermissions::Supporter => "Supporter",
+                UserPermissions::Friend => "Friend",
+                UserPermissions::peppy => "peppy",
+                UserPermissions::WorldCupStaff => "World Cup staff",
+                UserPermissions::Invalid => "Invalid",
+            }
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum UnknownShortOrUserPermissions {
     UnknownShort(i16),
     UserPermissions(UserPermissions),
+}
+
+impl Display for UnknownShortOrUserPermissions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            UnknownShortOrUserPermissions::UnknownShort(n) => write!(f, "{}", n),
+            UnknownShortOrUserPermissions::UserPermissions(perms) => write!(f, "{}", perms),
+        }
+    }
 }

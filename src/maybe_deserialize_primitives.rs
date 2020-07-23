@@ -118,6 +118,29 @@ pub fn maybe_read_short(
 }
 
 #[inline]
+pub fn maybe_read_short_nocomp(
+    s: bool,
+    skip: &mut bool,
+    bytes: &[u8],
+    i: &mut usize,
+) -> ParseFileResult<Option<i16>> {
+    if *i + 1 < bytes.len() {
+        if *skip || !s {
+            *i += 2;
+            Ok(None)
+        } else {
+            let mut buf = [0; 2];
+            buf.copy_from_slice(&bytes[*i..*i + 2]);
+            let tmp = i16::from_le_bytes(buf);
+            *i += 2;
+            Ok(Some(tmp))
+        }
+    } else {
+        Err(primitive!(SHORT_ERR))
+    }
+}
+
+#[inline]
 pub fn maybe_read_int(
     s: Relational<i32>,
     skip: &mut bool,
@@ -334,51 +357,6 @@ pub fn maybe_read_str_utf8<'a>(
 }
 
 #[inline]
-pub fn maybe_read_string_utf8_nocomp<'a>(
-    s: bool,
-    skip: &mut bool,
-    bytes: &'a [u8],
-    i: &mut usize,
-    field: &str,
-) -> ParseFileResult<Option<&'a str>> {
-    if *i < bytes.len() {
-        let indicator = bytes[*i];
-        *i += 1;
-        if indicator == 0x0b {
-            let length = read_uleb128(bytes, i)?;
-            if *i + length <= bytes.len() {
-                if *skip || !s {
-                    *i += length;
-                    Ok(None)
-                } else {
-                    let tmp = str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
-                        let err_msg = format!("Error reading string for {} ({})", field, e);
-                        DbFileParseError::new(PrimitiveError, err_msg.as_str())
-                    })?;
-                    *i += length;
-                    Ok(Some(tmp))
-                }
-            } else {
-                Err(DbFileParseError::new(
-                    PrimitiveError,
-                    "String length goes past end of file.",
-                ))
-            }
-        } else if indicator == 0 {
-            Ok(None)
-        } else {
-            let err_msg = format!(
-                "Read invalid string indicator ({}, index: {}).",
-                indicator, i
-            );
-            Err(DbFileParseError::new(PrimitiveError, err_msg.as_str()))
-        }
-    } else {
-        Err(primitive!(STRING_ERR))
-    }
-}
-
-#[inline]
 pub fn maybe_read_str_utf8_nocomp<'a>(
     s: bool,
     skip: &mut bool,
@@ -485,6 +463,7 @@ pub fn maybe_read_datetime(
             let mut buf = [0; 8];
             buf.copy_from_slice(&bytes[*i..*i + 8]);
             let ticks = u64::from_le_bytes(buf);
+            *i += 8;
             let duration_since_epoch = Duration::from_micros(ticks / 10);
             let chrono_duration = ChronoDuration::from_std(duration_since_epoch).map_err(|e| {
                 let msg = format!(
@@ -522,6 +501,7 @@ pub fn maybe_read_datetime_nocomp(
             let mut buf = [0; 8];
             buf.copy_from_slice(&bytes[*i..*i + 8]);
             let ticks = u64::from_le_bytes(buf);
+            *i += 8;
             let duration_since_epoch = Duration::from_micros(ticks / 10);
             let chrono_duration = ChronoDuration::from_std(duration_since_epoch).map_err(|e| {
                 let msg = format!(
@@ -548,6 +528,7 @@ pub fn maybe_read_md5_hash<'a>(
 ) -> ParseFileResult<Option<&'a str>> {
     if *i < bytes.len() {
         let indicator = bytes[*i];
+        *i += 1;
         if indicator == 0 {
             Err(DbFileParseError::new(
                 PrimitiveError,
@@ -563,6 +544,7 @@ pub fn maybe_read_md5_hash<'a>(
                     let tmp = str::from_utf8(&bytes[*i + 1..*i + 33]).map_err(|_| {
                         DbFileParseError::new(PrimitiveError, "Error reading MD5 hash.")
                     })?;
+                    *i += 33;
                     if s.compare_str(tmp) {
                         Ok(Some(tmp))
                     } else {
@@ -604,54 +586,50 @@ pub fn maybe_read_player_name<'a>(
         if indicator == 0 {
             Ok(None)
         } else if indicator == 0x0b {
-            if s.is_ignore() {
-                Ok(None)
-            } else {
-                if *i < bytes.len() {
-                    // Usernames are ASCII (1 byte in Unicode too), and so should never need more
-                    // than a byte for the player name string length. Additionally, from talking
-                    // with a Tillerino maintainer, I have found that the longest usernames that
-                    // Tillerino has read are about 20 characters. I also limit the username length
-                    // to 64 characters and return an error if it's longer.
-                    let length = bytes[*i] as usize;
-                    *i += 1;
-                    if length & 11000000 != 0 {
-                        return Err(DbFileParseError::new(
-                            PrimitiveError,
-                            "Read invalid player name length",
-                        ));
-                    }
-                    if *i + length < bytes.len() {
-                        if *skip {
-                            *i += length;
-                            Ok(None)
-                        } else {
-                            let tmp = str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
-                                DbFileParseError::new(
-                                    PrimitiveError,
-                                    format!("Failed to parse bytes into string:\n{}", e),
-                                )
-                            })?;
-                            *i += length;
-                            if s.compare_str(tmp) {
-                                Ok(Some(tmp))
-                            } else {
-                                *skip = true;
-                                Ok(Some(tmp))
-                            }
-                        }
+            if *i < bytes.len() {
+                // Usernames are ASCII (1 byte in Unicode too), and so should never need more
+                // than a byte for the player name string length. Additionally, from talking
+                // with a Tillerino maintainer, I have found that the longest usernames that
+                // Tillerino has read are about 20 characters. I also limit the username length
+                // to 64 characters and return an error if it's longer.
+                let length = bytes[*i] as usize;
+                *i += 1;
+                if length & 11000000 != 0 {
+                    return Err(DbFileParseError::new(
+                        PrimitiveError,
+                        "Read invalid player name length",
+                    ));
+                }
+                if *i + length < bytes.len() {
+                    if *skip || s.is_ignore() {
+                        *i += length;
+                        Ok(None)
                     } else {
-                        Err(DbFileParseError::new(
-                            PrimitiveError,
-                            "Not enough bytes left to read player name.",
-                        ))
+                        let tmp = str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
+                            DbFileParseError::new(
+                                PrimitiveError,
+                                format!("Failed to parse bytes into string:\n{}", e),
+                            )
+                        })?;
+                        *i += length;
+                        if s.compare_str(tmp) {
+                            Ok(Some(tmp))
+                        } else {
+                            *skip = true;
+                            Ok(Some(tmp))
+                        }
                     }
                 } else {
                     Err(DbFileParseError::new(
                         PrimitiveError,
-                        "Could not read player name length byte.",
+                        "Not enough bytes left to read player name.",
                     ))
                 }
+            } else {
+                Err(DbFileParseError::new(
+                    PrimitiveError,
+                    "Could not read player name length byte.",
+                ))
             }
         } else {
             Err(DbFileParseError::new(
@@ -680,49 +658,45 @@ pub fn maybe_read_player_name_nocomp<'a>(
         if indicator == 0 {
             Ok(None)
         } else if indicator == 0x0b {
-            if !s {
-                Ok(None)
-            } else {
-                if *i < bytes.len() {
-                    // Usernames are ASCII (1 byte in Unicode too), and so should never need more
-                    // than a byte for the player name string length. Additionally, from talking
-                    // with a Tillerino maintainer, I have found that the longest usernames that
-                    // Tillerino has read are about 20 characters. I also limit the username length
-                    // to 64 characters and return an error if it's longer.
-                    let length = bytes[*i] as usize;
-                    *i += 1;
-                    if length & 11000000 != 0 {
-                        return Err(DbFileParseError::new(
-                            PrimitiveError,
-                            "Read invalid player name length",
-                        ));
-                    }
-                    if *i + length < bytes.len() {
-                        if *skip {
-                            *i += length;
-                            Ok(None)
-                        } else {
-                            let tmp = str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
-                                DbFileParseError::new(
-                                    PrimitiveError,
-                                    format!("Failed to parse bytes into string:\n{}", e),
-                                )
-                            })?;
-                            *i += length;
-                            Ok(Some(tmp))
-                        }
+            if *i < bytes.len() {
+                // Usernames are ASCII (1 byte in Unicode too), and so should never need more
+                // than a byte for the player name string length. Additionally, from talking
+                // with a Tillerino maintainer, I have found that the longest usernames that
+                // Tillerino has read are about 20 characters. I also limit the username length
+                // to 64 characters and return an error if it's longer.
+                let length = bytes[*i] as usize;
+                *i += 1;
+                if length & 11000000 != 0 {
+                    return Err(DbFileParseError::new(
+                        PrimitiveError,
+                        "Read invalid player name length",
+                    ));
+                }
+                if *i + length < bytes.len() {
+                    if *skip || s {
+                        *i += length;
+                        Ok(None)
                     } else {
-                        Err(DbFileParseError::new(
-                            PrimitiveError,
-                            "Not enough bytes left to read player name.",
-                        ))
+                        let tmp = str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
+                            DbFileParseError::new(
+                                PrimitiveError,
+                                format!("Failed to parse bytes into string:\n{}", e),
+                            )
+                        })?;
+                        *i += length;
+                        Ok(Some(tmp))
                     }
                 } else {
                     Err(DbFileParseError::new(
                         PrimitiveError,
-                        "Could not read player name length byte.",
+                        "Not enough bytes left to read player name.",
                     ))
                 }
+            } else {
+                Err(DbFileParseError::new(
+                    PrimitiveError,
+                    "Could not read player name length byte.",
+                ))
             }
         } else {
             Err(DbFileParseError::new(

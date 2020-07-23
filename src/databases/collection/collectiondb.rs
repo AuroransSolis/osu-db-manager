@@ -105,6 +105,16 @@ impl<'a> CollectionDb<'a> {
             collections,
         })
     }
+
+    pub fn display(&self) {
+        println!("version: {}", self.version);
+        println!("number of collections: {}", self.number_of_collections);
+        println!("collections {{");
+        for collection in &self.collections {
+            collection.display();
+        }
+        println!("}}");
+    }
 }
 
 fn spawn_collection_loader_thread<'scope, 'b: 'scope, 'a: 'b>(

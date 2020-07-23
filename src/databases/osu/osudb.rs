@@ -1,7 +1,9 @@
 use crate::databases::osu::{
     beatmap::Beatmap,
     primitives::*,
-    versions::{Legacy, Modern, ModernWithEntrySize, ModernWithPermissions, ReadVersionSpecificData},
+    versions::{
+        Legacy, Modern, ModernWithEntrySize, ModernWithPermissions, ReadVersionSpecificData,
+    },
 };
 use crate::deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
@@ -65,8 +67,7 @@ impl<'a> OsuDb<'a> {
         } else if version > 20191107 {
             for _ in 0..num_beatmaps {
                 beatmaps.push(Beatmap::read_from_bytes::<ModernWithPermissions>(
-                    &bytes,
-                    &mut index
+                    &bytes, &mut index,
                 )?);
             }
         } else {
@@ -198,6 +199,33 @@ impl<'a> OsuDb<'a> {
             beatmaps,
             unknown_short_or_permissions,
         })
+    }
+
+    pub fn display(&self) {
+        println!("version: {}", self.version);
+        println!("folder count: {}", self.folder_count);
+        println!("account unlocked: {}", self.account_unlocked);
+        if self.account_unlock_date.is_some() {
+            println!(
+                "account unlock date: {}",
+                self.account_unlock_date.as_ref().unwrap()
+            );
+        } else {
+            println!("account unlock date:");
+        }
+        if self.player_name.is_some() {
+            println!("player name: {}", self.player_name.as_ref().unwrap());
+        } else {
+            println!("player name:");
+        }
+        println!("number of beatmaps: {}", self.number_of_beatmaps);
+        for beatmap in &self.beatmaps {
+            beatmap.display();
+        }
+        println!(
+            "unknown short or permissions: {}",
+            self.unknown_short_or_permissions
+        );
     }
 }
 

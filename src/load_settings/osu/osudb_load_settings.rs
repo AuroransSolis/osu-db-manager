@@ -1,5 +1,6 @@
 use crate::load_settings::osu::beatmap_load_settings::BeatmapLoadSettings;
 use crate::masks::osu_mask::OsuDbMask;
+use std::default::Default;
 use structopt::StructOpt;
 
 #[derive(Clone, StructOpt)]
@@ -23,7 +24,7 @@ pub struct OsuDbLoadSettings {
 }
 
 impl OsuDbLoadSettings {
-    fn load_all(&self) -> bool {
+    pub fn load_all(&self) -> bool {
         self.version
             && self.folder_count
             && self.account_unlocked
@@ -33,7 +34,7 @@ impl OsuDbLoadSettings {
             && self.beatmap_load_settings.load_all()
     }
 
-    fn ignore_all(&self) -> bool {
+    pub fn ignore_all(&self) -> bool {
         !self.version
             && !self.folder_count
             && !self.account_unlocked
@@ -43,7 +44,7 @@ impl OsuDbLoadSettings {
             && self.beatmap_load_settings.ignore_all()
     }
 
-    fn is_partial(&self) -> bool {
+    pub fn is_partial(&self) -> bool {
         !self.version
             || !self.folder_count
             || !self.account_unlocked
@@ -53,7 +54,7 @@ impl OsuDbLoadSettings {
             || self.beatmap_load_settings.is_partial()
     }
 
-    fn set_from_mask(&mut self, mask: &OsuDbMask) {
+    pub fn set_from_mask(&mut self, mask: &OsuDbMask) {
         self.version |= mask.version;
         self.folder_count |= mask.folder_count;
         self.account_unlocked |= mask.account_unlocked;
@@ -62,5 +63,20 @@ impl OsuDbLoadSettings {
         self.number_of_beatmaps |= mask.number_of_beatmaps;
         self.beatmap_load_settings.set_from_mask(&mask.beatmap_mask);
         self.unknown_short_or_permissions |= mask.unknown_short_or_permissions;
+    }
+}
+
+impl Default for OsuDbLoadSettings {
+    fn default() -> Self {
+        OsuDbLoadSettings {
+            version: bool::default(),
+            folder_count: bool::default(),
+            account_unlocked: bool::default(),
+            account_unlock_date: bool::default(),
+            player_name: bool::default(),
+            number_of_beatmaps: bool::default(),
+            beatmap_load_settings: BeatmapLoadSettings::default(),
+            unknown_short_or_permissions: bool::default(),
+        }
     }
 }

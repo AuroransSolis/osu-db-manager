@@ -62,9 +62,9 @@ pub trait ReadVersionSpecificData {
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<UnknownShortOrUserPermissions> {
-        Ok(UnknownShortOrUserPermissions::UnknownShort(
-            read_short(bytes, i)?,
-        ))
+        Ok(UnknownShortOrUserPermissions::UnknownShort(read_short(
+            bytes, i,
+        )?))
     }
 }
 
@@ -251,19 +251,12 @@ impl ReadPartialVersionSpecificData for Legacy {
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<i16>> {
-        if *i + 1 < bytes.len() {
-            if *skip || !setting {
-                *i += 2;
-                Ok(None)
-            } else {
-                Ok(Some(read_short(bytes, i)?))
-            }
-        } else {
-            Err(DbFileParseError::new(
+        maybe_read_short_nocomp(setting, skip, bytes, i).map_err(|_| {
+            DbFileParseError::new(
                 ParseErrorKind::OsuDbError,
                 "Insufficient bytes to read unknown short.",
-            ))
-        }
+            )
+        })
     }
 }
 
@@ -313,6 +306,7 @@ impl ReadPartialVersionSpecificData for Modern {
                 let num_mod_combo_star_ratings = if num_setting {
                     Some(num_int_doubles)
                 } else {
+                    *i += num_int_doubles as usize * 14;
                     None
                 };
                 Ok((num_mod_combo_star_ratings, mod_combo_star_ratings))
@@ -377,6 +371,7 @@ impl ReadPartialVersionSpecificData for ModernWithEntrySize {
                         Some(int_double_pairs)
                     }
                 } else {
+                    *i += num_int_doubles as usize * 14;
                     None
                 };
                 let num_mod_combo_star_ratings = if num_setting {
@@ -417,7 +412,7 @@ impl ReadPartialVersionSpecificData for ModernWithPermissions {
     ) -> ParseFileResult<(Option<i32>, Option<Vec<(i32, f64)>>)> {
         let num_int_doubles = read_int(bytes, i)?;
         if *i + num_int_doubles as usize * 14 < bytes.len() {
-            if *skip {
+            if *skip || (num_setting && mcsr_setting) {
                 *i += num_int_doubles as usize * 14;
                 Ok((None, None))
             } else {
@@ -436,6 +431,7 @@ impl ReadPartialVersionSpecificData for ModernWithPermissions {
                         Some(int_double_pairs)
                     }
                 } else {
+                    *i += num_int_doubles as usize * 14;
                     None
                 };
                 let num_mod_combo_star_ratings = if num_setting {
@@ -460,9 +456,9 @@ impl ReadPartialVersionSpecificData for ModernWithPermissions {
         bytes: &[u8],
         i: &mut usize,
     ) -> ParseFileResult<Option<UnknownShortOrUserPermissions>> {
-        if *i + 1 < bytes.len() {
+        if *i + 3 < bytes.len() {
             if *skip || !setting {
-                *i += 2;
+                *i += 4;
                 Ok(None)
             } else {
                 Ok(Some(UnknownShortOrUserPermissions::UserPermissions(

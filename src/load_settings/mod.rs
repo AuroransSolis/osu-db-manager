@@ -46,10 +46,14 @@ where
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, String> {
-        Ok(EqualCopy::Eq({
-            s.parse::<T>()
-                .map_err(|e| format!("Error parsing value: {:?}", e))?
-        }))
+        if s == "" || s == "ignore" {
+            Ok(EqualCopy::Ignore)
+        } else {
+            Ok(EqualCopy::Eq({
+                s.parse::<T>()
+                    .map_err(|e| format!("Error parsing value: {:?}", e))?
+            }))
+        }
     }
 }
 
@@ -132,10 +136,14 @@ where
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, String> {
-        Ok(EqualClone::Eq(
-            s.parse::<T>()
-                .map_err(|e| format!("Error parsing value: {:?}", e))?,
-        ))
+        if s == "" || s == "ignore" {
+            Ok(EqualClone::Ignore)
+        } else {
+            Ok(EqualClone::Eq(
+                s.parse::<T>()
+                    .map_err(|e| format!("Error parsing value: {:?}", e))?,
+            ))
+        }
     }
 }
 
@@ -256,53 +264,57 @@ where
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, String> {
-        // If it's just "4" or "9.2" or something. Not a range.
-        if is_number(s) {
-            Ok(Relational::Eq(s.parse::<T>().map_err(|e| {
-                format!("Invalid value: {}\nParse error: {:?}", s, e)
-            })?))
-        } else if is_valid_range(s) {
-            let (first, middle) = s.split_at(1);
-            let (middle, last) = middle.split_at(middle.len() - 1);
-            let mut spliterator = middle.split("..");
-            let start_str = spliterator
-                .next()
-                .ok_or_else(|| "Missing start of range.".to_string())?;
-            let end_str = spliterator
-                .next()
-                .ok_or_else(|| "Missing end of range.".to_string())?;
-            if start_str == "" && end_str == "" {
-                return Err("At least one of the range bounds must be defined.".into());
-            }
-            let start = start_str
-                .parse::<T>()
-                .map_err(|e| format!("Failed to parse start of range.\n{:?}", e))?;
-            let end = end_str
-                .parse::<T>()
-                .map_err(|e| format!("Failed to parse end of range.\n{:?}", e))?;
-            Ok(if start_str == "" {
-                match (first, last) {
-                    ("(", ")") | ("[", ")") => Relational::Lt(end),
-                    ("(", "]") | ("[", "]") => Relational::LtE(end),
-                    _ => unreachable!(),
-                }
-            } else if end_str == "" {
-                match (first, last) {
-                    ("(", ")") | ("(", "]") => Relational::Gt(end),
-                    ("[", ")") | ("[", "]") => Relational::GtE(end),
-                    _ => unreachable!(),
-                }
-            } else {
-                match (first, last) {
-                    ("(", ")") => Relational::InEE(start, end),
-                    ("(", "]") => Relational::InEI(start, end),
-                    ("[", ")") => Relational::InIE(start, end),
-                    ("[", "]") => Relational::InII(start, end),
-                    _ => unreachable!(),
-                }
-            })
+        if s == "" || s == "ignore" {
+            Ok(Relational::Ignore)
         } else {
-            Err("Input not recognized as value or range.".into())
+            // If it's just "4" or "9.2" or something. Not a range.
+            if is_number(s) {
+                Ok(Relational::Eq(s.parse::<T>().map_err(|e| {
+                    format!("Invalid value: {}\nParse error: {:?}", s, e)
+                })?))
+            } else if is_valid_range(s) {
+                let (first, middle) = s.split_at(1);
+                let (middle, last) = middle.split_at(middle.len() - 1);
+                let mut spliterator = middle.split("..");
+                let start_str = spliterator
+                    .next()
+                    .ok_or_else(|| "Missing start of range.".to_string())?;
+                let end_str = spliterator
+                    .next()
+                    .ok_or_else(|| "Missing end of range.".to_string())?;
+                if start_str == "" && end_str == "" {
+                    return Err("At least one of the range bounds must be defined.".into());
+                }
+                let start = start_str
+                    .parse::<T>()
+                    .map_err(|e| format!("Failed to parse start of range.\n{:?}", e))?;
+                let end = end_str
+                    .parse::<T>()
+                    .map_err(|e| format!("Failed to parse end of range.\n{:?}", e))?;
+                Ok(if start_str == "" {
+                    match (first, last) {
+                        ("(", ")") | ("[", ")") => Relational::Lt(end),
+                        ("(", "]") | ("[", "]") => Relational::LtE(end),
+                        _ => unreachable!(),
+                    }
+                } else if end_str == "" {
+                    match (first, last) {
+                        ("(", ")") | ("(", "]") => Relational::Gt(end),
+                        ("[", ")") | ("[", "]") => Relational::GtE(end),
+                        _ => unreachable!(),
+                    }
+                } else {
+                    match (first, last) {
+                        ("(", ")") => Relational::InEE(start, end),
+                        ("(", "]") => Relational::InEI(start, end),
+                        ("[", ")") => Relational::InIE(start, end),
+                        ("[", "]") => Relational::InII(start, end),
+                        _ => unreachable!(),
+                    }
+                })
+            } else {
+                Err("Input not recognized as value or range.".into())
+            }
         }
     }
 }

@@ -199,4 +199,202 @@ impl<'a> Beatmap<'a> {
             mania_scroll_speed,
         })
     }
+
+    pub fn display(&self) {
+        if self.entry_size.is_some() {
+            println!("    entry size: {}", self.entry_size.as_ref().unwrap());
+        }
+        if self.artist_name.is_some() {
+            println!("    artist name: {}", self.artist_name.as_ref().unwrap());
+        } else {
+            println!("    artist name:");
+        }
+        if self.artist_name_unicode.is_some() {
+            println!(
+                "    artist name unicode: {}",
+                self.artist_name_unicode.as_ref().unwrap()
+            );
+        } else {
+            println!("    artist name unicode:");
+        }
+        if self.song_title.is_some() {
+            println!("    song title: {}", self.song_title.as_ref().unwrap());
+        } else {
+            println!("    song title:");
+        }
+        if self.song_title_unicode.is_some() {
+            println!(
+                "    song title unicode: {}",
+                self.song_title_unicode.as_ref().unwrap()
+            );
+        } else {
+            println!("    song title unicode:");
+        }
+        if self.creator_name.is_some() {
+            println!("    creator name: {}", self.creator_name.as_ref().unwrap());
+        } else {
+            println!("    creator name:");
+        }
+        if self.difficulty.is_some() {
+            println!("    difficulty: {}", self.difficulty.as_ref().unwrap());
+        } else {
+            println!("    difficulty:");
+        }
+        if self.audio_file_name.is_some() {
+            println!(
+                "    audio file name: {}",
+                self.audio_file_name.as_ref().unwrap()
+            );
+        } else {
+            println!("    audio file name:");
+        }
+        println!("md5 beatmap hash: {}", self.md5_beatmap_hash);
+        if self.dotosu_file_name.is_some() {
+            println!(
+                "    .osu file name: {}",
+                self.dotosu_file_name.as_ref().unwrap()
+            );
+        } else {
+            println!("    .osu file name:");
+        }
+        println!("    ranked status: {}", self.ranked_status);
+        println!("    number of hitcircles: {}", self.number_of_hitcircles);
+        println!("    number of sliders: {}", self.number_of_sliders);
+        println!("    number of spinners: {}", self.number_of_spinners);
+        println!(
+            "    last modification time: {}",
+            self.last_modification_time
+        );
+        println!("    approach rate: {}", self.approach_rate);
+        println!("    circle size: {}", self.circle_size);
+        println!("    hp drain: {}", self.hp_drain);
+        println!("    overall difficulty: {}", self.overall_difficulty);
+        println!("    slider velocity: {}", self.slider_velocity);
+        if self.num_mod_combo_star_ratings_standard.is_some() {
+            println!(
+                "    num mod combo star ratings osu!standard: {}",
+                self.num_mod_combo_star_ratings_standard.as_ref().unwrap()
+            );
+        }
+        if self.mod_combo_star_ratings_standard.is_some() {
+            println!("    MSCR osu!standard {{");
+            for (mods, star_rating) in self.mod_combo_star_ratings_standard.as_ref().unwrap() {
+                println!("        mods: {} | star rating: {}*", mods, star_rating);
+            }
+            println!("    }}");
+        }
+        if self.num_mod_combo_star_ratings_taiko.is_some() {
+            println!(
+                "    num mod combo star ratings osu!taiko: {}",
+                self.num_mod_combo_star_ratings_taiko.as_ref().unwrap()
+            );
+        }
+        if self.mod_combo_star_ratings_taiko.is_some() {
+            println!("    MSCR osu!taiko {{");
+            for (mods, star_rating) in self.mod_combo_star_ratings_taiko.as_ref().unwrap() {
+                println!("        mods: {} | star rating: {}*", mods, star_rating);
+            }
+            println!("    }}");
+        }
+        if self.num_mod_combo_star_ratings_ctb.is_some() {
+            println!(
+                "    num mod combo star ratings osu!ctb: {}",
+                self.num_mod_combo_star_ratings_ctb.as_ref().unwrap()
+            );
+        }
+        if self.mod_combo_star_ratings_ctb.is_some() {
+            println!("    MSCR osu!ctb {{");
+            for (mods, star_rating) in self.mod_combo_star_ratings_ctb.as_ref().unwrap() {
+                println!("        mods: {} | star rating: {}*", mods, star_rating);
+            }
+            println!("    }}");
+        }
+        if self.num_mod_combo_star_ratings_mania.is_some() {
+            println!(
+                "    num mod combo star ratings osu!mania: {}",
+                self.num_mod_combo_star_ratings_mania.as_ref().unwrap()
+            );
+        }
+        if self.mod_combo_star_ratings_mania.is_some() {
+            println!("    MSCR osu!mania {{");
+            for (mods, star_rating) in self.mod_combo_star_ratings_mania.as_ref().unwrap() {
+                println!("        mods: {} | star rating: {}*", mods, star_rating);
+            }
+            println!("    }}");
+        }
+        println!("    drain time: {}", self.drain_time);
+        println!("    total time: {}", self.total_time);
+        println!(
+            "    preview offset from start ms: {}",
+            self.preview_offset_from_start_ms
+        );
+        println!("    num timing points: {}", self.num_timing_points);
+        println!("    timing points {{");
+        for timing_point in &self.timing_points {
+            println!("        {}", timing_point);
+        }
+        println!("    }}");
+        println!("    beatmap id: {}", self.beatmap_id);
+        println!("    beatmap set id: {}", self.beatmap_set_id);
+        println!("    thread id: {}", self.thread_id);
+        println!("    standard grade: {}", self.standard_grade);
+        println!("    taiko grade: {}", self.taiko_grade);
+        println!("    ctb grade: {}", self.ctb_grade);
+        println!("    mania grade: {}", self.mania_grade);
+        println!("    local offset: {}", self.local_offset);
+        println!("    stack leniency: {}", self.stack_leniency);
+        println!("    gameplay mode: {}", self.gameplay_mode);
+        if self.song_source.is_some() {
+            println!("    song source: {}", self.song_source.as_ref().unwrap());
+        } else {
+            println!("    song source:");
+        }
+        if self.song_tags.is_some() {
+            println!("    song tags: {}", self.song_tags.as_ref().unwrap());
+        } else {
+            println!("    song tags:");
+        }
+        println!("    online offset: {}", self.online_offset);
+        if self.font_used_for_song_title.is_some() {
+            println!(
+                "    font used for song title: {}",
+                self.font_used_for_song_title.as_ref().unwrap()
+            );
+        } else {
+            println!("    font used for song title:");
+        }
+        println!("    unplayed: {}", self.unplayed);
+        println!("    last played: {}", self.last_played);
+        println!("    is osz2: {}", self.is_osz2);
+        if self.beatmap_folder_name.is_some() {
+            println!(
+                "    beatmap folder name: {}",
+                self.beatmap_folder_name.as_ref().unwrap()
+            );
+        } else {
+            println!("    beatmap folder name:");
+        }
+        println!(
+            "    last checked against repo: {}",
+            self.last_checked_against_repo
+        );
+        println!("    ignore beatmap sound: {}", self.ignore_beatmap_sound);
+        println!("    ignore beatmap skin: {}", self.ignore_beatmap_skin);
+        println!("    disable storyboard: {}", self.disable_storyboard);
+        println!("    disable video: {}", self.disable_video);
+        println!("    visual override: {}", self.visual_override);
+        if self.unknown_short.is_some() {
+            println!(
+                "    unknown short: {}",
+                self.unknown_short.as_ref().unwrap()
+            );
+        } else {
+            println!("    unknown short:");
+        }
+        println!(
+            "    offset from song start in editor ms: {}",
+            self.offset_from_song_start_in_editor_ms
+        );
+        println!("    mania scroll speed: {}", self.mania_scroll_speed);
+    }
 }

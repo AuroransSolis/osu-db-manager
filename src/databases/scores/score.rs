@@ -69,4 +69,40 @@ impl<'a> Score<'a> {
             online_score_id,
         })
     }
+
+    pub fn display(&self) {
+        println!("        gameplay mode: {}", self.gameplay_mode);
+        println!("        score version: {}", self.score_version);
+        println!("        md5 beatmap hash: {}", self.md5_beatmap_hash);
+        if self.player_name.is_some() {
+            println!(
+                "        player name: {}",
+                self.player_name.as_ref().unwrap()
+            );
+        } else {
+            println!("        player name:");
+        }
+        println!("        md5 replay hash: {}", self.md5_replay_hash);
+        println!("        number of 300s: {}", self.number_of_300s);
+        println!("        number of 100s: {}", self.number_of_100s);
+        println!("        number of 50s: {}", self.number_of_50s);
+        println!("        number of gekis: {}", self.number_of_gekis);
+        println!("        number of katus: {}", self.number_of_katus);
+        println!("        number of misses: {}", self.number_of_misses);
+        println!("        replay score: {}", self.replay_score);
+        println!("        max combo: {}", self.max_combo);
+        println!("        perfect combo: {}", self.perfect_combo);
+        println!("        mods used: {}", self.mods_used);
+        if self.empty_string.is_some() {
+            println!(
+                "        empty string: {}",
+                self.empty_string.as_ref().unwrap()
+            );
+        } else {
+            println!("        empty string:");
+        }
+        println!("        replay timestamp: {}", self.replay_timestamp);
+        println!("        negative one: {}", self.negative_one);
+        println!("        online score id: {}", self.online_score_id);
+    }
 }
