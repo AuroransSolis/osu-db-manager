@@ -15,10 +15,6 @@ impl CollectionMask {
     pub fn ignore_all(&self) -> bool {
         !self.collection_name && !self.number_of_beatmaps && !self.md5_beatmap_hashes
     }
-
-    pub fn is_complete(&self) -> bool {
-        self.collection_name && self.number_of_beatmaps && self.md5_beatmap_hashes
-    }
 }
 
 #[derive(Copy, Clone, Debug, StructOpt)]
@@ -35,9 +31,5 @@ pub struct CollectionDbMask {
 impl CollectionDbMask {
     pub fn ignore_all(&self) -> bool {
         !self.version && !self.number_of_collections && self.collections_mask.ignore_all()
-    }
-
-    pub fn is_complete(&self) -> bool {
-        self.version && self.number_of_collections && self.collections_mask.is_complete()
     }
 }

@@ -187,69 +187,6 @@ impl BeatmapMask {
             && !self.offset_from_song_start_in_editor_ms
             && !self.mania_scroll_speed
     }
-
-    pub fn is_complete(&self) -> bool {
-        self.entry_size
-            && self.artist_name
-            && self.artist_name_unicode
-            && self.song_title
-            && self.song_title_unicode
-            && self.creator_name
-            && self.difficulty
-            && self.audio_file_name
-            && self.md5_beatmap_hash
-            && self.dotosu_file_name
-            && self.ranked_status
-            && self.number_of_hitcircles
-            && self.number_of_sliders
-            && self.number_of_spinners
-            && self.last_modification_time
-            && self.approach_rate
-            && self.circle_size
-            && self.hp_drain
-            && self.overall_difficulty
-            && self.slider_velocity
-            && self.num_mod_combo_star_ratings_standard
-            && self.mod_combo_star_ratings_standard
-            && self.num_mod_combo_star_ratings_taiko
-            && self.mod_combo_star_ratings_taiko
-            && self.num_mod_combo_star_ratings_ctb
-            && self.mod_combo_star_ratings_ctb
-            && self.num_mod_combo_star_ratings_mania
-            && self.mod_combo_star_ratings_mania
-            && self.drain_time
-            && self.total_time
-            && self.preview_offset_from_start_ms
-            && self.num_timing_points
-            && self.timing_points
-            && self.beatmap_id
-            && self.beatmap_set_id
-            && self.thread_id
-            && self.standard_grade
-            && self.taiko_grade
-            && self.ctb_grade
-            && self.mania_grade
-            && self.local_offset
-            && self.stack_leniency
-            && self.gameplay_mode
-            && self.song_source
-            && self.song_tags
-            && self.online_offset
-            && self.font_used_for_song_title
-            && self.unplayed
-            && self.last_played
-            && self.is_osz2
-            && self.beatmap_folder_name
-            && self.last_checked_against_repo
-            && self.ignore_beatmap_sound
-            && self.ignore_beatmap_skin
-            && self.disable_storyboard
-            && self.disable_video
-            && self.visual_override
-            && self.unknown_short
-            && self.offset_from_song_start_in_editor_ms
-            && self.mania_scroll_speed
-    }
 }
 
 #[derive(Copy, Clone, Debug, StructOpt)]
@@ -283,16 +220,5 @@ impl OsuDbMask {
             && !self.number_of_beatmaps
             && !self.unknown_short_or_permissions
             && self.beatmap_mask.ignore_all()
-    }
-
-    pub fn is_complete(&self) -> bool {
-        self.version
-            && self.folder_count
-            && self.account_unlocked
-            && self.account_unlock_date
-            && self.player_name
-            && self.number_of_beatmaps
-            && self.unknown_short_or_permissions
-            && self.beatmap_mask.is_complete()
     }
 }

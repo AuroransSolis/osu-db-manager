@@ -22,14 +22,11 @@ const BYTE_ERR: &str = "Failed to read byte.";
 const SHORT_ERR: &str = "Failed to read byte for short.";
 const INT_ERR: &str = "Failed to read byte for int.";
 const LONG_ERR: &str = "Failed to read byte for long.";
-const ULEB128_ERR: &str = "Failed to read byte for ULEB128.";
 const SINGLE_ERR: &str = "Failed to read byte for single.";
-const DOUBLE_ERR: &str = "Failed to read byte for double.";
 const BOOLEAN_ERR: &str = "Failed to read byte for boolean.";
 const STRING_ERR: &str = "Failed to read indicator for string.";
 const DATETIME_ERR: &str = "Failed to read long for datetime.";
 const HASH_ERR: &str = "Read invalid indicator byte for MD5 hash string";
-const USERNAME_ERR: &str = "Read invalid incidator byte for username string";
 
 macro_rules! primitive {
     ($msg:ident) => {
@@ -569,78 +566,6 @@ pub fn maybe_read_md5_hash<'a>(
         Err(DbFileParseError::new(
             PrimitiveError,
             "Could not read hash indicator byte.",
-        ))
-    }
-}
-
-#[inline]
-pub fn maybe_read_player_name<'a>(
-    s: &EqualClone<String>,
-    skip: &mut bool,
-    bytes: &'a [u8],
-    i: &mut usize,
-) -> ParseFileResult<Option<&'a str>> {
-    if *i < bytes.len() {
-        let indicator = bytes[*i];
-        *i += 1;
-        if indicator == 0 {
-            Ok(None)
-        } else if indicator == 0x0b {
-            if *i < bytes.len() {
-                // Usernames are ASCII (1 byte in Unicode too), and so should never need more
-                // than a byte for the player name string length. Additionally, from talking
-                // with a Tillerino maintainer, I have found that the longest usernames that
-                // Tillerino has read are about 20 characters. I also limit the username length
-                // to 64 characters and return an error if it's longer.
-                let length = bytes[*i] as usize;
-                *i += 1;
-                if length & 11000000 != 0 {
-                    return Err(DbFileParseError::new(
-                        PrimitiveError,
-                        "Read invalid player name length",
-                    ));
-                }
-                if *i + length < bytes.len() {
-                    if *skip || s.is_ignore() {
-                        *i += length;
-                        Ok(None)
-                    } else {
-                        let tmp = str::from_utf8(&bytes[*i..*i + length]).map_err(|e| {
-                            DbFileParseError::new(
-                                PrimitiveError,
-                                format!("Failed to parse bytes into string:\n{}", e),
-                            )
-                        })?;
-                        *i += length;
-                        if s.compare_str(tmp) {
-                            Ok(Some(tmp))
-                        } else {
-                            *skip = true;
-                            Ok(Some(tmp))
-                        }
-                    }
-                } else {
-                    Err(DbFileParseError::new(
-                        PrimitiveError,
-                        "Not enough bytes left to read player name.",
-                    ))
-                }
-            } else {
-                Err(DbFileParseError::new(
-                    PrimitiveError,
-                    "Could not read player name length byte.",
-                ))
-            }
-        } else {
-            Err(DbFileParseError::new(
-                PrimitiveError,
-                "Read invalid indicator for player name string.",
-            ))
-        }
-    } else {
-        Err(DbFileParseError::new(
-            PrimitiveError,
-            "Could not read indicator for player name string.",
         ))
     }
 }

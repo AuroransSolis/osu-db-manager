@@ -31,7 +31,7 @@ fn main() {
         .expect("Failed to read database file.");
     let (database, mask, interface) = if let Some(msi) = merge_search_or_interface {
         match msi {
-            MergeSearchOrInterface::Merge(merge) => {
+            MergeSearchOrInterface::Merge(_merge) => {
                 println!("Merging not currently supported.");
                 return;
             }
@@ -40,6 +40,7 @@ fn main() {
                     mut load_settings,
                     mask,
                 } => {
+                    load_settings.set_from_mask(&mask);
                     (
                         OsuDatabase::read_partial_from_bytes(
                             jobs,

@@ -4,8 +4,6 @@ pub enum ParseErrorKind {
     OsuDbError,
     CollectionDbError,
     ScoresDbError,
-    QueryError,
-    Other,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -28,12 +28,6 @@ pub struct ScoresDbBeatmapLoadSettings {
 }
 
 impl ScoresDbBeatmapLoadSettings {
-    pub fn load_all(&self) -> bool {
-        self.md5_beatmap_hash.is_load()
-            && self.number_of_scores.is_load()
-            && self.score_load_settings.load_all()
-    }
-
     pub fn ignore_all(&self) -> bool {
         self.md5_beatmap_hash.is_ignore()
             && self.number_of_scores.is_ignore()

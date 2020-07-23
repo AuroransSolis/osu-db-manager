@@ -4,7 +4,6 @@ use crate::read_error::{DbFileParseError, ParseErrorKind::*, ParseFileResult};
 use std::cmp::{Ordering, PartialEq, PartialOrd};
 use std::fmt::{self, Display};
 use std::io::{Error as IoError, ErrorKind::InvalidInput, Result as IoResult};
-use std::ops::Range;
 use std::str::FromStr;
 
 // Deserializing osu!.db-specific data types
@@ -75,38 +74,6 @@ impl TimingPoint {
                 PrimitiveError,
                 "Insufficient bytes to read timing point.",
             ))
-        }
-    }
-
-    /// Conditionally parse a `TimingPoint` from a slice of bytes.
-    pub fn maybe_read_from_bytes(
-        c: bool,
-        bytes: &[u8],
-        i: &mut usize,
-    ) -> ParseFileResult<Option<Self>> {
-        if c {
-            if *i + 17 < bytes.len() {
-                let mut double_buf = [0; 8];
-                double_buf.copy_from_slice(&bytes[*i..*i + 8]);
-                let bpm = f64::from_bits(u64::from_le_bytes(double_buf));
-                double_buf.copy_from_slice(&bytes[*i + 8..*i + 16]);
-                let offset = f64::from_bits(u64::from_le_bytes(double_buf));
-                let inherited = bytes[*i + 16] != 0;
-                *i += 17;
-                Ok(Some(TimingPoint {
-                    bpm,
-                    offset,
-                    inherited,
-                }))
-            } else {
-                Err(DbFileParseError::new(
-                    PrimitiveError,
-                    "Insufficient bytes to read timing point.",
-                ))
-            }
-        } else {
-            *i += 17;
-            Ok(None)
         }
     }
 }
@@ -325,36 +292,6 @@ impl FromStr for ByteSingle {
     }
 }
 
-impl ByteSingle {
-    pub fn is_in_range(&self, range: Range<ByteSingle>) -> bool {
-        let Range { start, end } = range;
-        match (*self, start, end) {
-            (Byte(n), Byte(s), Byte(e)) => n >= s && n < e,
-            (Byte(n), Byte(s), Single(e)) => n >= s && (n as f32) < e,
-            (Byte(n), Single(s), Byte(e)) => n as f32 >= s && n < e,
-            (Byte(n), Single(s), Single(e)) => n as f32 >= s && (n as f32) < e,
-            (Single(n), Byte(s), Byte(e)) => n >= s as f32 && n < e as f32,
-            (Single(n), Byte(s), Single(e)) => n >= s as f32 && n < e,
-            (Single(n), Single(s), Byte(e)) => n >= s && n < e as f32,
-            (Single(n), Single(s), Single(e)) => n >= s && n < e,
-        }
-    }
-
-    fn is_in_range_inclusive(&self, range: Range<ByteSingle>) -> bool {
-        let Range { start, end } = range;
-        match (*self, start, end) {
-            (Byte(n), Byte(s), Byte(e)) => n >= s && n <= e,
-            (Byte(n), Byte(s), Single(e)) => n >= s && (n as f32) <= e,
-            (Byte(n), Single(s), Byte(e)) => n as f32 >= s && n <= e,
-            (Byte(n), Single(s), Single(e)) => n as f32 >= s && (n as f32) <= e,
-            (Single(n), Byte(s), Byte(e)) => n >= s as f32 && n <= e as f32,
-            (Single(n), Byte(s), Single(e)) => n >= s as f32 && n <= e,
-            (Single(n), Single(s), Byte(e)) => n >= s && n <= e as f32,
-            (Single(n), Single(s), Single(e)) => n >= s && n <= e,
-        }
-    }
-}
-
 impl From<ByteSingle> for u8 {
     fn from(other: ByteSingle) -> Self {
         match other {
@@ -508,31 +445,6 @@ impl UserPermissions {
     pub fn read_from_bytes(bytes: &[u8], i: &mut usize) -> ParseFileResult<Self> {
         let int = read_int(bytes, i)?;
         Ok(UserPermissions::new(int))
-    }
-
-    pub fn maybe_read_from_bytes(
-        setting: EqualCopy<UserPermissions>,
-        skip: &mut bool,
-        bytes: &[u8],
-        i: &mut usize,
-    ) -> ParseFileResult<Option<Self>> {
-        if *i + 3 < bytes.len() {
-            if *skip || setting.is_ignore() {
-                Ok(None)
-            } else {
-                let permissions = UserPermissions::read_from_bytes(bytes, i)?;
-                if setting.is_load() || setting.compare(permissions) {
-                    Ok(Some(permissions))
-                } else {
-                    Ok(None)
-                }
-            }
-        } else {
-            Err(DbFileParseError::new(
-                PrimitiveError,
-                "Not enough bytes for user permissions",
-            ))
-        }
     }
 }
 

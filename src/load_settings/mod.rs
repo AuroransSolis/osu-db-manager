@@ -7,11 +7,9 @@ use crate::load_settings::{
     osu::osudb_load_settings::OsuDbLoadSettings,
     scores::scoresdb_load_settings::ScoresDbLoadSettings,
 };
-use chrono::NaiveDate;
 use std::cmp::{PartialEq, PartialOrd};
 use std::default::Default;
 use std::fmt::{self, Debug, Display};
-use std::io::{Error as IoError, ErrorKind::InvalidInput, Result as IoResult};
 use std::str::FromStr;
 use structopt::StructOpt;
 
@@ -57,36 +55,11 @@ where
     }
 }
 
-impl EqualCopy<bool> {
-    pub fn parse_bool(s: &str) -> IoResult<Self> {
-        match s.to_lowercase().as_str() {
-            "t" | "true" | "y" | "yes" | "1" => Ok(EqualCopy::Eq(true)),
-            "f" | "false" | "n" | "no" | "0" => Ok(EqualCopy::Eq(false)),
-            _ => {
-                let msg = format!(
-                    "Could not parse '{}' as a boolean. Valid inputs are:\n \
-                         - t/true/y/yes/1\n \
-                         - f/false/n/no/0",
-                    s
-                );
-                Err(IoError::new(InvalidInput, msg.as_str()))
-            }
-        }
-    }
-}
-
 impl<T: Copy + Clone + PartialEq> EqualCopy<T> {
     pub fn is_ignore(&self) -> bool {
         match self {
             EqualCopy::Ignore => true,
             _ => false,
-        }
-    }
-
-    pub fn is_load(&self) -> bool {
-        match self {
-            EqualCopy::Ignore => false,
-            _ => true,
         }
     }
 
@@ -152,13 +125,6 @@ impl<T: Clone + PartialEq> EqualClone<T> {
         match self {
             EqualClone::Ignore => true,
             _ => false,
-        }
-    }
-
-    pub fn is_load(&self) -> bool {
-        match self {
-            EqualClone::Ignore => false,
-            _ => true,
         }
     }
 
@@ -377,11 +343,4 @@ pub(crate) fn is_valid_range(s: &str) -> bool {
     } else {
         false
     }
-}
-
-fn date_from_str(s: &str) -> IoResult<NaiveDate> {
-    NaiveDate::parse_from_str(s, "%F").map_err(|_| {
-        let msg = format!("Failed to parse input ({}) as date (YYYY-MM-DD)", s);
-        IoError::new(InvalidInput, msg.as_str())
-    })
 }

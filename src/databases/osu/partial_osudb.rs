@@ -310,21 +310,23 @@ impl<'a> PartialOsuDb<'a> {
     }
 
     pub fn display(&self, show: OsuDbMask) {
-        maybe_print!(show.version, self.version);
-        maybe_print!(show.folder_count, self.folder_count);
-        maybe_print!(show.account_unlocked, self.account_unlocked);
-        maybe_print!(show.account_unlock_date, self.account_unlock_date);
-        maybe_print!(show.player_name, self.player_name);
-        maybe_print!(show.number_of_beatmaps, self.number_of_beatmaps);
-        if !show.beatmap_mask.ignore_all() && self.beatmaps.is_some() {
-            for beatmap in self.beatmaps.as_ref().unwrap() {
-                beatmap.display(show.beatmap_mask);
+        if !show.ignore_all() {
+            maybe_print!(show.version, self.version);
+            maybe_print!(show.folder_count, self.folder_count);
+            maybe_print!(show.account_unlocked, self.account_unlocked);
+            maybe_print!(show.account_unlock_date, self.account_unlock_date);
+            maybe_print!(show.player_name, self.player_name);
+            maybe_print!(show.number_of_beatmaps, self.number_of_beatmaps);
+            if !show.beatmap_mask.ignore_all() && self.beatmaps.is_some() {
+                for beatmap in self.beatmaps.as_ref().unwrap() {
+                    beatmap.display(show.beatmap_mask);
+                }
             }
+            maybe_print!(
+                show.unknown_short_or_permissions,
+                self.unknown_short_or_permissions
+            );
         }
-        maybe_print!(
-            show.unknown_short_or_permissions,
-            self.unknown_short_or_permissions
-        );
     }
 }
 

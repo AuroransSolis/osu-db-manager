@@ -24,36 +24,6 @@ pub struct OsuDbLoadSettings {
 }
 
 impl OsuDbLoadSettings {
-    pub fn load_all(&self) -> bool {
-        self.version
-            && self.folder_count
-            && self.account_unlocked
-            && self.account_unlock_date
-            && self.player_name
-            && self.unknown_short_or_permissions
-            && self.beatmap_load_settings.load_all()
-    }
-
-    pub fn ignore_all(&self) -> bool {
-        !self.version
-            && !self.folder_count
-            && !self.account_unlocked
-            && !self.account_unlock_date
-            && !self.player_name
-            && !self.unknown_short_or_permissions
-            && self.beatmap_load_settings.ignore_all()
-    }
-
-    pub fn is_partial(&self) -> bool {
-        !self.version
-            || !self.folder_count
-            || !self.account_unlocked
-            || !self.account_unlock_date
-            || !self.player_name
-            || !self.unknown_short_or_permissions
-            || self.beatmap_load_settings.is_partial()
-    }
-
     pub fn set_from_mask(&mut self, mask: &OsuDbMask) {
         self.version |= mask.version;
         self.folder_count |= mask.folder_count;

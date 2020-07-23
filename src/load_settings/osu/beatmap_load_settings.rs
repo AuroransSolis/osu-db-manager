@@ -478,69 +478,6 @@ pub struct BeatmapLoadSettings {
 }
 
 impl BeatmapLoadSettings {
-    pub fn load_all(&self) -> bool {
-        self.entry_size.is_load()
-            && self.artist_name.is_load()
-            && self.artist_name_unicode.is_load()
-            && self.song_title.is_load()
-            && self.song_title_unicode.is_load()
-            && self.creator_name.is_load()
-            && self.difficulty.is_load()
-            && self.audio_file_name.is_load()
-            && self.md5_beatmap_hash.is_load()
-            && self.dotosu_file_name.is_load()
-            && self.ranked_status.is_load()
-            && self.number_of_hitcircles.is_load()
-            && self.number_of_sliders.is_load()
-            && self.number_of_spinners.is_load()
-            && self.last_modification_time.is_load()
-            && self.approach_rate.is_load()
-            && self.circle_size.is_load()
-            && self.hp_drain.is_load()
-            && self.overall_difficulty.is_load()
-            && self.slider_velocity.is_load()
-            && self.num_mod_combo_star_ratings_standard
-            && self.mod_combo_star_ratings_standard
-            && self.num_mod_combo_star_ratings_taiko
-            && self.mod_combo_star_ratings_taiko
-            && self.num_mod_combo_star_ratings_ctb
-            && self.mod_combo_star_ratings_ctb
-            && self.num_mod_combo_star_ratings_mania
-            && self.mod_combo_star_ratings_mania
-            && self.drain_time.is_load()
-            && self.total_time.is_load()
-            && self.preview_offset_from_start_ms.is_load()
-            && self.num_timing_points.is_load()
-            && self.timing_points
-            && self.beatmap_id.is_load()
-            && self.beatmap_set_id.is_load()
-            && self.thread_id.is_load()
-            && self.standard_grade.is_load()
-            && self.taiko_grade.is_load()
-            && self.ctb_grade.is_load()
-            && self.mania_grade.is_load()
-            && self.local_offset.is_load()
-            && self.stack_leniency.is_load()
-            && self.gameplay_mode.is_load()
-            && self.song_source.is_load()
-            && self.song_tags.is_load()
-            && self.online_offset.is_load()
-            && self.font_used_for_song_title.is_load()
-            && self.unplayed.is_load()
-            && self.last_played.is_load()
-            && self.is_osz2.is_load()
-            && self.beatmap_folder_name.is_load()
-            && self.last_checked_against_repo.is_load()
-            && self.ignore_beatmap_sound.is_load()
-            && self.ignore_beatmap_skin.is_load()
-            && self.disable_storyboard.is_load()
-            && self.disable_video.is_load()
-            && self.visual_override.is_load()
-            && self.unknown_short
-            && self.offset_from_song_start_in_editor_ms.is_load()
-            && self.mania_scroll_speed.is_load()
-    }
-
     pub fn ignore_all(&self) -> bool {
         self.entry_size.is_ignore()
             && self.artist_name.is_ignore()
@@ -602,69 +539,6 @@ impl BeatmapLoadSettings {
             && !self.unknown_short
             && self.offset_from_song_start_in_editor_ms.is_ignore()
             && self.mania_scroll_speed.is_ignore()
-    }
-
-    pub fn is_partial(&self) -> bool {
-        self.entry_size.is_ignore()
-            || self.artist_name.is_ignore()
-            || self.artist_name_unicode.is_ignore()
-            || self.song_title.is_ignore()
-            || self.song_title_unicode.is_ignore()
-            || self.creator_name.is_ignore()
-            || self.difficulty.is_ignore()
-            || self.audio_file_name.is_ignore()
-            || self.md5_beatmap_hash.is_ignore()
-            || self.dotosu_file_name.is_ignore()
-            || self.ranked_status.is_ignore()
-            || self.number_of_hitcircles.is_ignore()
-            || self.number_of_sliders.is_ignore()
-            || self.number_of_spinners.is_ignore()
-            || self.last_modification_time.is_ignore()
-            || self.approach_rate.is_ignore()
-            || self.circle_size.is_ignore()
-            || self.hp_drain.is_ignore()
-            || self.overall_difficulty.is_ignore()
-            || self.slider_velocity.is_ignore()
-            || !self.num_mod_combo_star_ratings_standard
-            || !self.mod_combo_star_ratings_standard
-            || !self.num_mod_combo_star_ratings_taiko
-            || !self.mod_combo_star_ratings_taiko
-            || !self.num_mod_combo_star_ratings_ctb
-            || !self.mod_combo_star_ratings_ctb
-            || !self.num_mod_combo_star_ratings_mania
-            || !self.mod_combo_star_ratings_mania
-            || self.drain_time.is_ignore()
-            || self.total_time.is_ignore()
-            || self.preview_offset_from_start_ms.is_ignore()
-            || self.num_timing_points.is_ignore()
-            || !self.timing_points
-            || self.beatmap_id.is_ignore()
-            || self.beatmap_set_id.is_ignore()
-            || self.thread_id.is_ignore()
-            || self.standard_grade.is_ignore()
-            || self.taiko_grade.is_ignore()
-            || self.ctb_grade.is_ignore()
-            || self.mania_grade.is_ignore()
-            || self.local_offset.is_ignore()
-            || self.stack_leniency.is_ignore()
-            || self.gameplay_mode.is_ignore()
-            || self.song_source.is_ignore()
-            || self.song_tags.is_ignore()
-            || self.online_offset.is_ignore()
-            || self.font_used_for_song_title.is_ignore()
-            || self.unplayed.is_ignore()
-            || self.last_played.is_ignore()
-            || self.is_osz2.is_ignore()
-            || self.beatmap_folder_name.is_ignore()
-            || self.last_checked_against_repo.is_ignore()
-            || self.ignore_beatmap_sound.is_ignore()
-            || self.ignore_beatmap_skin.is_ignore()
-            || self.disable_storyboard.is_ignore()
-            || self.disable_video.is_ignore()
-            || self.visual_override.is_ignore()
-            || !self.unknown_short
-            || self.offset_from_song_start_in_editor_ms.is_ignore()
-            || self.mania_scroll_speed.is_ignore()
     }
 
     pub fn set_from_mask(&mut self, mask: &BeatmapMask) {

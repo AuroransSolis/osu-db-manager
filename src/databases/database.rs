@@ -5,9 +5,7 @@ use crate::databases::{
     scores::{partial_scoresdb::PartialScoresDb, scoresdb::ScoresDb},
 };
 use crate::load_settings::LoadSettings::{self, *};
-use crate::masks::{
-    collection_mask::CollectionDbMask, osu_mask::OsuDbMask, scores_mask::ScoresDbMask, DbMask,
-};
+use crate::masks::DbMask;
 use crate::read_error::ParseFileResult;
 
 #[derive(Debug)]
@@ -62,96 +60,6 @@ impl<'a> OsuDatabase<'a> {
                 partialscoresdb.display(mask)
             }
             _ => unreachable!(),
-        }
-    }
-
-    pub fn unwrap_osu(self) -> OsuDb<'a> {
-        match self {
-            Osu(osu) => osu,
-            Collection(_) => panic!("Tried to unwrap a CollectionDb with 'unwrap_osu()'."),
-            Scores(_) => panic!("Tried to unwrap a ScoresDb with 'unwrap_osu()'."),
-            PartialOsu(_) => panic!("Tried to unwrap a PartialOsuDb with 'unwrap_osu()'."),
-            PartialCollection(_) => {
-                panic!("Tried to unwrap a PartialCollectionDb with 'unwrap_osu()'.")
-            }
-            PartialScores(_) => panic!("Tried to unwrap a PartialScoresDb with 'unwrap_osu()'."),
-        }
-    }
-
-    pub fn unwrap_collection(self) -> CollectionDb<'a> {
-        match self {
-            Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_collection()'."),
-            Collection(collection) => collection,
-            Scores(_) => panic!("Tried to unwrap a ScoresDb with 'unwrap_collection()'."),
-            PartialOsu(_) => panic!("Tried to unwrap a PartialOsuDb with 'unwrap_collection()'."),
-            PartialCollection(_) => {
-                panic!("Tried to unwrap a PartialCollectionDb with 'unwrap_collection()'.")
-            }
-            PartialScores(_) => {
-                panic!("Tried to unwrap a PartialScoresDb with 'unwrap_collection()'.")
-            }
-        }
-    }
-
-    pub fn unwrap_scores(self) -> ScoresDb<'a> {
-        match self {
-            Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_scores()'."),
-            Collection(_) => panic!("Tried to unwrap a CollectionDb with 'unwrap_scores()'."),
-            Scores(scores) => scores,
-            PartialOsu(_) => panic!("Tried to unwrap a PartialOsuDb with 'unwrap_scores()'."),
-            PartialCollection(_) => {
-                panic!("Tried to unwrap a PartialCollectionDb with 'unwrap_scores()'.")
-            }
-            PartialScores(_) => panic!("Tried to unwrap a PartialScoresDb with 'unwrap_scores()'."),
-        }
-    }
-
-    pub fn unwrap_partial_osu(self) -> PartialOsuDb<'a> {
-        match self {
-            Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_partial_osu()'."),
-            Collection(_) => panic!("Tried to unwrap a CollectionDb with 'unwrap_partial_osu()'."),
-            Scores(_) => panic!("Tried to unwrap a ScoresDb with 'unwrap_partial_osu()'."),
-            PartialOsu(partial_osu) => partial_osu,
-            PartialCollection(_) => {
-                panic!("Tried to unwrap a PartialCollectionDb with 'unwrap_partial_osu()'.")
-            }
-            PartialScores(_) => {
-                panic!("Tried to unwrap a PartialScoresDb with 'unwrap_partial_osu()'.")
-            }
-        }
-    }
-
-    pub fn unwrap_partial_collection(self) -> PartialCollectionDb<'a> {
-        match self {
-            Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_partial_collection()'."),
-            Collection(_) => {
-                panic!("Tried to unwrap a CollectionDb with 'unwrap_partial_collection()'.")
-            }
-            Scores(_) => panic!("Tried to unwrap a ScoresDb with 'unwrap_partial_collection()'."),
-            PartialOsu(_) => {
-                panic!("Tried to unwrap a PartialOsuDb with 'unwrap_partial_collection()'.")
-            }
-            PartialCollection(partial_collection) => partial_collection,
-            PartialScores(_) => {
-                panic!("Tried to unwrap a PartialScoresDb with 'unwrap_partial_collection()'.")
-            }
-        }
-    }
-
-    pub fn unwrap_partial_scores(self) -> PartialScoresDb<'a> {
-        match self {
-            Osu(_) => panic!("Tried to unwrap an OsuDb with 'unwrap_partial_scores()'."),
-            Collection(_) => {
-                panic!("Tried to unwrap a CollectionDb with 'unwrap_partial_scores()'.")
-            }
-            Scores(_) => panic!("Tried to unwrap a ScoresDb with 'unwrap_partial_scores()'."),
-            PartialOsu(_) => {
-                panic!("Tried to unwrap a PartialOsuDb with 'unwrap_partial_scores()'.")
-            }
-            PartialCollection(_) => {
-                panic!("Tried to unwrap a PartialCollectionDb with 'unwrap_partial_scores()'.")
-            }
-            PartialScores(partial_scores) => partial_scores,
         }
     }
 }

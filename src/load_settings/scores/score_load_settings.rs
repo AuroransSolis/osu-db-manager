@@ -151,28 +151,6 @@ pub struct ScoreLoadSettings {
 }
 
 impl ScoreLoadSettings {
-    pub fn load_all(&self) -> bool {
-        self.gameplay_mode.is_load()
-            && self.score_version.is_load()
-            && self.md5_beatmap_hash.is_load()
-            && self.player_name.is_load()
-            && self.md5_replay_hash.is_load()
-            && self.number_of_300s.is_load()
-            && self.number_of_100s.is_load()
-            && self.number_of_50s.is_load()
-            && self.number_of_gekis.is_load()
-            && self.number_of_katus.is_load()
-            && self.number_of_misses.is_load()
-            && self.replay_score.is_load()
-            && self.max_combo.is_load()
-            && self.perfect_combo.is_load()
-            && self.mods_used.is_load()
-            && self.empty_string
-            && self.replay_timestamp.is_load()
-            && self.negative_one
-            && self.online_score_id.is_load()
-    }
-
     pub fn ignore_all(&self) -> bool {
         self.gameplay_mode.is_ignore()
             && self.score_version.is_ignore()

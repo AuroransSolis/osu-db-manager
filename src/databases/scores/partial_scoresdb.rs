@@ -146,13 +146,15 @@ impl<'a> PartialScoresDb<'a> {
     }
 
     pub fn display(&self, show: ScoresDbMask) {
-        maybe_print!(show.version, self.version);
-        if show.number_of_beatmaps {
-            println!("number of beatmaps: {}", self.number_of_beatmaps);
-        }
-        if !show.beatmaps_mask.ignore_all() && self.beatmaps.is_some() {
-            for beatmap in self.beatmaps.as_ref().unwrap() {
-                beatmap.display(show.beatmaps_mask);
+        if !show.ignore_all() {
+            maybe_print!(show.version, self.version);
+            if show.number_of_beatmaps {
+                println!("number of beatmaps: {}", self.number_of_beatmaps);
+            }
+            if !show.beatmaps_mask.ignore_all() && self.beatmaps.is_some() {
+                for beatmap in self.beatmaps.as_ref().unwrap() {
+                    beatmap.display(show.beatmaps_mask);
+                }
             }
         }
     }

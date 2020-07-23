@@ -6,7 +6,7 @@ use crate::load_settings::collection::{
 };
 use crate::maybe_deserialize_primitives::*;
 use crate::read_error::{DbFileParseError, ParseErrorKind, ParseFileResult};
-use crate::{masks::collection_mask::CollectionDbMask, maybe_print, maybe_print_vec};
+use crate::{masks::collection_mask::CollectionDbMask, maybe_print};
 use crossbeam_utils::thread::{self, Scope, ScopedJoinHandle};
 use std::sync::{Arc, Mutex};
 

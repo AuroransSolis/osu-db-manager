@@ -2,10 +2,10 @@ use crate::databases::merge::Merge;
 use crate::load_settings::{
     collection::collectiondb_load_settings::CollectionDbLoadSettings,
     osu::osudb_load_settings::OsuDbLoadSettings,
-    scores::scoresdb_load_settings::ScoresDbLoadSettings, LoadSettings,
+    scores::scoresdb_load_settings::ScoresDbLoadSettings,
 };
 use crate::masks::{
-    collection_mask::CollectionDbMask, osu_mask::OsuDbMask, scores_mask::ScoresDbMask, DbMask,
+    collection_mask::CollectionDbMask, osu_mask::OsuDbMask, scores_mask::ScoresDbMask,
 };
 use std::str::FromStr;
 use structopt::StructOpt;
@@ -143,7 +143,7 @@ impl FromStr for InterfaceType {
         match s.to_lowercase().as_str() {
             "s" | "shell" => Ok(InterfaceType::Shell),
             "t" | "tui" => Ok(InterfaceType::Tui),
-            other @ _ => Err(format!("Unknown interface type: {}", s)),
+            _ => Err(format!("Unknown interface type: {}", s)),
         }
     }
 }

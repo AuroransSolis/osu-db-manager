@@ -14,18 +14,6 @@ pub struct ScoresDbLoadSettings {
 }
 
 impl ScoresDbLoadSettings {
-    pub fn load_all(&self) -> bool {
-        self.version && self.number_of_beatmaps && self.beatmap_load_settings.load_all()
-    }
-
-    pub fn ignore_all(&self) -> bool {
-        !self.version && !self.number_of_beatmaps && self.beatmap_load_settings.ignore_all()
-    }
-
-    pub fn is_partial(&self) -> bool {
-        !self.version || !self.number_of_beatmaps || self.beatmap_load_settings.is_partial()
-    }
-
     pub fn set_from_mask(&mut self, mask: &ScoresDbMask) {
         self.version |= mask.version;
         self.number_of_beatmaps |= mask.number_of_beatmaps;
