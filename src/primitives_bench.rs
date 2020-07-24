@@ -1,28 +1,15 @@
-#[macro_use]
-extern crate criterion;
-extern crate rand;
-
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
-use criterion::Criterion;
-
-use rand::{thread_rng, Rng};
+#![allow(dead_code)]
 
 mod deserialize_primitives;
 mod read_error;
 
+use chrono::{naive::NaiveDate, Duration as ChronoDuration};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use rand::{thread_rng, Rng};
+use read_error::{DbFileParseError, ParseErrorKind::PrimitiveError};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
 use deserialize_primitives::*;
-
-criterion_group! {
-    name = primitives_bench;
-    config = Criterion::default();
-    targets = bench_read_byte, bench_read_short, bench_read_int, bench_read_long,
-        bench_read_uleb128_1_byte, bench_read_uleb128_2_bytes, bench_read_single, bench_read_double,
-        bench_read_string_empty, bench_read_string, bench_read_boolean, bench_read_datetime,
-        bench_read_md5_hash, bench_read_player_name
-}
-
-criterion_main! {primitives_bench}
 
 fn bench_read_byte(c: &mut Criterion) {
     c.bench_function("Read byte", move |b| {
@@ -114,24 +101,24 @@ fn bench_read_double(c: &mut Criterion) {
     });
 }
 
-fn bench_read_string_empty(c: &mut Criterion) {
-    c.bench_function("Read string (empty)", move |b| {
+fn bench_read_str_empty(c: &mut Criterion) {
+    c.bench_function("Read str (empty)", move |b| {
         let byte = [0];
         b.iter(|| {
-            if let Err(_) = read_string_utf8(&byte, &mut 0, "") {
+            if let Err(_) = read_str_utf8(&byte, &mut 0, "") {
                 panic!("Uh oh!");
             }
         });
     });
 }
 
-fn bench_read_string(c: &mut Criterion) {
-    c.bench_function("Read string (13 bytes)", move |b| {
+fn bench_read_str(c: &mut Criterion) {
+    c.bench_function("Read str (13 bytes)", move |b| {
         let bytes = [
             0x0b, 13, 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33,
         ];
         b.iter(|| {
-            if let Err(_) = read_string_utf8(&bytes, &mut 0, "") {
+            if let Err(_) = read_str_utf8(&bytes, &mut 0, "") {
                 panic!("Uh oh!");
             }
         });
@@ -152,11 +139,30 @@ fn bench_read_boolean(c: &mut Criterion) {
 fn bench_read_datetime(c: &mut Criterion) {
     c.bench_function("Read datetime", move |b| {
         let mut rng = thread_rng();
-        let mut offset_nanosecs = rng.gen::<u64>();
-        let st = UNIX_EPOCH + Duration::from_micros(offset_nanosecs / 10);
-        let bytes = u64::to_le_bytes(offset_nanosecs);
+        let offset_100_nanosecs = rng.gen::<u64>();
+        let duration = Duration::from_secs(offset_100_nanosecs / 10_000_000);
+        let chrono_duration = ChronoDuration::from_std(duration).map_err(|e| {
+            let msg = format!(
+                "Failed to convert std::time::Duration to chrono::Duration\n\
+             {}",
+                e
+            );
+            DbFileParseError::new(PrimitiveError, msg)
+        });
+        let chrono_duration = match chrono_duration {
+            Ok(chrono_duration) => chrono_duration,
+            Err(ref e) => {
+                println!(
+                    "Tried to benchmark invalid datetime with offset of {:?}.\n{:?}",
+                    chrono_duration, e
+                );
+                return;
+            }
+        };
+        let datetime = NaiveDate::from_ymd(1970, 1, 1) + chrono_duration;
+        let bytes = u64::to_le_bytes(offset_100_nanosecs);
         b.iter(|| {
-            assert!(Ok(st) == read_datetime(&bytes, &mut 0));
+            assert!(Ok(datetime) == read_datetime(&bytes, &mut 0));
         });
     });
 }
@@ -185,3 +191,14 @@ fn bench_read_player_name(c: &mut Criterion) {
         });
     });
 }
+
+criterion_group! {
+    name = primitives_bench;
+    config = Criterion::default();
+    targets = bench_read_byte, bench_read_short, bench_read_int, bench_read_long,
+        bench_read_uleb128_1_byte, bench_read_uleb128_2_bytes, bench_read_single, bench_read_double,
+        bench_read_str_empty, bench_read_str, bench_read_boolean, bench_read_datetime,
+        bench_read_md5_hash, bench_read_player_name
+}
+
+criterion_main! { primitives_bench }

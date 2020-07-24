@@ -527,10 +527,11 @@ pub fn maybe_read_md5_hash<'a>(
         let indicator = bytes[*i];
         *i += 1;
         if indicator == 0 {
-            Err(DbFileParseError::new(
-                PrimitiveError,
-                "Missing hash! Indicator was 0.",
-            ))
+            if s.compare(String::with_capacity(0)) {
+                Ok(Some(""))
+            } else {
+                Ok(None)
+            }
         } else if indicator == 0x0b {
             if *i + 32 < bytes.len() {
                 if *skip || s.is_ignore() {

@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 chrono = "0.4.9"
-clap = {version = "2.33.0", features = ["suggestions"]}
 crossbeam-utils = "0.7.2"
 num_cpus = "1.13.0"
 rand = "0.7.2"
