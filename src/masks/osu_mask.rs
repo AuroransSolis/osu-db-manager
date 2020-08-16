@@ -10,7 +10,7 @@ pub struct BeatmapMask {
     pub artist_name_unicode: bool,
     #[structopt(name = "show-song-title", long = "show-song-title")]
     pub song_title: bool,
-    #[structopt(name = "show-song_title-unicode", long = "show-song_title-unicode")]
+    #[structopt(name = "show-song-title-unicode", long = "show-song-title-unicode")]
     pub song_title_unicode: bool,
     #[structopt(name = "show-creator-name", long = "show-creator-name")]
     pub creator_name: bool,
@@ -31,8 +31,8 @@ pub struct BeatmapMask {
     #[structopt(name = "show-number-of-spinners", long = "show-number-of-spinners")]
     pub number_of_spinners: bool,
     #[structopt(
-        name = "show-last_modification-time",
-        long = "show-last_modification-time"
+        name = "show-last-modification-time",
+        long = "show-last-modification-time"
     )]
     pub last_modification_time: bool,
     #[structopt(name = "show-approach-rate", long = "show-approach-rate")]
