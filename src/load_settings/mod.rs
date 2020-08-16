@@ -308,11 +308,10 @@ pub(crate) fn is_number(s: &str) -> bool {
     for c in s.chars() {
         if c == '.' {
             period_count += 1;
-        }
-        if period_count > 1 {
+        } else if !(c.is_numeric() || c.is_ascii_hexdigit()) {
             return false;
         }
-        if !(c.is_numeric() || c.is_ascii_hexdigit()) {
+        if period_count > 1 {
             return false;
         }
     }
