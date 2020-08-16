@@ -2,125 +2,164 @@ use structopt::StructOpt;
 
 #[derive(Copy, Clone, Debug, StructOpt)]
 pub struct BeatmapMask {
-    #[structopt(long = "show-entry-size")]
+    #[structopt(name = "show-entry-size", long = "show-entry-size")]
     pub entry_size: bool,
-    #[structopt(long = "show-artist-name")]
+    #[structopt(name = "show-artist-name", long = "show-artist-name")]
     pub artist_name: bool,
-    #[structopt(long = "show-artist-name-unicode")]
+    #[structopt(name = "show-artist-name-unicode", long = "show-artist-name-unicode")]
     pub artist_name_unicode: bool,
-    #[structopt(long = "show-song-title")]
+    #[structopt(name = "show-song-title", long = "show-song-title")]
     pub song_title: bool,
-    #[structopt(long = "show-song_title-unicode")]
+    #[structopt(name = "show-song_title-unicode", long = "show-song_title-unicode")]
     pub song_title_unicode: bool,
-    #[structopt(long = "show-creator-name")]
+    #[structopt(name = "show-creator-name", long = "show-creator-name")]
     pub creator_name: bool,
-    #[structopt(long = "show-difficulty")]
+    #[structopt(name = "show-difficulty", long = "show-difficulty")]
     pub difficulty: bool,
-    #[structopt(long = "show-audio-file-name")]
+    #[structopt(name = "show-audio-file-name", long = "show-audio-file-name")]
     pub audio_file_name: bool,
-    #[structopt(long = "show-md5-beatmap-hash")]
+    #[structopt(name = "show-md5-beatmap-hash", long = "show-md5-beatmap-hash")]
     pub md5_beatmap_hash: bool,
-    #[structopt(long = "show-dotosu-file-name")]
+    #[structopt(name = "show-dotosu-file-name", long = "show-dotosu-file-name")]
     pub dotosu_file_name: bool,
-    #[structopt(long = "show-ranked-status")]
+    #[structopt(name = "show-ranked-status", long = "show-ranked-status")]
     pub ranked_status: bool,
-    #[structopt(long = "show-number-of-hitcircles")]
+    #[structopt(name = "show-number-of-hitcircles", long = "show-number-of-hitcircles")]
     pub number_of_hitcircles: bool,
-    #[structopt(long = "show-number-of-sliders")]
+    #[structopt(name = "show-number-of-sliders", long = "show-number-of-sliders")]
     pub number_of_sliders: bool,
-    #[structopt(long = "show-number-of-spinners")]
+    #[structopt(name = "show-number-of-spinners", long = "show-number-of-spinners")]
     pub number_of_spinners: bool,
-    #[structopt(long = "show-last_modification-time")]
+    #[structopt(
+        name = "show-last_modification-time",
+        long = "show-last_modification-time"
+    )]
     pub last_modification_time: bool,
-    #[structopt(long = "show-approach-rate")]
+    #[structopt(name = "show-approach-rate", long = "show-approach-rate")]
     pub approach_rate: bool,
-    #[structopt(long = "show-circle-size")]
+    #[structopt(name = "show-circle-size", long = "show-circle-size")]
     pub circle_size: bool,
-    #[structopt(long = "show-hp-drain")]
+    #[structopt(name = "show-hp-drain", long = "show-hp-drain")]
     pub hp_drain: bool,
-    #[structopt(long = "show-overall-difficulty")]
+    #[structopt(name = "show-overall-difficulty", long = "show-overall-difficulty")]
     pub overall_difficulty: bool,
-    #[structopt(long = "show-slider-velocity")]
+    #[structopt(name = "show-slider-velocity", long = "show-slider-velocity")]
     pub slider_velocity: bool,
-    #[structopt(long = "show-num-mod-combo-star-ratings-standard")]
+    #[structopt(
+        name = "show-num-mod-combo-star-ratings-standard",
+        long = "show-num-mod-combo-star-ratings-standard"
+    )]
     pub num_mod_combo_star_ratings_standard: bool,
-    #[structopt(long = "show-mod-combo-star-ratings-standard")]
+    #[structopt(
+        name = "show-mod-combo-star-ratings-standard",
+        long = "show-mod-combo-star-ratings-standard"
+    )]
     pub mod_combo_star_ratings_standard: bool,
-    #[structopt(long = "show-num-mod-combo-star-ratings-taiko")]
+    #[structopt(
+        name = "show-num-mod-combo-star-ratings-taiko",
+        long = "show-num-mod-combo-star-ratings-taiko"
+    )]
     pub num_mod_combo_star_ratings_taiko: bool,
-    #[structopt(long = "show-mod-combo-star-ratings-taiko")]
+    #[structopt(
+        name = "show-mod-combo-star-ratings-taiko",
+        long = "show-mod-combo-star-ratings-taiko"
+    )]
     pub mod_combo_star_ratings_taiko: bool,
-    #[structopt(long = "show-num-mod-combo-star-ratings-ctb")]
+    #[structopt(
+        name = "show-num-mod-combo-star-ratings-ctb",
+        long = "show-num-mod-combo-star-ratings-ctb"
+    )]
     pub num_mod_combo_star_ratings_ctb: bool,
-    #[structopt(long = "show-mod-combo-star-ratings-ctb")]
+    #[structopt(
+        name = "show-mod-combo-star-ratings-ctb",
+        long = "show-mod-combo-star-ratings-ctb"
+    )]
     pub mod_combo_star_ratings_ctb: bool,
-    #[structopt(long = "show-num-mod-combo-star-ratings-mania")]
+    #[structopt(
+        name = "show-num-mod-combo-star-ratings-mania",
+        long = "show-num-mod-combo-star-ratings-mania"
+    )]
     pub num_mod_combo_star_ratings_mania: bool,
-    #[structopt(long = "show-mod-combo-star-ratings-mania")]
+    #[structopt(
+        name = "show-mod-combo-star-ratings-mania",
+        long = "show-mod-combo-star-ratings-mania"
+    )]
     pub mod_combo_star_ratings_mania: bool,
-    #[structopt(long = "show-drain-time")]
+    #[structopt(name = "show-drain-time", long = "show-drain-time")]
     pub drain_time: bool,
-    #[structopt(long = "show-total-time")]
+    #[structopt(name = "show-total-time", long = "show-total-time")]
     pub total_time: bool,
-    #[structopt(long = "show-preview-offset-from-start-ms")]
+    #[structopt(
+        name = "show-preview-offset-from-start-ms",
+        long = "show-preview-offset-from-start-ms"
+    )]
     pub preview_offset_from_start_ms: bool,
-    #[structopt(long = "show-num-timing-points")]
+    #[structopt(name = "show-num-timing-points", long = "show-num-timing-points")]
     pub num_timing_points: bool,
-    #[structopt(long = "show-timing-points")]
+    #[structopt(name = "show-timing-points", long = "show-timing-points")]
     pub timing_points: bool,
-    #[structopt(long = "show-beatmap-id")]
+    #[structopt(name = "show-beatmap-id", long = "show-beatmap-id")]
     pub beatmap_id: bool,
-    #[structopt(long = "show-beatmap-set-id")]
+    #[structopt(name = "show-beatmap-set-id", long = "show-beatmap-set-id")]
     pub beatmap_set_id: bool,
-    #[structopt(long = "show-thread-id")]
+    #[structopt(name = "show-thread-id", long = "show-thread-id")]
     pub thread_id: bool,
-    #[structopt(long = "show-standard-grade")]
+    #[structopt(name = "show-standard-grade", long = "show-standard-grade")]
     pub standard_grade: bool,
-    #[structopt(long = "show-taiko-grade")]
+    #[structopt(name = "show-taiko-grade", long = "show-taiko-grade")]
     pub taiko_grade: bool,
-    #[structopt(long = "show-ctb-grade")]
+    #[structopt(name = "show-ctb-grade", long = "show-ctb-grade")]
     pub ctb_grade: bool,
-    #[structopt(long = "show-mania-grade")]
+    #[structopt(name = "show-mania-grade", long = "show-mania-grade")]
     pub mania_grade: bool,
-    #[structopt(long = "show-local-offset")]
+    #[structopt(name = "show-local-offset", long = "show-local-offset")]
     pub local_offset: bool,
-    #[structopt(long = "show-stack-leniency")]
+    #[structopt(name = "show-stack-leniency", long = "show-stack-leniency")]
     pub stack_leniency: bool,
-    #[structopt(long = "show-gameplay-mode")]
+    #[structopt(name = "show-gameplay-mode", long = "show-gameplay-mode")]
     pub gameplay_mode: bool,
-    #[structopt(long = "show-song-source")]
+    #[structopt(name = "show-song-source", long = "show-song-source")]
     pub song_source: bool,
-    #[structopt(long = "show-song-tags")]
+    #[structopt(name = "show-song-tags", long = "show-song-tags")]
     pub song_tags: bool,
-    #[structopt(long = "show-online-offset")]
+    #[structopt(name = "show-online-offset", long = "show-online-offset")]
     pub online_offset: bool,
-    #[structopt(long = "show-font-used-for-song-title")]
+    #[structopt(
+        name = "show-font-used-for-song-title",
+        long = "show-font-used-for-song-title"
+    )]
     pub font_used_for_song_title: bool,
-    #[structopt(long = "show-unplayed")]
+    #[structopt(name = "show-unplayed", long = "show-unplayed")]
     pub unplayed: bool,
-    #[structopt(long = "show-last-played")]
+    #[structopt(name = "show-last-played", long = "show-last-played")]
     pub last_played: bool,
-    #[structopt(long = "show-is-osz2")]
+    #[structopt(name = "show-is-osz2", long = "show-is-osz2")]
     pub is_osz2: bool,
-    #[structopt(long = "show-beatmap-folder-name")]
+    #[structopt(name = "show-beatmap-folder-name", long = "show-beatmap-folder-name")]
     pub beatmap_folder_name: bool,
-    #[structopt(long = "show-last-checked-against-repo")]
+    #[structopt(
+        name = "show-last-checked-against-repo",
+        long = "show-last-checked-against-repo"
+    )]
     pub last_checked_against_repo: bool,
-    #[structopt(long = "show-ignore-beatmap-sound")]
+    #[structopt(name = "show-ignore-beatmap-sound", long = "show-ignore-beatmap-sound")]
     pub ignore_beatmap_sound: bool,
-    #[structopt(long = "show-ignore-beatmap-skin")]
+    #[structopt(name = "show-ignore-beatmap-skin", long = "show-ignore-beatmap-skin")]
     pub ignore_beatmap_skin: bool,
-    #[structopt(long = "show-disable-storyboard")]
+    #[structopt(name = "show-disable-storyboard", long = "show-disable-storyboard")]
     pub disable_storyboard: bool,
-    #[structopt(long = "show-disable-video")]
+    #[structopt(name = "show-disable-video", long = "show-disable-video")]
     pub disable_video: bool,
-    #[structopt(long = "show-visual-override")]
+    #[structopt(name = "show-visual-override", long = "show-visual-override")]
     pub visual_override: bool,
-    #[structopt(long = "show-unknown-short")]
+    #[structopt(name = "show-unknown-short", long = "show-unknown-short")]
     pub unknown_short: bool,
-    #[structopt(long = "show-offset-from-song-start-in-editor-ms")]
+    #[structopt(
+        name = "show-offset-from-song-start-in-editor-ms",
+        long = "show-offset-from-song-start-in-editor-ms"
+    )]
     pub offset_from_song_start_in_editor_ms: bool,
-    #[structopt(long = "show-mania-scroll-speed")]
+    #[structopt(name = "show-mania-scroll-speed", long = "show-mania-scroll-speed")]
     pub mania_scroll_speed: bool,
 }
 
@@ -192,21 +231,24 @@ impl BeatmapMask {
 #[derive(Copy, Clone, Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct OsuDbMask {
-    #[structopt(long = "show-version")]
+    #[structopt(name = "show-version", long = "show-version")]
     pub version: bool,
-    #[structopt(long = "show-folder-count")]
+    #[structopt(name = "show-folder-count", long = "show-folder-count")]
     pub folder_count: bool,
-    #[structopt(long = "show-account-unlocked")]
+    #[structopt(name = "show-account-unlocked", long = "show-account-unlocked")]
     pub account_unlocked: bool,
-    #[structopt(long = "show-account-unlock-date")]
+    #[structopt(name = "show-account-unlock-date", long = "show-account-unlock-date")]
     pub account_unlock_date: bool,
-    #[structopt(long = "show-player-name")]
+    #[structopt(name = "show-player-name", long = "show-player-name")]
     pub player_name: bool,
-    #[structopt(long = "show-number-of-beatmaps")]
+    #[structopt(name = "show-number-of-beatmaps", long = "show-number-of-beatmaps")]
     pub number_of_beatmaps: bool,
     #[structopt(flatten)]
     pub beatmap_mask: BeatmapMask,
-    #[structopt(long = "show-unknown-short-or-permissions")]
+    #[structopt(
+        name = "show-unknown-short-or-permissions",
+        long = "show-unknown-short-or-permissions"
+    )]
     pub unknown_short_or_permissions: bool,
 }
 

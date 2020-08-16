@@ -3,43 +3,46 @@ use structopt::StructOpt;
 #[derive(Copy, Clone, Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct ScoreMask {
-    #[structopt(long = "show-gameplay-mode")]
+    #[structopt(name = "show-gameplay-mode", long = "show-gameplay-mode")]
     pub gameplay_mode: bool,
-    #[structopt(long = "show-score-version")]
+    #[structopt(name = "show-score-version", long = "show-score-version")]
     pub score_version: bool,
-    #[structopt(long = "show-score-md5-beatmap-hash")]
+    #[structopt(
+        name = "show-score-md5-beatmap-hash",
+        long = "show-score-md5-beatmap-hash"
+    )]
     pub score_md5_beatmap_hash: bool,
-    #[structopt(long = "show-player-name")]
+    #[structopt(name = "show-player-name", long = "show-player-name")]
     pub player_name: bool,
-    #[structopt(long = "show-md5-replay-hash")]
+    #[structopt(name = "show-md5-replay-hash", long = "show-md5-replay-hash")]
     pub md5_replay_hash: bool,
-    #[structopt(long = "show-number-of-300s")]
+    #[structopt(name = "show-number-of-300s", long = "show-number-of-300s")]
     pub number_of_300s: bool,
-    #[structopt(long = "show-number-of-100s")]
+    #[structopt(name = "show-number-of-100s", long = "show-number-of-100s")]
     pub number_of_100s: bool, // 150s in Taiko, 100s in CTB, 200s in Mania
-    #[structopt(long = "show-number-of-50s")]
+    #[structopt(name = "show-number-of-50s", long = "show-number-of-50s")]
     pub number_of_50s: bool, // small fruit in CTB, 50s in Mania
-    #[structopt(long = "show-number-of-gekis")]
+    #[structopt(name = "show-number-of-gekis", long = "show-number-of-gekis")]
     pub number_of_gekis: bool, // max 300s in Mania
-    #[structopt(long = "show-number-of-katus")]
+    #[structopt(name = "show-number-of-katus", long = "show-number-of-katus")]
     pub number_of_katus: bool, // 100s in mania
-    #[structopt(long = "show-number-of-misses")]
+    #[structopt(name = "show-number-of-misses", long = "show-number-of-misses")]
     pub number_of_misses: bool,
-    #[structopt(long = "show-replay-score")]
+    #[structopt(name = "show-replay-score", long = "show-replay-score")]
     pub replay_score: bool,
-    #[structopt(long = "show-max-combo")]
+    #[structopt(name = "show-max-combo", long = "show-max-combo")]
     pub max_combo: bool,
-    #[structopt(long = "show-perfect-combo")]
+    #[structopt(name = "show-perfect-combo", long = "show-perfect-combo")]
     pub perfect_combo: bool,
-    #[structopt(long = "show-mods-used")]
+    #[structopt(name = "show-mods-used", long = "show-mods-used")]
     pub mods_used: bool,
-    #[structopt(long = "show-empty-string")]
+    #[structopt(name = "show-empty-string", long = "show-empty-string")]
     pub empty_string: bool,
-    #[structopt(long = "show-replay-timestamp")]
+    #[structopt(name = "show-replay-timestamp", long = "show-replay-timestamp")]
     pub replay_timestamp: bool,
-    #[structopt(long = "show-negative-one")]
+    #[structopt(name = "show-negative-one", long = "show-negative-one")]
     pub negative_one: bool,
-    #[structopt(long = "show-online-score-id")]
+    #[structopt(name = "show-online-score-id", long = "show-online-score-id")]
     pub online_score_id: bool,
 }
 
@@ -70,9 +73,9 @@ impl ScoreMask {
 #[derive(Copy, Clone, Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct ScoresDbBeatmapMask {
-    #[structopt(long = "show-md5-beatmap-hash")]
+    #[structopt(name = "show-md5-beatmap-hash", long = "show-md5-beatmap-hash")]
     pub md5_beatmap_hash: bool,
-    #[structopt(long = "show-number-of-scores")]
+    #[structopt(name = "show-number-of-scores", long = "show-number-of-scores")]
     pub number_of_scores: bool,
     #[structopt(flatten)]
     pub scores_mask: ScoreMask,
@@ -87,9 +90,9 @@ impl ScoresDbBeatmapMask {
 #[derive(Copy, Clone, Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 pub struct ScoresDbMask {
-    #[structopt(long = "show-version")]
+    #[structopt(name = "show-version", long = "show-version")]
     pub version: bool,
-    #[structopt(long = "show-number-of-beatmaps")]
+    #[structopt(name = "show-number-of-beatmaps", long = "show-number-of-beatmaps")]
     pub number_of_beatmaps: bool,
     #[structopt(flatten)]
     pub beatmaps_mask: ScoresDbBeatmapMask,
