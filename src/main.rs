@@ -96,10 +96,10 @@ fn main() {
             .expect("Failed to parse database.");
         (database, None, InterfaceType::None)
     };
+    let elapsed = timer.elapsed();
+    println!("Successfully loaded database! Time taken: {:?}", elapsed);
     match interface {
         InterfaceType::None => database.display(mask),
         _ => println!("Interface {:?} not yet supported.", interface),
     }
-    let elapsed = timer.elapsed();
-    println!("Successfully loaded database! Time taken: {:?}", elapsed);
 }
