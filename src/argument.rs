@@ -114,15 +114,6 @@ pub enum MergeSearchOrInterface {
             long = "interface",
             value_name = "INTERFACE",
             possible_values(&["s", "shell", "t", "tui"]),
-            conflicts_with_all(&[
-                "merge",
-                "osu-query",
-                "collection-query",
-                "scores-query",
-                "osu-show",
-                "collection-show",
-                "scores-show",
-            ]),
             parse(try_from_str)
         )]
         interface: InterfaceType,
